@@ -14,7 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      sector_recipients: {
+        Row: {
+          sector_key: string
+          display_name: string
+          emails: string[]
+          updated_at: string
+          label: string | null
+          enabled: boolean
+          cc: string[]
+          bcc: string[]
+        }
+        Insert: {
+          sector_key: string
+          display_name?: string
+          emails?: string[]
+          updated_at?: string
+          label?: string | null
+          enabled?: boolean
+          cc?: string[]
+          bcc?: string[]
+        }
+        Update: {
+          sector_key?: string
+          display_name?: string
+          emails?: string[]
+          updated_at?: string
+          label?: string | null
+          enabled?: boolean
+          cc?: string[]
+          bcc?: string[]
+        }
+      }
+      email_logs: {
+        Row: {
+          id: string
+          sector_key: string
+          recipient: string
+          subject: string
+          sent_at: string
+          success: boolean
+          error_message: string | null
+        }
+        Insert: { sector_key: string; recipient: string; subject?: string; success?: boolean; error_message?: string | null }
+        Update: { sector_key?: string; recipient?: string; subject?: string; sent_at?: string; success?: boolean; error_message?: string | null }
+      }
+      admin_settings: {
+        Row: { key: string; value: Json; updated_at: string }
+        Insert: { key: string; value?: Json; updated_at?: string }
+        Update: { key?: string; value?: Json; updated_at?: string }
+      }
     }
     Views: {
       [_ in never]: never

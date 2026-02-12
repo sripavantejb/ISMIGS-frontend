@@ -6,6 +6,7 @@ import {
   Legend, BarChart, Bar, AreaChart, Area, Cell,
 } from "recharts";
 import { useNASData } from "@/hooks/useMacroData";
+import { useForecast } from "@/hooks/useForecast";
 import {
   parseFiscalYearToStartYear,
 } from "@/utils/dates";
@@ -18,6 +19,21 @@ import {
 import { detectGdpRisk } from "@/utils/riskRules";
 import { FilterBar } from "@/components/FilterBar";
 import { AlertBanner } from "@/components/AlertBanner";
+import { GdpIntelligenceBriefing } from "@/components/GdpIntelligenceBriefing";
+import { PredictionCard } from "@/components/PredictionCard";
+import { ForecastChart } from "@/components/ForecastChart";
+import { GDP_COMPONENTS_IMPACT } from "@/data/gdpComponentsImpact";
+import {
+  getGDPComponentImpact,
+  computeYoYGrowthFromTrend,
+} from "@/utils/sectorImpactLogic";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 const tooltipStyle = {
   backgroundColor: "hsl(222 44% 9%)",
@@ -39,12 +55,14 @@ function toTrillions(v: number): number {
 const GDPNationalAccounts = () => {
   const [selectedRevision, setSelectedRevision] = useState("Latest per year");
   const [pendingRevision, setPendingRevision] = useState("Latest per year");
+  const [gdpComponentForModal, setGdpComponentForModal] = useState<string | null>(null);
 
   // indicator_code: 1=GVA, 2=Net Taxes, 5=GDP, 22=GDP Growth
   const { data: gvaRaw, isLoading: l1 } = useNASData(1);
   const { data: gdpRaw, isLoading: l2 } = useNASData(5);
   const { data: taxRaw, isLoading: l3 } = useNASData(2);
   const { data: growthRaw, isLoading: l4 } = useNASData(22);
+  const { gdp: gdpForecast } = useForecast();
 
   const isLoading = l1 || l2 || l3 || l4;
 
@@ -184,6 +202,51 @@ const GDPNationalAccounts = () => {
   const latestGVA = gvaTrend[gvaTrend.length - 1];
   const latestTax = taxTrend[taxTrend.length - 1];
 
+  const gdpInsightContext = useMemo(
+    () => ({
+      sectorName: "GDP",
+      gdpGrowth:
+        latestGrowth?.manualGrowthPct != null
+          ? `${latestGrowth.manualGrowthPct.toFixed(2)}%`
+          : latestGrowth?.officialGrowthPct != null
+            ? `${latestGrowth.officialGrowthPct.toFixed(2)}%`
+            : undefined,
+      inflationTrend: undefined,
+    }),
+    [latestGrowth]
+  );
+
+  const gvaGrowthPct = useMemo(
+    () => computeYoYGrowthFromTrend(gvaTrend),
+    [gvaTrend]
+  );
+  const taxGrowthPct = useMemo(
+    () => computeYoYGrowthFromTrend(taxTrend),
+    [taxTrend]
+  );
+  const gdpGrowthPct =
+    latestGrowth?.manualGrowthPct != null
+      ? latestGrowth.manualGrowthPct
+      : latestGrowth?.officialGrowthPct ?? null;
+
+  const gdpImpactInputs = useMemo(
+    () => ({
+      gvaGrowthPct,
+      taxGrowthPct,
+      gdpGrowthPct,
+    }),
+    [gvaGrowthPct, taxGrowthPct, gdpGrowthPct]
+  );
+
+  const gdpComponentImpacts = useMemo(
+    () =>
+      GDP_COMPONENTS_IMPACT.map((component) => ({
+        ...component,
+        impact: getGDPComponentImpact(component, gdpImpactInputs),
+      })),
+    [gdpImpactInputs]
+  );
+
   const handleApply = () => setSelectedRevision(pendingRevision);
   const handleReset = () => {
     setPendingRevision("Latest per year");
@@ -195,10 +258,108 @@ const GDPNationalAccounts = () => {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Gross Domestic Product (GDP)</h1>
-          <p className="text-sm text-muted-foreground">Annual GDP level and growth, MoSPI NAS</p>
+          <p className="text-sm text-muted-foreground">National accounts: GDP, growth, and GVA by industry.</p>
         </div>
         {isLoading && <Loader2 className="w-5 h-5 text-primary animate-spin" />}
       </div>
+
+      {/* Insights — GDP intelligence briefing */}
+      {gdpInsightContext.gdpGrowth && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-border/60 bg-card/30 p-5"
+        >
+          <GdpIntelligenceBriefing context={gdpInsightContext} />
+        </motion.div>
+      )}
+
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-4"
+      >
+        <h2 className="text-lg font-semibold text-foreground">Sectors affected</h2>
+        <p className="text-sm text-muted-foreground">
+          Click a card for impact and solutions.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {gdpComponentImpacts.map(({ name, impact }, index) => (
+            <motion.button
+              key={name}
+              type="button"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 * index }}
+              onClick={() => setGdpComponentForModal(name)}
+              className="w-full flex items-center gap-3 p-4 text-left rounded-xl border border-border/60 bg-card/50 hover:bg-muted/30 hover:border-primary/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <Building2 className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col gap-1">
+                <span className="font-medium text-foreground truncate">{name}</span>
+                <span
+                  className={cn(
+                    "text-xs font-medium w-fit rounded-full px-2 py-0.5",
+                    impact.direction === "negative" &&
+                      "bg-destructive/15 text-destructive border border-destructive/30",
+                    impact.direction === "positive" &&
+                      "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
+                    impact.direction === "neutral" &&
+                      "bg-muted text-muted-foreground border border-border"
+                  )}
+                >
+                  {impact.direction === "positive" ? "Positive impact" : impact.direction === "negative" ? "Negative impact" : "Neutral"}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {impact.metricLabel}: {impact.metricValue}
+                </span>
+              </div>
+            </motion.button>
+          ))}
+        </div>
+      </motion.section>
+
+      <Dialog open={!!gdpComponentForModal} onOpenChange={(open) => !open && setGdpComponentForModal(null)}>
+        <DialogContent className="sm:max-w-md rounded-xl border border-border/60 bg-card shadow-xl" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="text-left flex items-center gap-2">
+              {gdpComponentForModal && (
+                <>
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <Building2 className="h-4 w-4" />
+                  </div>
+                  {gdpComponentForModal}
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {gdpComponentForModal && (() => {
+            const item = gdpComponentImpacts.find((c) => c.name === gdpComponentForModal);
+            if (!item) return null;
+            const { impact } = item;
+            return (
+              <div className="space-y-3 pt-2">
+                <p className="text-sm text-foreground">
+                  <strong>Affected:</strong> {impact.affected ? "Yes" : "No"}.
+                </p>
+                <p className="text-sm text-foreground">
+                  <strong>Impact:</strong> {impact.direction === "positive" ? "Positive" : impact.direction === "negative" ? "Negative" : "Neutral"}.
+                </p>
+                <p className="text-sm text-foreground">
+                  Based on current data: {impact.metricLabel} is {impact.metricValue}.
+                </p>
+                {impact.growthPct != null && impact.growthPct < 4 && (
+                  <p className="text-xs text-muted-foreground">
+                    Growth below 4% may signal slowdown (policy threshold).
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       <FilterBar
         filters={[
@@ -324,6 +485,54 @@ const GDPNationalAccounts = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Future predictions */}
+      {gdpForecast &&
+        gdpForecast.forecastLine &&
+        gdpForecast.forecastLine.length > 0 &&
+        (gdpForecast.history?.length ?? 0) > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="space-y-2"
+          >
+            <h3 className="text-sm font-medium text-foreground px-1">Future predictions</h3>
+            <PredictionCard
+              title="GDP outlook"
+              status={gdpForecast.status === "pressure" ? "pressure" : "stable"}
+              metrics={[
+                {
+                  label: "Latest growth (YoY %)",
+                  value:
+                    gdpForecast.latestGrowth != null
+                      ? `${gdpForecast.latestGrowth >= 0 ? "+" : ""}${gdpForecast.latestGrowth.toFixed(1)}%`
+                      : "—",
+                },
+                {
+                  label: `Projected GDP (${gdpForecast.nextYear})`,
+                  value:
+                    gdpForecast.projectedConstant != null
+                      ? `₹ ${toTrillions(gdpForecast.projectedConstant).toFixed(1)} L Cr`
+                      : "—",
+                },
+              ]}
+            >
+              <ForecastChart
+                data={gdpForecast.forecastLine as Record<string, unknown>[]}
+                xKey="x"
+                actualKey="constantPrice"
+                forecastKey="constantPrice"
+                actualName="GDP (₹ L Cr, actual)"
+                forecastName="GDP (₹ L Cr, projected)"
+                historyLength={gdpForecast.history?.length ?? 0}
+                height={280}
+                historyColor="hsl(217 91% 60%)"
+                forecastColor="hsl(187 92% 50%)"
+              />
+            </PredictionCard>
+          </motion.div>
+        )}
 
       <div className="glass-card p-4">
         <p className="text-xs text-muted-foreground font-mono">

@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, useParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, Building2 } from "lucide-react";
 import { commodityNameToSlug, resolveCommodityFromSlug } from "@/utils/energySlug";
 import { EnergyCommodityHero } from "@/components/EnergyCommodityHero";
 import {
@@ -17,7 +17,7 @@ import {
   Bar,
 } from "recharts";
 import { useSupplyKToE, useConsumptionKToE, useSupplyPetaJoules } from "@/hooks/useMacroData";
-import { buildEnergyAnalysis } from "@/utils/energyLogic";
+import { buildEnergyAnalysis, type SupplyRow } from "@/utils/energyLogic";
 import { buildEnergyForecastForRows } from "@/utils/forecastEnergy";
 import {
   getEnergyCommodityAdminWarnings,
@@ -29,7 +29,15 @@ import { AlertBanner } from "@/components/AlertBanner";
 import { PredictionCard } from "@/components/PredictionCard";
 import { ForecastChart } from "@/components/ForecastChart";
 import { EnergyIntelligenceBriefing } from "@/components/EnergyIntelligenceBriefing";
+import { getCommodityImpact } from "@/data/energyCommodityImpact";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const tooltipStyle = {
   backgroundColor: "hsl(222 44% 9%)",
@@ -57,6 +65,7 @@ const EnergyAnalytics = () => {
   const [selectedSector, setSelectedSector] = useState("ALL");
   const [pendingYear, setPendingYear] = useState("ALL");
   const [pendingSector, setPendingSector] = useState("ALL");
+  const [energySectorForModal, setEnergySectorForModal] = useState<string | null>(null);
 
   const { data: supplyKToe, isLoading: loadingSupply } = useSupplyKToE();
   const { data: consumptionKToe, isLoading: loadingCons } = useConsumptionKToE();
@@ -85,6 +94,12 @@ const EnergyAnalytics = () => {
       navigate("/energy", { replace: true });
     }
   }, [commoditySlug, commodityList, navigate]);
+
+  useEffect(() => {
+    if (!commoditySlug && !isLoading && commodityList.length > 0) {
+      navigate(`/energy/${commodityNameToSlug(commodityList[0])}`, { replace: true });
+    }
+  }, [commoditySlug, isLoading, commodityList, navigate]);
 
   const filteredSupply = useMemo(() => {
     if (!selectedCommodity) return [];
@@ -117,12 +132,12 @@ const EnergyAnalytics = () => {
   }, [pjRows, selectedCommodity, selectedYear, selectedSector]);
 
   const analysis = useMemo(
-    () => buildEnergyAnalysis(filteredSupply, filteredConsumption),
+    () => buildEnergyAnalysis(filteredSupply as SupplyRow[], filteredConsumption as SupplyRow[]),
     [filteredSupply, filteredConsumption]
   );
 
   const commodityForecast = useMemo(
-    () => buildEnergyForecastForRows(filteredSupply, filteredConsumption),
+    () => buildEnergyForecastForRows(filteredSupply as SupplyRow[], filteredConsumption as SupplyRow[]),
     [filteredSupply, filteredConsumption]
   );
 
@@ -196,11 +211,31 @@ const EnergyAnalytics = () => {
     return Array.from(bySector.entries()).map(([name, total]) => ({ name, total }));
   }, [filteredConsumption]);
 
-  const sectorsAffected = useMemo(() => {
+  const sectorsAffectedFromData = useMemo(() => {
     const set = new Set<string>();
     filteredConsumption.forEach((r) => r.end_use_sector && set.add(r.end_use_sector));
     return Array.from(set).sort();
   }, [filteredConsumption]);
+
+  const commodityImpact = useMemo(
+    () => getCommodityImpact(selectedCommodity),
+    [selectedCommodity]
+  );
+
+  const sectorsAffected =
+    sectorsAffectedFromData.length > 0 ? sectorsAffectedFromData : commodityImpact.sectorsAffected;
+
+  const energyImpactStatus = useMemo(() => {
+    if (!commodityForecast) return { label: "Neutral", variant: "neutral" as const };
+    switch (commodityForecast.status) {
+      case "pressure":
+        return { label: "Negative", variant: "negative" as const };
+      case "surplus":
+        return { label: "Positive", variant: "positive" as const };
+      default:
+        return { label: "Neutral", variant: "neutral" as const };
+    }
+  }, [commodityForecast]);
 
   const outlookContext = useMemo(
     () =>
@@ -273,7 +308,7 @@ const EnergyAnalytics = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Energy Analytics</h1>
           <p className="text-sm text-muted-foreground">
-            Choose a commodity from the left sidebar to see production, consumption, outlook, and impact.
+            Production, consumption, and impact by commodity. Select from the sidebar.
           </p>
         </div>
         {isAdminView && (
@@ -290,7 +325,7 @@ const EnergyAnalytics = () => {
           className="glass-card p-8 space-y-4"
         >
           <p className="text-base text-foreground text-center">
-            Choose a commodity from the left sidebar (Coal, Crude Oil, Electricity, etc.) to see production, consumption, outlook, and impact.
+            Select a commodity from the sidebar to see production, consumption, and impact.
           </p>
           <div className="flex flex-wrap justify-center gap-2 pt-2">
             {commodityList.map((name) => (
@@ -519,26 +554,102 @@ const EnergyAnalytics = () => {
             </motion.div>
           )}
 
-          {/* Sectors affected */}
+          {/* Sectors affected — cards + popup (data-driven sectors, status from forecast) */}
           {sectorsAffected.length > 0 && (
-            <motion.div
+            <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="glass-card p-5"
+              className="space-y-4"
             >
-              <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-3">
-                Sectors affected by {selectedCommodity}
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {sectorsAffected.map((s) => (
-                  <Badge key={s} variant="outline" className="text-sm">
-                    {s}
-                  </Badge>
+              <h3 className="text-lg font-semibold text-foreground">Sectors affected</h3>
+              <p className="text-sm text-muted-foreground">
+                Industries most impacted by {selectedCommodity}. Click a card for impact and solutions.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {sectorsAffected.map((sectorName, index) => (
+                  <motion.button
+                    key={sectorName}
+                    type="button"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 * index }}
+                    onClick={() => setEnergySectorForModal(sectorName)}
+                    className="w-full flex items-center gap-3 p-4 text-left rounded-xl border border-border/60 bg-card/50 hover:bg-muted/30 hover:border-primary/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                      <Building2 className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col gap-1">
+                      <span className="font-medium text-foreground truncate">{sectorName}</span>
+                      <span
+                        className={cn(
+                          "text-xs font-medium w-fit rounded-full px-2 py-0.5",
+                          energyImpactStatus.variant === "negative" &&
+                            "bg-destructive/15 text-destructive border border-destructive/30",
+                          energyImpactStatus.variant === "positive" &&
+                            "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
+                          energyImpactStatus.variant === "neutral" &&
+                            "bg-muted text-muted-foreground border border-border"
+                        )}
+                      >
+                        {energyImpactStatus.label}
+                      </span>
+                      {commodityForecast && (
+                        <span className="text-xs text-muted-foreground">
+                          Supply/consumption: {commodityForecast.status}
+                        </span>
+                      )}
+                    </div>
+                  </motion.button>
                 ))}
               </div>
-            </motion.div>
+            </motion.section>
           )}
+
+          <Dialog open={!!energySectorForModal} onOpenChange={(open) => !open && setEnergySectorForModal(null)}>
+            <DialogContent className="sm:max-w-md rounded-xl border border-border/60 bg-card shadow-xl" aria-describedby={undefined}>
+              <DialogHeader>
+                <DialogTitle className="text-left flex items-center gap-2">
+                  {energySectorForModal && (
+                    <>
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      {energySectorForModal}
+                    </>
+                  )}
+                </DialogTitle>
+              </DialogHeader>
+              {energySectorForModal && selectedCommodity && (
+                <div className="space-y-4 pt-2">
+                  <p className="text-sm text-foreground">
+                    <strong>Affected:</strong> Yes — this sector consumes {selectedCommodity}.
+                  </p>
+                  <p className="text-sm text-foreground">
+                    <strong>Impact:</strong> {energyImpactStatus.label}.
+                  </p>
+                  {commodityForecast ? (
+                    <>
+                      <p className="text-sm text-foreground">
+                        Current outlook: {commodityForecast.status === "pressure" ? "Pressure" : commodityForecast.status === "surplus" ? "Surplus" : "Stable"}.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Supply/consumption ratio (latest): {analysis.latest?.ratio != null ? analysis.latest.ratio.toFixed(2) : "—"}
+                        {commodityForecast.projectedRatio != null && (
+                          <> · Projected ratio: {commodityForecast.projectedRatio.toFixed(2)}</>
+                        )}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Insufficient data for impact direction.
+                    </p>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* Prediction */}
           {commodityForecast && (

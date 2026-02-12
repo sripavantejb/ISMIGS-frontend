@@ -2,7 +2,7 @@ import { buildEnergyAnalysis } from "./energyLogic";
 import { linearRegression } from "./regression";
 
 interface SupplyRow {
-  year: string;
+  year?: string;
   value?: unknown;
   [key: string]: unknown;
 }

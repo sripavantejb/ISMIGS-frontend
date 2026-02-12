@@ -51,6 +51,8 @@ export async function generateOutlook(sectorData: SectorData): Promise<string> {
   if (gdpGrowth && gdpGrowth !== "N/A") dataPoints.push(`GDP growth: ${gdpGrowth}`);
   if (energyRatio && energyRatio !== "N/A") dataPoints.push(`Energy balance ratio: ${energyRatio}`);
   if (industrialGrowth && industrialGrowth !== "N/A") dataPoints.push(`Industrial growth: ${industrialGrowth}`);
+  if (sectorData?.currentIIP) dataPoints.push(`Current IIP index: ${sectorData.currentIIP}`);
+  if (sectorData?.avgMonthlyGrowth) dataPoints.push(`Average monthly growth: ${sectorData.avgMonthlyGrowth}%`);
   if (inflationTrend && inflationTrend !== "N/A") dataPoints.push(`Inflation trend: ${inflationTrend}`);
   if (supplyTrend) dataPoints.push(`Supply trend: ${supplyTrend}`);
   if (consumptionLevel) dataPoints.push(`Consumption level: ${consumptionLevel}`);
@@ -66,6 +68,7 @@ export async function generateOutlook(sectorData: SectorData): Promise<string> {
   const commodity = commodityName || sectorName;
   const isEnergy = isEnergyCommodity === "true";
   const isWpi = isWpiInflation === "true";
+  const isIip = sectorData?.currentIIP != null || (industrialGrowth != null && sectorData?.trendDirection != null);
   const wpiName = wpiMajorGroup || sectorName;
 
   const prompt = isWpi
@@ -85,6 +88,30 @@ Data:
 ${dataPoints.join("\n")}
 
 Output the briefing in the exact format specified in your instructions: Key Trend, Why This Is Happening, Sectors Most Affected, What This Means for You (Daily Life Impact), Risk Assessment, Policy Insight. Use numbers from the input. Bullet points only. Data-driven and executive-level.
+`
+    : isIip
+    ? `
+Generate an IIP (Index of Industrial Production) INTELLIGENCE BRIEFING (max 250 words) for ${sectorName} based strictly on the following data.
+
+Data:
+${dataPoints.join("\n")}
+
+Output the briefing in this exact format with these section headers. Use bullet points under each. Data-driven and executive-level.
+
+• Key Trend:
+  - Summarise the latest index level, growth rate, and trend direction.
+
+• Why This Is Happening:
+  - Explain sector-specific or economy-wide drivers.
+
+• What This Means for You (Daily Life Impact):
+  - In simple language: jobs, prices, and growth implications.
+
+• Risk Assessment:
+  - Short-term risk level and what to monitor.
+
+• Policy Insight:
+  - One concrete, actionable recommendation.
 `
     : `
 Based on the following economic data:
@@ -209,6 +236,20 @@ Rules:
 - Keep it sharp and executive-level.
 
 The goal is to produce a decision-ready intelligence briefing that explains not just trends but economic dependency chains and real-world impact.`
+    : isIip
+    ? `You are an Industrial Production (IIP) Intelligence Analyst.
+
+Generate a concise intelligence briefing (max 250 words) based strictly on the provided IIP data (index, growth, trend).
+
+Structure the output exactly with these section headers. Use • for section headers and - for list items. No decorative dashes or numbered lists.
+
+• Key Trend:
+• Why This Is Happening:
+• What This Means for You (Daily Life Impact):
+• Risk Assessment:
+• Policy Insight:
+
+Be data-driven, use numbers from input, neutral and suitable for a government dashboard.`
     : "You are an economic analyst writing neutral, public-facing summaries for a government statistics dashboard.";
 
   const response = await fetch("/api/openai/v1/chat/completions", {
@@ -220,7 +261,7 @@ The goal is to produce a decision-ready intelligence briefing that explains not 
         { role: "system", content: systemContent },
         { role: "user", content: prompt },
       ],
-      max_tokens: isEnergy || isWpi ? 550 : 220,
+      max_tokens: isEnergy || isWpi || isIip ? 550 : 220,
       temperature: 0.4,
     }),
   });

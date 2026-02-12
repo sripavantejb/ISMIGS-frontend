@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import Overview from "./pages/Overview";
@@ -18,6 +18,13 @@ import CPIOutlook from "./pages/CPIOutlook";
 import RiskIntelligence from "./pages/RiskIntelligence";
 import ComingSoon from "./pages/ComingSoon";
 import NotFound from "./pages/NotFound";
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminSectors from "./pages/admin/AdminSectors";
+import AdminEmailLogs from "./pages/admin/AdminEmailLogs";
+import AdminSettings from "./pages/admin/AdminSettings";
+import AdminDigest from "./pages/admin/AdminDigest";
 
 const queryClient = new QueryClient();
 
@@ -39,15 +46,25 @@ const App = () => (
                 <Route path="/" element={<Overview />} />
                 <Route path="/energy-map" element={<EnergyMap />} />
                 <Route path="/energy/:commoditySlug?" element={<EnergyAnalytics />} />
-                <Route path="/iip" element={<IndustrialProduction />} />
+                <Route path="/iip/:categorySlug?" element={<IndustrialProduction />} />
                 <Route path="/wpi/:majorGroupSlug?" element={<InflationWPI />} />
                 <Route path="/gdp" element={<GDPNationalAccounts />} />
-                <Route path="/gva" element={<GVAPage />} />
+                <Route path="/gva/:industrySlug?" element={<GVAPage />} />
                 <Route path="/predictions" element={<PredictionsPage />} />
                 <Route path="/cpi-map" element={<CPIMap />} />
                 <Route path="/cpi-outlook" element={<CPIOutlook />} />
                 <Route path="/risk-intelligence" element={<RiskIntelligence />} />
                 <Route path="/explorer" element={<ComingSoon title="Data Explorer" />} />
+                <Route path="/admin" element={<Outlet />}>
+                  <Route index element={<AdminLogin />} />
+                  <Route element={<AdminLayout />}>
+                    <Route path="dashboard" element={<AdminDashboard />} />
+                    <Route path="sectors" element={<AdminSectors />} />
+                    <Route path="logs" element={<AdminEmailLogs />} />
+                    <Route path="digest" element={<AdminDigest />} />
+                    <Route path="settings" element={<AdminSettings />} />
+                  </Route>
+                </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

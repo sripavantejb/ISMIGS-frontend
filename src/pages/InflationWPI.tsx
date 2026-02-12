@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Loader2, TrendingUp, TrendingDown, Flame, Wheat, Factory } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Flame, Wheat, Factory, Building2 } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -35,6 +35,14 @@ import { WpiIntelligenceBriefing } from "@/components/WpiIntelligenceBriefing";
 import { useForecast } from "@/hooks/useForecast";
 import { PredictionCard } from "@/components/PredictionCard";
 import { ForecastChart } from "@/components/ForecastChart";
+import { getWPIMajorGroupImpact } from "@/data/wpiMajorGroupImpact";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 const MONTH_ORDER = [
   "January", "February", "March", "April", "May", "June",
@@ -65,6 +73,7 @@ const InflationWPI = () => {
   const [pendingSubgroup, setPendingSubgroup] = useState("ALL");
   const [pendingSubSubgroup, setPendingSubSubgroup] = useState("ALL");
   const [pendingItem, setPendingItem] = useState("ALL");
+  const [wpiSectorForModal, setWpiSectorForModal] = useState<string | null>(null);
 
   const allRows = useMemo(
     () => (wpiRaw ? normalizeWpiRows(wpiRaw as Record<string, unknown>[]) : []),
@@ -87,11 +96,22 @@ const InflationWPI = () => {
     [selectedMajorGroupDisplay]
   );
 
+  const majorGroupImpact = useMemo(
+    () => getWPIMajorGroupImpact(selectedMajorGroupDisplay ?? null),
+    [selectedMajorGroupDisplay]
+  );
+
   useEffect(() => {
     if (majorGroupSlug && allRows.length > 0 && !selectedMajorGroupDisplay) {
       navigate("/wpi", { replace: true });
     }
   }, [majorGroupSlug, allRows.length, selectedMajorGroupDisplay, navigate]);
+
+  useEffect(() => {
+    if (!majorGroupSlug && WPI_MAJOR_GROUP_LIST.length > 0) {
+      navigate(`/wpi/${majorGroupNameToSlug(WPI_MAJOR_GROUP_LIST[0])}`, { replace: true });
+    }
+  }, [majorGroupSlug, navigate]);
 
   const baseRows = useMemo(() => {
     if (!apiMajorGroupValue) return allRows;
@@ -186,6 +206,14 @@ const InflationWPI = () => {
     }),
     [selectedMajorGroupDisplay, latestMonth]
   );
+
+  const wpiImpactStatus = useMemo(() => {
+    const pct = latestMonth?.inflationPct;
+    if (pct == null || !Number.isFinite(pct)) return { label: "Neutral", variant: "neutral" as const };
+    if (pct > 6) return { label: "Negative", variant: "negative" as const };
+    if (pct < 3) return { label: "Positive", variant: "positive" as const };
+    return { label: "Neutral", variant: "neutral" as const };
+  }, [latestMonth?.inflationPct]);
 
   const overallWPI = useMemo(() => {
     const filtered = baseRows.filter((r) => !r.group && !r.subgroup);
@@ -291,9 +319,11 @@ const InflationWPI = () => {
 
   return (
     <div className="min-h-screen p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">{selectedMajorGroupDisplay}</h1>
-        <p className="text-sm text-muted-foreground">WPI inflation trends for this category</p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Inflation (WPI)</h1>
+          <p className="text-sm text-muted-foreground">Wholesale price inflation by category. Select from the sidebar.</p>
+        </div>
       </div>
 
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
@@ -317,6 +347,88 @@ const InflationWPI = () => {
           />
         </motion.div>
       )}
+
+      {selectedMajorGroupDisplay && majorGroupImpact.sectorsAffected.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-4"
+        >
+          <h2 className="text-lg font-semibold text-foreground">Sectors affected</h2>
+          <p className="text-sm text-muted-foreground">
+            Click a card for impact and solutions.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {majorGroupImpact.sectorsAffected.map((sectorName, index) => (
+              <motion.button
+                key={sectorName}
+                type="button"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 * index }}
+                onClick={() => setWpiSectorForModal(sectorName)}
+                className="w-full flex items-center gap-3 p-4 text-left rounded-xl border border-border/60 bg-card/50 hover:bg-muted/30 hover:border-primary/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <span className="font-medium text-foreground truncate">{sectorName}</span>
+                  <span
+                    className={cn(
+                      "text-xs font-medium w-fit rounded-full px-2 py-0.5",
+                      wpiImpactStatus.variant === "negative" &&
+                        "bg-destructive/15 text-destructive border border-destructive/30",
+                      wpiImpactStatus.variant === "positive" &&
+                        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
+                      wpiImpactStatus.variant === "neutral" &&
+                        "bg-muted text-muted-foreground border border-border"
+                    )}
+                  >
+                    {wpiImpactStatus.label}
+                  </span>
+                  {latestMonth?.inflationPct != null && (
+                    <span className="text-xs text-muted-foreground">
+                      MoM inflation: {latestMonth.inflationPct.toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </motion.section>
+      )}
+
+      <Dialog open={!!wpiSectorForModal} onOpenChange={(open) => !open && setWpiSectorForModal(null)}>
+        <DialogContent className="sm:max-w-md rounded-xl border border-border/60 bg-card shadow-xl" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="text-left flex items-center gap-2">
+              {wpiSectorForModal && (
+                <>
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <Building2 className="h-4 w-4" />
+                  </div>
+                  {wpiSectorForModal}
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {wpiSectorForModal && selectedMajorGroupDisplay && (
+            <div className="space-y-3 pt-2">
+              <p className="text-sm text-foreground">
+                <strong>Affected:</strong> Yes — this sector is linked to WPI major group {selectedMajorGroupDisplay}.
+              </p>
+              <p className="text-sm text-foreground">
+                <strong>Impact:</strong> {wpiImpactStatus.label}.
+              </p>
+              <p className="text-sm text-foreground">
+                Major group {selectedMajorGroupDisplay} inflation (latest):{" "}
+                {latestMonth?.inflationPct != null ? `${latestMonth.inflationPct.toFixed(2)}%` : "—"} MoM.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <FilterBar
         filters={[

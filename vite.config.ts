@@ -26,12 +26,7 @@ export default defineConfig(({ mode }) => {
         overlay: false,
       },
       proxy: {
-        "/mospi": {
-          target: "https://api.mospi.gov.in",
-          changeOrigin: true,
-          secure: true,
-          rewrite: (path) => path.replace(/^\/mospi/, ""),
-        },
+        // More specific path first so /api/openai goes to OpenAI, not localhost:3001
         "/api/openai": {
           target: "https://api.openai.com",
           changeOrigin: true,
@@ -44,6 +39,16 @@ export default defineConfig(({ mode }) => {
               }
             });
           },
+        },
+        "/api": {
+          target: "http://localhost:3001",
+          changeOrigin: true,
+        },
+        "/mospi": {
+          target: "https://api.mospi.gov.in",
+          changeOrigin: true,
+          secure: true,
+          rewrite: (path) => path.replace(/^\/mospi/, ""),
         },
       },
     },

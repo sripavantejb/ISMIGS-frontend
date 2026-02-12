@@ -1,8 +1,8 @@
 import { toNumber } from "./numbers";
 import { parseFiscalYearToStartYear } from "./dates";
 
-interface SupplyRow {
-  year: string;
+export interface SupplyRow {
+  year?: string;
   value?: unknown;
   [key: string]: unknown;
 }
@@ -14,6 +14,7 @@ export function buildEnergyAnalysis(supplyRows: SupplyRow[], consRows: SupplyRow
   >();
 
   supplyRows.forEach((r) => {
+    if (!r.year) return;
     const year = parseFiscalYearToStartYear(r.year);
     const value = toNumber(r.value);
     if (!Number.isFinite(year) || !Number.isFinite(value)) return;
@@ -29,6 +30,7 @@ export function buildEnergyAnalysis(supplyRows: SupplyRow[], consRows: SupplyRow
   });
 
   consRows.forEach((r) => {
+    if (!r.year) return;
     const year = parseFiscalYearToStartYear(r.year);
     const value = toNumber(r.value);
     if (!Number.isFinite(year) || !Number.isFinite(value)) return;
