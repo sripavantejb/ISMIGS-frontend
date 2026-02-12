@@ -24,6 +24,7 @@ import AdminSectors from "./pages/admin/AdminSectors";
 import AdminEmailLogs from "./pages/admin/AdminEmailLogs";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminDigest from "./pages/admin/AdminDigest";
+import ApprovalPage from "./pages/ApprovalPage";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="/cpi-outlook" element={<CPIOutlook />} />
                 <Route path="/risk-intelligence" element={<RiskIntelligence />} />
                 <Route path="/explorer" element={<ComingSoon title="Data Explorer" />} />
+                <Route path="/approve" element={<ApprovalPage />} />
                 <Route path="/admin" element={<Outlet />}>
                   <Route index element={<Navigate to="/admin/dashboard" replace />} />
                   <Route element={<AdminLayout />}>
