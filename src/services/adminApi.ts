@@ -65,7 +65,11 @@ export async function login(username: string, password: string): Promise<{ token
     body: JSON.stringify({ username, password }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? "Login failed");
+  if (!res.ok) {
+    const err = new Error(data.error ?? "Login failed") as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 

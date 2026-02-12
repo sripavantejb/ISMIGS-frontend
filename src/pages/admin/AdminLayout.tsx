@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation, Outlet, NavLink } from "react-router-dom";
+import { useLocation, Outlet, NavLink, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Mail, List, Settings, LogOut, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { getStoredToken, clearStoredToken, fetchMe } from "@/services/adminApi";
+import { clearStoredToken } from "@/services/adminApi";
 
 const navItems = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -16,31 +15,11 @@ const navItems = [
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    const token = getStoredToken();
-    if (!token) {
-      navigate("/admin", { replace: true });
-      setChecking(false);
-      return;
-    }
-    fetchMe()
-      .then(() => setChecking(false))
-      .catch(() => {
-        clearStoredToken();
-        navigate("/admin", { replace: true });
-        setChecking(false);
-      });
-  }, [navigate]);
 
   const handleLogout = () => {
     clearStoredToken();
-    navigate("/admin", { replace: true });
+    navigate("/", { replace: true });
   };
-
-  if (!getStoredToken()) return null;
-  if (checking) return null;
 
   return (
     <div className="min-h-screen p-6 flex flex-col">

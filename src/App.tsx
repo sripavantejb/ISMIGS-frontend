@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import Overview from "./pages/Overview";
@@ -18,7 +18,6 @@ import CPIOutlook from "./pages/CPIOutlook";
 import RiskIntelligence from "./pages/RiskIntelligence";
 import ComingSoon from "./pages/ComingSoon";
 import NotFound from "./pages/NotFound";
-import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminSectors from "./pages/admin/AdminSectors";
@@ -56,7 +55,7 @@ const App = () => (
                 <Route path="/risk-intelligence" element={<RiskIntelligence />} />
                 <Route path="/explorer" element={<ComingSoon title="Data Explorer" />} />
                 <Route path="/admin" element={<Outlet />}>
-                  <Route index element={<AdminLogin />} />
+                  <Route index element={<Navigate to="/admin/dashboard" replace />} />
                   <Route element={<AdminLayout />}>
                     <Route path="dashboard" element={<AdminDashboard />} />
                     <Route path="sectors" element={<AdminSectors />} />

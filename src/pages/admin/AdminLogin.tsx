@@ -32,11 +32,12 @@ export default function AdminLogin() {
       setStoredToken(token);
       navigate("/admin/dashboard", { replace: true });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
+      const e = err as Error & { status?: number };
+      const is401 = e.status === 401;
       setError(
-        msg.includes("fetch") || msg.includes("Failed") || msg.includes("Network")
-          ? "Cannot reach server. Start the backend: cd backend && npm run dev"
-          : "Invalid username or password."
+        is401
+          ? "Invalid username or password."
+          : "Cannot reach the backend. Check that VITE_API_URL is set to your backend URL (e.g. https://ismigs-backend.vercel.app) and redeploy the frontend."
       );
     } finally {
       setLoading(false);
