@@ -1,5 +1,6 @@
 /**
- * Admin backend API client. In dev, Vite proxies /api to the backend (localhost:3001).
+ * Admin backend API client. Backend URL is VITE_API_URL (e.g. https://ismigs-backend.vercel.app).
+ * When unset in dev, Vite proxies /api to localhost:3001.
  * Auth: Bearer token from localStorage (set after POST /api/auth/login).
  */
 
