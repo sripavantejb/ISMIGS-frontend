@@ -7,10 +7,6 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 const TOKEN_KEY = "ismigs_admin_token";
 
-/** Shown when API request hits frontend origin (VITE_API_URL not set in production). */
-export const MSG_405_BACKEND_URL =
-  "405 Method Not Allowed. Set VITE_API_URL in your Vercel project environment variables to your backend URL (e.g. https://ismigs-backend.vercel.app), then redeploy the frontend.";
-
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -70,7 +66,6 @@ export async function login(username: string, password: string): Promise<{ token
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
     const err = new Error(data.error ?? "Login failed") as Error & { status?: number };
     err.status = res.status;
     throw err;
@@ -81,7 +76,6 @@ export async function login(username: string, password: string): Promise<{ token
 export async function fetchMe(): Promise<{ user: string }> {
   const res = await apiFetch(`${API_BASE}/api/auth/me`);
   if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Unauthorized");
   }
@@ -91,7 +85,6 @@ export async function fetchMe(): Promise<{ user: string }> {
 export async function fetchSectorRecipients(): Promise<Record<string, SectorRecipientRow>> {
   const res = await apiFetch(`${API_BASE}/api/sector-recipients`);
   if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Failed to fetch sector recipients");
   }
@@ -112,7 +105,6 @@ export async function upsertSectorRecipient(params: {
     body: JSON.stringify(params),
   });
   if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Failed to save");
   }
@@ -135,10 +127,7 @@ export async function sendSectorTestEmail(
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
-    throw new Error(data.error ?? "Failed to send test email");
-  }
+  if (!res.ok) throw new Error(data.error ?? "Failed to send test email");
   return { sent: data.sent ?? 0, results: data.results };
 }
 
@@ -161,10 +150,7 @@ export async function sendTestToAllSectors(options?: {
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
-    throw new Error(data.error ?? "Failed to send test to all");
-  }
+  if (!res.ok) throw new Error(data.error ?? "Failed to send test to all");
   return {
     sent: data.sent ?? 0,
     failed: data.failed ?? 0,
@@ -184,7 +170,6 @@ export async function fetchEmailLogs(params?: {
   const url = `${API_BASE}/api/email-logs${q.toString() ? `?${q}` : ""}`;
   const res = await apiFetch(url);
   if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Failed to fetch email logs");
   }
@@ -194,7 +179,6 @@ export async function fetchEmailLogs(params?: {
 export async function fetchSettings(): Promise<AdminSettings> {
   const res = await apiFetch(`${API_BASE}/api/settings`);
   if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Failed to fetch settings");
   }
@@ -210,7 +194,6 @@ export async function updateSettings(patch: {
     body: JSON.stringify(patch),
   });
   if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Failed to update settings");
   }
@@ -223,7 +206,6 @@ export async function smtpTest(to: string): Promise<{ dev?: boolean; previewUrl?
     body: JSON.stringify({ to }),
   });
   if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "SMTP test failed");
   }
@@ -234,7 +216,6 @@ export async function smtpTest(to: string): Promise<{ dev?: boolean; previewUrl?
 export async function exportSectorRecipientsCsv(): Promise<Blob> {
   const res = await apiFetch(`${API_BASE}/api/sector-recipients/export`);
   if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Failed to export");
   }
@@ -249,7 +230,6 @@ export async function importSectorRecipientsCsv(
     body: JSON.stringify({ rows }),
   });
   if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Failed to import");
   }
@@ -262,7 +242,6 @@ export async function importSectorRecipientsCsvFile(csvText: string): Promise<{ 
     body: JSON.stringify({ csv: csvText }),
   });
   if (!res.ok) {
-    if (res.status === 405) throw new Error(MSG_405_BACKEND_URL);
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Failed to import");
   }
