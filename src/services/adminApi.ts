@@ -127,7 +127,14 @@ export async function sendSectorTestEmail(
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? "Failed to send test email");
+  if (!res.ok) {
+    if (res.status === 405) {
+      throw new Error(
+        "405 Method Not Allowed. Set VITE_API_URL in your Vercel project environment variables to your backend URL (e.g. https://ismigs-backend.vercel.app), then redeploy the frontend."
+      );
+    }
+    throw new Error(data.error ?? "Failed to send test email");
+  }
   return { sent: data.sent ?? 0, results: data.results };
 }
 
@@ -150,7 +157,14 @@ export async function sendTestToAllSectors(options?: {
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? "Failed to send test to all");
+  if (!res.ok) {
+    if (res.status === 405) {
+      throw new Error(
+        "405 Method Not Allowed. Set VITE_API_URL in your Vercel project environment variables to your backend URL (e.g. https://ismigs-backend.vercel.app), then redeploy the frontend."
+      );
+    }
+    throw new Error(data.error ?? "Failed to send test to all");
+  }
   return {
     sent: data.sent ?? 0,
     failed: data.failed ?? 0,
