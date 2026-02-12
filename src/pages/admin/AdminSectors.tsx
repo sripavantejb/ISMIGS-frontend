@@ -1,11 +1,16 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Loader2, Mail, Plus, Send, Trash2 } from "lucide-react";
+import { ChevronDown, Loader2, Mail, Plus, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { useSectorList } from "@/hooks/useSectorList";
 import { useSectorRecipients } from "@/hooks/useSectorRecipients";
@@ -14,6 +19,14 @@ import {
   exportSectorRecipientsCsv,
   importSectorRecipientsCsvFile,
 } from "@/services/adminApi";
+
+function parseLines(value: string): string[] {
+  return value
+    .trim()
+    .split(/\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 type SectorExtras = {
   label: string;
@@ -32,6 +45,9 @@ export default function AdminSectors() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [sendingKey, setSendingKey] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [testInsights, setTestInsights] = useState("");
+  const [testWarnings, setTestWarnings] = useState("");
+  const [testContentOpen, setTestContentOpen] = useState(false);
 
   useEffect(() => {
     setLocalEmails((prev) => {
@@ -135,7 +151,13 @@ export default function AdminSectors() {
     }
     setSendingKey(sectorKey);
     try {
-      const { sent, results } = await sendSectorTestEmail(sectorKey, emails);
+      const insights = parseLines(testInsights);
+      const warnings = parseLines(testWarnings);
+      const options =
+        insights.length > 0 || warnings.length > 0
+          ? { insights, warnings }
+          : undefined;
+      const { sent, results } = await sendSectorTestEmail(sectorKey, emails, options);
       if (sent > 0) {
         toast({ title: "Test sent", description: `Sample email sent to ${sent} recipient(s) for ${displayName}.` });
       }
@@ -211,6 +233,48 @@ export default function AdminSectors() {
           </Button>
         </div>
       </div>
+
+      <Collapsible open={testContentOpen} onOpenChange={setTestContentOpen}>
+        <Card className="border-border bg-card">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between px-4 py-3">
+              <span className="text-sm font-medium text-muted-foreground">
+                Customize test email content (optional)
+              </span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${testContentOpen ? "rotate-180" : ""}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0 pb-4 space-y-3">
+              <p className="text-xs text-muted-foreground">
+                If you fill these, the test email will use a LinkedIn-style post generated from them instead of the sector sample.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="test-insights" className="text-xs">Top insights (one per line)</Label>
+                <textarea
+                  id="test-insights"
+                  className="flex min-h-[60px] w-full max-w-xl rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  placeholder="e.g. Growth in manufacturing index"
+                  value={testInsights}
+                  onChange={(e) => setTestInsights(e.target.value)}
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="test-warnings" className="text-xs">Critical warnings (one per line)</Label>
+                <textarea
+                  id="test-warnings"
+                  className="flex min-h-[60px] w-full max-w-xl rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  placeholder="e.g. Input cost pressure in Q2"
+                  value={testWarnings}
+                  onChange={(e) => setTestWarnings(e.target.value)}
+                  rows={2}
+                />
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
