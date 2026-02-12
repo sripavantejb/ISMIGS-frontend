@@ -170,10 +170,14 @@ export default function AdminSectors() {
         });
       }
     } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not send test email";
+      const isOpenAIKey = /OPENAI_API_KEY/i.test(msg);
       toast({
         variant: "destructive",
         title: "Send failed",
-        description: e instanceof Error ? e.message : "Could not send test email",
+        description: isOpenAIKey
+          ? "Set OPENAI_API_KEY in your backend's Vercel project (e.g. ismigs-backend) under Settings → Environment Variables, then redeploy."
+          : msg,
       });
     } finally {
       setSendingKey(null);
