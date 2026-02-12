@@ -4,7 +4,10 @@
  * Auth: Bearer token from localStorage (set after POST /api/auth/login).
  */
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+// In production, default to backend URL so API calls work even if VITE_API_URL isn't set in Vercel
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? "https://ismigs-backend.vercel.app" : "");
 const TOKEN_KEY = "ismigs_admin_token";
 
 export function getStoredToken(): string | null {
