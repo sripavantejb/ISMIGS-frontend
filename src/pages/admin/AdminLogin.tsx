@@ -39,10 +39,14 @@ export default function AdminLogin() {
     } catch (err) {
       const e = err as Error & { status?: number };
       const is401 = e.status === 401;
+      const isNetworkError =
+        e instanceof TypeError || e.message === "Failed to fetch";
       setError(
         is401
           ? "Invalid username or password."
-          : "Cannot reach the backend. Check that VITE_API_URL is set to your backend URL (e.g. https://ismigs-backend.vercel.app) and redeploy the frontend."
+          : isNetworkError
+            ? "Cannot reach the backend. Check your connection or that the backend URL is correct."
+            : "Something went wrong. Try again."
       );
     } finally {
       setLoading(false);

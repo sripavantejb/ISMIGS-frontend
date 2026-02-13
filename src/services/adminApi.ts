@@ -1,13 +1,11 @@
 /**
  * Admin backend API client. Backend URL is VITE_API_URL (e.g. https://ismigs-backend.vercel.app).
- * When unset in dev, Vite proxies /api to localhost:3001.
+ * When unset, uses the deployed backend in all environments. Set VITE_API_URL in .env to override (e.g. local backend).
  * Auth: Bearer token from localStorage (set after POST /api/auth/login).
  */
 
-// In production, default to backend URL so API calls work even if VITE_API_URL isn't set in Vercel
 const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? "https://ismigs-backend.vercel.app" : "");
+  import.meta.env.VITE_API_URL || "https://ismigs-backend.vercel.app";
 const TOKEN_KEY = "ismigs_admin_token";
 
 export function getStoredToken(): string | null {
