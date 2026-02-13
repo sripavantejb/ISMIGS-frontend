@@ -7,11 +7,15 @@ import {
 
 export type { SectorRecipientRow };
 
+const EMPTY_RECIPIENTS: Record<string, SectorRecipientRow> = {};
+
 export function useSectorRecipients() {
   const queryClient = useQueryClient();
   const { data: recipientsByKey, isLoading } = useQuery({
     queryKey: ["sector_recipients"],
     queryFn: fetchSectorRecipients,
+    retry: 1,
+    retryDelay: 2000,
   });
 
   const upsertMutation = useMutation({
@@ -39,7 +43,7 @@ export function useSectorRecipients() {
   };
 
   return {
-    recipientsByKey: recipientsByKey ?? {},
+    recipientsByKey: recipientsByKey ?? EMPTY_RECIPIENTS,
     isLoading,
     getEmailsForSector,
     upsert: upsertMutation.mutateAsync,
