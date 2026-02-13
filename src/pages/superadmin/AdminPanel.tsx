@@ -9,6 +9,7 @@ import {
   Loader2,
   Plus,
   Send,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -321,6 +322,60 @@ export default function AdminPanel() {
                 {createAdminMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                 Create Sector Admin
               </Button>
+            </CardContent>
+          </Card>
+        </motion.section>
+
+        {/* Created sectors & admin credentials */}
+        <motion.section variants={item}>
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
+              <CardTitle className="text-zinc-100 flex items-center gap-2">
+                <ClipboardList className="h-5 w-5" /> Created sectors & admin credentials
+              </CardTitle>
+              <CardDescription className="text-zinc-400">
+                All sectors and their sector admin login (email) and name. Passwords are not stored and cannot be shown.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className={cardContentClass}>
+              <div className="overflow-x-auto rounded-md border border-zinc-800">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-zinc-800 hover:bg-zinc-800/50">
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Sector name</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Sector key</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Admin name</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Login (email / username)</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sectorsWithAdminsLoading ? (
+                      <TableRow className="border-zinc-800">
+                        <TableCell colSpan={5} className="text-zinc-500 text-sm py-6 text-center">
+                          Loading…
+                        </TableCell>
+                      </TableRow>
+                    ) : sectorsWithAdmins.length === 0 ? (
+                      <TableRow className="border-zinc-800">
+                        <TableCell colSpan={5} className="text-zinc-500 text-sm py-6 text-center">
+                          No sectors yet. Create sectors in Sector Management and assign admins above.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      (sectorsWithAdmins as SectorWithAdminRow[]).map((row) => (
+                        <TableRow key={row.sector_id} className="border-zinc-800 hover:bg-zinc-800/50">
+                          <TableCell className="text-zinc-200 text-sm py-3 px-4 font-medium">{row.sector_name}</TableCell>
+                          <TableCell className="text-zinc-400 font-mono text-sm py-3 px-4">{row.sector_key ?? "—"}</TableCell>
+                          <TableCell className="text-zinc-200 text-sm py-3 px-4">{row.admin_name ?? "—"}</TableCell>
+                          <TableCell className="text-zinc-300 text-sm py-3 px-4">{row.admin_email ?? "—"}</TableCell>
+                          <TableCell className="text-zinc-500 text-sm py-3 px-4">{row.created_at ? new Date(row.created_at).toLocaleDateString() : "—"}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </motion.section>
