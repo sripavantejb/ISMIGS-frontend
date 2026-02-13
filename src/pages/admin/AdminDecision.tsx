@@ -1,10 +1,10 @@
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { CheckCircle2, XCircle, Clock } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, AlertCircle } from "lucide-react";
 
 export default function AdminDecision() {
   const [searchParams] = useSearchParams();
-  const result = searchParams.get("result") || "expired";
+  const result = searchParams.get("result") || "invalid";
 
   const isApproved = result === "approved";
   const isRejected = result === "rejected";
@@ -26,13 +26,21 @@ export default function AdminDecision() {
           className: "text-amber-500",
           bg: "bg-amber-500/10 border-amber-500/30",
         }
-      : {
-          icon: Clock,
-          title: "Link expired",
-          message: "This link has expired or is invalid.",
-          className: "text-muted-foreground",
-          bg: "bg-muted/50 border-border",
-        };
+      : isExpired
+        ? {
+            icon: Clock,
+            title: "Link expired",
+            message: "This link has expired.",
+            className: "text-muted-foreground",
+            bg: "bg-muted/50 border-border",
+          }
+        : {
+            icon: AlertCircle,
+            title: "Invalid link",
+            message: "This link is invalid or has already been used.",
+            className: "text-muted-foreground",
+            bg: "bg-muted/50 border-border",
+          };
 
   const Icon = config.icon;
 
