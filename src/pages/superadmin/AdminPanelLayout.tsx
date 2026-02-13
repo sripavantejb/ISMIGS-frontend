@@ -76,21 +76,21 @@ export default function AdminPanelLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex overflow-x-hidden">
       {/* Mobile header: hamburger + title + logout */}
-      <header className="md:hidden sticky top-0 z-40 flex h-14 min-h-[44px] items-center justify-between border-b border-zinc-800 bg-zinc-900/95 px-4 backdrop-blur flex-shrink-0">
+      <header className="md:hidden sticky top-0 z-40 flex h-14 min-h-[44px] items-center justify-between border-b border-zinc-800 bg-zinc-900/95 px-3 sm:px-4 backdrop-blur flex-shrink-0 w-full min-w-0">
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 min-h-[44px] min-w-[44px] text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80"
+          className="h-10 w-10 min-h-[44px] min-w-[44px] shrink-0 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80"
           onClick={() => setSheetOpen(true)}
           aria-label="Open menu"
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-primary" />
-          <span className="font-semibold text-base">Super Admin Panel</span>
+        <div className="flex items-center gap-2 min-w-0 flex-1 justify-center">
+          <Shield className="h-5 w-5 text-primary shrink-0" />
+          <span className="font-semibold text-sm sm:text-base truncate">Super Admin Panel</span>
         </div>
         <Button
           variant="ghost"
@@ -149,7 +149,7 @@ export default function AdminPanelLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 min-w-0 overflow-auto p-4 md:p-6 md:pl-[calc(16rem+1.5rem)]">
+      <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6 md:pl-[calc(16rem+1.5rem)]">
         <Outlet />
       </main>
     </div>

@@ -412,6 +412,13 @@ export async function createSector(body: { sector_name: string; sector_key?: str
   return data;
 }
 
+export async function ensureSector(body: { sector_key: string; sector_name: string }): Promise<{ id: string; sector_name: string; sector_key: string }> {
+  const res = await apiFetch(`${API_BASE}/api/superadmin/ensure-sector`, { method: "POST", body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Failed to ensure sector");
+  return data;
+}
+
 export async function createSectorAdmin(body: { name: string; email: string; password: string; sector_id: string }): Promise<{ id: string }> {
   const res = await apiFetch(`${API_BASE}/api/superadmin/create-sector-admin`, { method: "POST", body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));

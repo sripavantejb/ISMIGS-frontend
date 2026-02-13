@@ -46,17 +46,17 @@ export default function Notifications() {
   const items: NotificationItem[] = data?.items ?? [];
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Activity feed</CardTitle>
-          <CardDescription>
+    <div className="space-y-4 min-w-0">
+      <Card className="border border-zinc-800 bg-zinc-900/80 overflow-hidden">
+        <CardHeader className="pb-2 p-4 md:p-6">
+          <CardTitle className="text-zinc-100">Activity feed</CardTitle>
+          <CardDescription className="text-zinc-400">
             LinkedIn posts, approvals, sector admin creation, and emails across sectors.
           </CardDescription>
-          <div className="pt-2 flex flex-wrap gap-2 items-center">
-            <span className="text-sm text-zinc-400">Sector:</span>
+          <div className="pt-2 flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center">
+            <span className="text-sm text-zinc-400 shrink-0">Sector:</span>
             <Select value={sectorFilter} onValueChange={setSectorFilter}>
-              <SelectTrigger className="w-[220px] bg-zinc-900 border-zinc-700 text-zinc-100">
+              <SelectTrigger className="w-full sm:w-[220px] bg-zinc-800 border-zinc-700 text-zinc-100 min-w-0">
                 <SelectValue placeholder="All sectors" />
               </SelectTrigger>
               <SelectContent>
@@ -70,7 +70,7 @@ export default function Notifications() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 md:p-6 pt-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-12 text-zinc-400">
               <Loader2 className="h-8 w-8 animate-spin mr-2" />
@@ -79,18 +79,18 @@ export default function Notifications() {
           ) : items.length === 0 ? (
             <p className="text-zinc-500 py-8 text-center">No activity yet.</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-2 min-w-0">
               {items.map((item) => (
                 <li
                   key={`${item.type}-${item.id}`}
-                  className="flex flex-wrap items-baseline gap-2 py-2 border-b border-zinc-800 last:border-0 text-sm"
+                  className="flex flex-wrap items-baseline gap-x-2 gap-y-1 py-2 border-b border-zinc-800 last:border-0 text-sm min-w-0"
                 >
-                  <span className="font-medium text-zinc-100">{item.title}</span>
+                  <span className="font-medium text-zinc-100 break-words">{item.title}</span>
                   {item.sector_name && (
-                    <span className="text-zinc-500">· {item.sector_name}</span>
+                    <span className="text-zinc-500 shrink-0">· {item.sector_name}</span>
                   )}
                   {item.description && (
-                    <span className="text-zinc-400 truncate max-w-md">{item.description}</span>
+                    <span className="text-zinc-400 truncate min-w-0 max-w-full sm:max-w-md">{item.description}</span>
                   )}
                   <span className="text-zinc-500 ml-auto shrink-0">{formatTime(item.timestamp)}</span>
                 </li>

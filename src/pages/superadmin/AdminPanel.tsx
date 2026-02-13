@@ -30,12 +30,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useSectorList } from "@/hooks/useSectorList";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchSuperadminSectors,
   createSector,
   createSectorAdmin,
+  ensureSector,
   fetchAllApprovals,
   sendSuperadminSectorEmail,
   type SuperadminSector,
@@ -53,12 +56,15 @@ export default function AdminPanel() {
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
-  const [adminSectorId, setAdminSectorId] = useState("");
+  const [adminSectorKey, setAdminSectorKey] = useState("");
   const ALL_FILTER = "__all__";
   const [filterSector, setFilterSector] = useState<string>(ALL_FILTER);
   const [filterCommodity, setFilterCommodity] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>(ALL_FILTER);
-  const [emailSectorId, setEmailSectorId] = useState("");
+  const [emailSectorKey, setEmailSectorKey] = useState("");
+
+  const sectorGroups = useSectorList();
+  const allSectors = sectorGroups.flatMap((g) => g.sectors);
 
   const { data: sectors = [], isLoading: sectorsLoading } = useQuery({
     queryKey: ["superadmin_sectors"],
@@ -92,29 +98,37 @@ export default function AdminPanel() {
   });
 
   const createAdminMutation = useMutation({
-    mutationFn: () =>
-      createSectorAdmin({
+    mutationFn: async () => {
+      const displayName = allSectors.find((s) => s.sectorKey === adminSectorKey)?.displayName ?? adminSectorKey;
+      const { id } = await ensureSector({ sector_key: adminSectorKey, sector_name: displayName });
+      return createSectorAdmin({
         name: adminName.trim(),
         email: adminEmail.trim(),
         password: adminPassword,
-        sector_id: adminSectorId,
-      }),
+        sector_id: id,
+      });
+    },
     onSuccess: () => {
-      const sectorName = sectors.find((s) => s.id === adminSectorId)?.sector_name ?? "this sector";
+      const displayName = allSectors.find((s) => s.sectorKey === adminSectorKey)?.displayName ?? adminSectorKey;
+      queryClient.invalidateQueries({ queryKey: ["superadmin_sectors"] });
       setAdminName("");
       setAdminEmail("");
       setAdminPassword("");
-      setAdminSectorId("");
+      setAdminSectorKey("");
       toast({
         title: "Sector Admin created",
-        description: `They can sign in and will only see data for ${sectorName}.`,
+        description: `They can sign in and will only see data for ${displayName}.`,
       });
     },
     onError: (e: Error) => toast({ variant: "destructive", title: "Error", description: e.message }),
   });
 
   const sendEmailMutation = useMutation({
-    mutationFn: () => sendSuperadminSectorEmail(emailSectorId),
+    mutationFn: async () => {
+      const displayName = allSectors.find((s) => s.sectorKey === emailSectorKey)?.displayName ?? emailSectorKey;
+      const { id } = await ensureSector({ sector_key: emailSectorKey, sector_name: displayName });
+      return sendSuperadminSectorEmail(id);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["superadmin_approvals"] });
       toast({ title: "Email sent", description: `Sent to ${data.sent} recipient(s).` });
@@ -186,33 +200,33 @@ export default function AdminPanel() {
 
         {/* Sector Management */}
         <motion.section variants={item}>
-          <Card className="border-zinc-800 bg-zinc-900/80">
-            <CardHeader>
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
               <CardTitle className="text-zinc-100 flex items-center gap-2">
                 <Building2 className="h-5 w-5" /> Sector Management
               </CardTitle>
-              <CardDescription>Create new sectors. Optionally set sector_key (e.g. energy:coal).</CardDescription>
+              <CardDescription className="text-zinc-400">Create new sectors. Optionally set sector_key (e.g. energy:coal).</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cn(cardContentClass, "space-y-4")}>
               <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="sector-name">Sector name</Label>
+                <div className="flex-1 min-w-0 space-y-2">
+                  <Label htmlFor="sector-name" className={labelClass}>Sector name</Label>
                   <Input
                     id="sector-name"
                     value={sectorName}
                     onChange={(e) => setSectorName(e.target.value)}
                     placeholder="e.g. Electricity"
-                    className="bg-zinc-800 border-zinc-700"
+                    className={inputClass}
                   />
                 </div>
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="sector-key">Sector key (optional)</Label>
+                <div className="flex-1 min-w-0 space-y-2">
+                  <Label htmlFor="sector-key" className={labelClass}>Sector key (optional)</Label>
                   <Input
                     id="sector-key"
                     value={sectorKey}
                     onChange={(e) => setSectorKey(e.target.value)}
                     placeholder="e.g. energy:electricity"
-                    className="bg-zinc-800 border-zinc-700"
+                    className={inputClass}
                   />
                 </div>
                 <div className="flex items-end">
@@ -225,21 +239,21 @@ export default function AdminPanel() {
                   </Button>
                 </div>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-md border border-zinc-800">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-zinc-800 hover:bg-zinc-800/50">
-                      <TableHead className="text-zinc-400">Name</TableHead>
-                      <TableHead className="text-zinc-400">Key</TableHead>
-                      <TableHead className="text-zinc-400">Created</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Name</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Key</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sectors.map((s: SuperadminSector) => (
                       <TableRow key={s.id} className="border-zinc-800 hover:bg-zinc-800/50">
-                        <TableCell className="text-zinc-200">{s.sector_name}</TableCell>
-                        <TableCell className="text-zinc-400 font-mono text-sm">{s.sector_key ?? "—"}</TableCell>
-                        <TableCell className="text-zinc-500 text-sm">{s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}</TableCell>
+                        <TableCell className="text-zinc-200 text-sm py-3 px-4">{s.sector_name}</TableCell>
+                        <TableCell className="text-zinc-400 font-mono text-sm py-3 px-4">{s.sector_key ?? "—"}</TableCell>
+                        <TableCell className="text-zinc-500 text-sm py-3 px-4">{s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -251,40 +265,38 @@ export default function AdminPanel() {
 
         {/* Create Sector Admin */}
         <motion.section variants={item}>
-          <Card className="border-zinc-800 bg-zinc-900/80">
-            <CardHeader>
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
               <CardTitle className="text-zinc-100 flex items-center gap-2">
                 <Users className="h-5 w-5" /> Create Sector Admin
               </CardTitle>
-              <CardDescription>Add a Sector Admin user for a specific sector.</CardDescription>
+              <CardDescription className="text-zinc-400">Add a Sector Admin user for a specific sector.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className={cardContentClass}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label>Name</Label>
-                  <Input value={adminName} onChange={(e) => setAdminName(e.target.value)} placeholder="Full name" className="bg-zinc-800 border-zinc-700" />
+                <div className="space-y-2 min-w-0">
+                  <Label className={labelClass}>Name</Label>
+                  <Input value={adminName} onChange={(e) => setAdminName(e.target.value)} placeholder="Full name" className={inputClass} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="email@example.com" className="bg-zinc-800 border-zinc-700" />
+                <div className="space-y-2 min-w-0">
+                  <Label className={labelClass}>Email</Label>
+                  <Input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="email@example.com" className={inputClass} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Password</Label>
-                  <Input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="••••••••" className="bg-zinc-800 border-zinc-700" />
+                <div className="space-y-2 min-w-0">
+                  <Label className={labelClass}>Password</Label>
+                  <Input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="••••••••" className={inputClass} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Sector</Label>
-                  <Select value={adminSectorId || undefined} onValueChange={setAdminSectorId}>
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700 focus:ring-zinc-500 focus:ring-offset-zinc-900">
+                <div className="space-y-2 min-w-0">
+                  <Label className={labelClass}>Sector</Label>
+                  <Select value={adminSectorKey || undefined} onValueChange={setAdminSectorKey}>
+                    <SelectTrigger className={inputClass}>
                       <SelectValue placeholder="Select sector" />
                     </SelectTrigger>
-                    <SelectContent className="z-[100]">
-                      {sectors.length === 0 ? (
-                        <SelectItem value="__none__" disabled>No sectors yet</SelectItem>
-                      ) : (
-                        sectors.map((s: SuperadminSector) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.sector_name}
+                    <SelectContent className="z-[100] max-h-[280px]">
+                      {sectorGroups.flatMap((group) =>
+                        group.sectors.map((s) => (
+                          <SelectItem key={s.sectorKey} value={s.sectorKey}>
+                            {group.label} – {s.displayName}
                           </SelectItem>
                         ))
                       )}
@@ -295,7 +307,7 @@ export default function AdminPanel() {
               <Button
                 className="mt-4"
                 onClick={() => createAdminMutation.mutate()}
-                disabled={!adminName.trim() || !adminEmail.trim() || !adminPassword || !adminSectorId || createAdminMutation.isPending}
+                disabled={!adminName.trim() || !adminEmail.trim() || !adminPassword || !adminSectorKey || createAdminMutation.isPending}
               >
                 {createAdminMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                 Create Sector Admin
@@ -306,34 +318,32 @@ export default function AdminPanel() {
 
         {/* Trigger email to sector */}
         <motion.section variants={item}>
-          <Card className="border-zinc-800 bg-zinc-900/80">
-            <CardHeader>
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
               <CardTitle className="text-zinc-100 flex items-center gap-2">
                 <Mail className="h-5 w-5" /> Send sector email
               </CardTitle>
-              <CardDescription>Generate sector-specific LinkedIn draft and email recipients for the selected sector.</CardDescription>
+              <CardDescription className="text-zinc-400">Generate sector-specific LinkedIn draft and email recipients for the selected sector.</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-wrap items-end gap-4">
-              <div className="space-y-2 min-w-[200px]">
-                <Label>Sector</Label>
-                <Select value={emailSectorId || undefined} onValueChange={setEmailSectorId}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 focus:ring-zinc-500 focus:ring-offset-zinc-900">
+            <CardContent className={cn(cardContentClass, "flex flex-wrap items-end gap-4")}>
+              <div className="space-y-2 w-full sm:min-w-[200px] flex-1 min-w-0">
+                <Label className={labelClass}>Sector</Label>
+                <Select value={emailSectorKey || undefined} onValueChange={setEmailSectorKey}>
+                  <SelectTrigger className={inputClass}>
                     <SelectValue placeholder="Select sector" />
                   </SelectTrigger>
-                  <SelectContent className="z-[100]">
-                    {sectors.length === 0 ? (
-                      <SelectItem value="__none__" disabled>No sectors yet</SelectItem>
-                    ) : (
-                      sectors.map((s: SuperadminSector) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.sector_name}
+                  <SelectContent className="z-[100] max-h-[280px]">
+                    {sectorGroups.flatMap((group) =>
+                      group.sectors.map((s) => (
+                        <SelectItem key={s.sectorKey} value={s.sectorKey}>
+                          {group.label} – {s.displayName}
                         </SelectItem>
                       ))
                     )}
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={() => sendEmailMutation.mutate()} disabled={!emailSectorId || sendEmailMutation.isPending}>
+              <Button onClick={() => sendEmailMutation.mutate()} disabled={!emailSectorKey || sendEmailMutation.isPending} className="w-full sm:w-auto">
                 {sendEmailMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
                 Send email
               </Button>
@@ -343,15 +353,15 @@ export default function AdminPanel() {
 
         {/* LinkedIn post approvals & history */}
         <motion.section variants={item}>
-          <Card className="border-zinc-800 bg-zinc-900/80">
-            <CardHeader>
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
               <CardTitle className="text-zinc-100">LinkedIn post approvals</CardTitle>
-              <CardDescription>Filter by sector, commodity, or status. Total: {total}</CardDescription>
+              <CardDescription className="text-zinc-400">Filter by sector, commodity, or status. Total: {total}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cn(cardContentClass, "space-y-4")}>
               <div className="flex flex-wrap gap-2">
                 <Select value={filterSector} onValueChange={setFilterSector}>
-                  <SelectTrigger className="w-[180px] bg-zinc-800 border-zinc-700 focus:ring-zinc-500 focus:ring-offset-zinc-900">
+                  <SelectTrigger className={cn(inputClass, "w-full sm:w-[180px]")}>
                     <SelectValue placeholder="All sectors" />
                   </SelectTrigger>
                   <SelectContent className="z-[100]">
@@ -367,10 +377,10 @@ export default function AdminPanel() {
                   placeholder="Commodity"
                   value={filterCommodity}
                   onChange={(e) => setFilterCommodity(e.target.value)}
-                  className="w-[140px] bg-zinc-800 border-zinc-700"
+                  className={cn(inputClass, "w-full sm:w-[140px]")}
                 />
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-[140px] bg-zinc-800 border-zinc-700 focus:ring-zinc-500 focus:ring-offset-zinc-900">
+                  <SelectTrigger className={cn(inputClass, "w-full sm:w-[140px]")}>
                     <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
                   <SelectContent className="z-[100]">
@@ -385,20 +395,20 @@ export default function AdminPanel() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-zinc-800 hover:bg-zinc-800/50">
-                      <TableHead className="text-zinc-400">Sector</TableHead>
-                      <TableHead className="text-zinc-400">Commodity</TableHead>
-                      <TableHead className="text-zinc-400">Status</TableHead>
-                      <TableHead className="text-zinc-400">Created</TableHead>
-                      <TableHead className="text-zinc-400">Approved at</TableHead>
-                      <TableHead className="text-zinc-400">Approved by</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Sector</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Commodity</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Status</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Created</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Approved at</TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Approved by</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.map((row: AllApprovalRow) => (
                       <TableRow key={row.id} className="border-zinc-800 hover:bg-zinc-800/50">
-                        <TableCell className="text-zinc-200">{row.sector_name ?? "—"}</TableCell>
-                        <TableCell className="text-zinc-300">{row.commodity ?? "—"}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-zinc-200 text-sm py-3 px-4">{row.sector_name ?? "—"}</TableCell>
+                        <TableCell className="text-zinc-300 text-sm py-3 px-4">{row.commodity ?? "—"}</TableCell>
+                        <TableCell className="py-3 px-4">
                           <Badge
                             variant="secondary"
                             className={
@@ -412,9 +422,9 @@ export default function AdminPanel() {
                             {row.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-zinc-500 text-sm">{row.created_at ? new Date(row.created_at).toLocaleString() : "—"}</TableCell>
-                        <TableCell className="text-zinc-500 text-sm">{row.approved_at ? new Date(row.approved_at).toLocaleString() : "—"}</TableCell>
-                        <TableCell className="text-zinc-500 text-sm">{row.approved_by ?? "—"}</TableCell>
+                        <TableCell className="text-zinc-500 text-sm py-3 px-4">{row.created_at ? new Date(row.created_at).toLocaleString() : "—"}</TableCell>
+                        <TableCell className="text-zinc-500 text-sm py-3 px-4">{row.approved_at ? new Date(row.approved_at).toLocaleString() : "—"}</TableCell>
+                        <TableCell className="text-zinc-500 text-sm py-3 px-4">{row.approved_by ?? "—"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

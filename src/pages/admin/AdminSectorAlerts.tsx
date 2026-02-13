@@ -187,7 +187,7 @@ export default function AdminSectorAlerts() {
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="All commodities" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[100] max-h-[280px]">
                 <SelectItem value="all">All commodities</SelectItem>
                 {commodityOptions.map((c) => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
@@ -198,7 +198,7 @@ export default function AdminSectorAlerts() {
               <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="Since" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[100] max-h-[280px]">
                 {sinceOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}

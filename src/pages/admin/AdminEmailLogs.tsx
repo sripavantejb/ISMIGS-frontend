@@ -17,7 +17,6 @@ import { useSectorList } from "@/hooks/useSectorList";
 export default function AdminEmailLogs() {
   const [sectorFilter, setSectorFilter] = useState<string>("");
   const groups = useSectorList();
-  const sectorKeys = groups.flatMap((g) => g.sectors.map((s) => s.sectorKey));
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ["email_logs", sectorFilter || "all"],
@@ -35,11 +34,15 @@ export default function AdminEmailLogs() {
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="All sectors" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[100] max-h-[280px]">
             <SelectItem value="all">All sectors</SelectItem>
-            {sectorKeys.map((key) => (
-              <SelectItem key={key} value={key}>{key}</SelectItem>
-            ))}
+            {groups.flatMap((group) =>
+              group.sectors.map((s) => (
+                <SelectItem key={s.sectorKey} value={s.sectorKey}>
+                  {group.label} – {s.displayName}
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
       </div>

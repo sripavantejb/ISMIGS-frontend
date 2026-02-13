@@ -169,10 +169,10 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-8 max-w-5xl">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">Overview and quick actions for sector notifications.</p>
+    <div className="space-y-6 md:space-y-8 max-w-5xl min-w-0 w-full">
+      <div className="space-y-1 min-w-0">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Overview and quick actions for sector notifications.</p>
       </div>
 
       <motion.div
@@ -242,7 +242,7 @@ export default function AdminDashboard() {
                   <SelectTrigger className="w-[180px] h-9">
                     <SelectValue placeholder="Select commodity" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[100] max-h-[280px]">
                     {energyCommodities.map((c) => (
                       <SelectItem key={c} value={c}>
                         {c}
@@ -288,7 +288,7 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card shadow-sm">
+      <Card className="border-border bg-card shadow-sm overflow-hidden">
         <CardHeader>
           <CardTitle className="text-base font-semibold">Recent email activity</CardTitle>
           <CardDescription>Last 5 sent emails across all sectors.</CardDescription>
@@ -297,6 +297,7 @@ export default function AdminDashboard() {
           {recentLogs.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">No emails sent yet.</p>
           ) : (
+            <div className="overflow-x-auto -mx-1 px-1">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -323,6 +324,7 @@ export default function AdminDashboard() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
