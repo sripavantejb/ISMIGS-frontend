@@ -6,13 +6,13 @@ import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import Overview from "./pages/Overview";
-import EnergyMap from "./pages/EnergyMap";
+// import EnergyMap from "./pages/EnergyMap";
 import EnergyAnalytics from "./pages/EnergyAnalytics";
 import IndustrialProduction from "./pages/IndustrialProduction";
 import InflationWPI from "./pages/InflationWPI";
 import GDPNationalAccounts from "./pages/GDPNationalAccounts";
 import GVAPage from "./pages/GVAPage";
-import PredictionsPage from "./pages/PredictionsPage";
+// import PredictionsPage from "./pages/PredictionsPage";
 import CPIMap from "./pages/CPIMap";
 import CPIOutlook from "./pages/CPIOutlook";
 import RiskIntelligence from "./pages/RiskIntelligence";
@@ -54,17 +54,17 @@ const App = () => (
               </div>
               <Routes>
                 <Route path="/" element={<Overview />} />
-                <Route path="/energy-map" element={<EnergyMap />} />
+                {/* <Route path="/energy-map" element={<EnergyMap />} /> */}
                 <Route path="/energy/:commoditySlug?" element={<EnergyAnalytics />} />
                 <Route path="/iip/:categorySlug?" element={<IndustrialProduction />} />
                 <Route path="/wpi/:majorGroupSlug?" element={<InflationWPI />} />
                 <Route path="/gdp" element={<GDPNationalAccounts />} />
                 <Route path="/gva/:industrySlug?" element={<GVAPage />} />
-                <Route path="/predictions" element={<PredictionsPage />} />
+                {/* <Route path="/predictions" element={<PredictionsPage />} /> */}
                 <Route path="/cpi-map" element={<CPIMap />} />
                 <Route path="/cpi-outlook" element={<CPIOutlook />} />
                 <Route path="/risk-intelligence" element={<RiskIntelligence />} />
-                <Route path="/explorer" element={<ComingSoon title="Data Explorer" />} />
+                {/* <Route path="/explorer" element={<ComingSoon title="Data Explorer" />} /> */}
                 <Route path="/admin" element={<Outlet />}>
                   <Route path="decision" element={<AdminDecision />} />
                   <Route path="login" element={<AdminLogin />} />

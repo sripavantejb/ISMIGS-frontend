@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils";
 
 const navItemsBeforeEnergy = [
   { title: "Overview", url: "/", icon: BarChart3 },
-  { title: "Energy Map", url: "/energy-map", icon: Map },
+  // { title: "Energy Map", url: "/energy-map", icon: Map },
 ];
 
 const navItemsAfterEnergy = [
@@ -48,8 +48,8 @@ const navItemsAfterEnergy = [
   { title: "Consumer price outlook", url: "/cpi-outlook", icon: Eye },
   { title: "Risk Intelligence", url: "/risk-intelligence", icon: Activity },
   { title: "GDP and national accounts", url: "/gdp", icon: Landmark },
-  { title: "Predictions", url: "/predictions", icon: LineChart },
-  { title: "Data Explorer", url: "/explorer", icon: Search },
+  // { title: "Predictions", url: "/predictions", icon: LineChart },
+  // { title: "Data Explorer", url: "/explorer", icon: Search },
 ];
 
 export function AppSidebar() {
