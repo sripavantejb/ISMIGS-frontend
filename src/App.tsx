@@ -27,7 +27,6 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminDigest from "./pages/admin/AdminDigest";
 import AdminDecision from "./pages/admin/AdminDecision";
 import AdminSectorAlerts from "./pages/admin/AdminSectorAlerts";
-import SectorLogin from "./pages/sector/SectorLogin";
 import SectorLayout from "./pages/sector/SectorLayout";
 import SectorApprovals from "./pages/sector/SectorApprovals";
 import AdminPanelLayout from "./pages/superadmin/AdminPanelLayout";
@@ -35,20 +34,57 @@ import AdminPanel from "./pages/superadmin/AdminPanel";
 import Notifications from "./pages/superadmin/Notifications";
 import { useState, useEffect } from "react";
 import { getStoredToken, getStoredUser, setStoredUser, fetchMe } from "./services/adminApi";
-import { getStoredSectorToken } from "./services/sectorApi";
+import { getStoredSectorToken, setStoredSectorToken } from "./services/sectorApi";
 import ISMIGSChatbot from "@/chatbot/ISMIGSChatbot";
 
 const queryClient = new QueryClient();
 
 function AdminGuard() {
   const token = getStoredToken();
+  const storedUser = getStoredUser();
+  const [resolved, setResolved] = useState<boolean | null>(storedUser ? true : null);
+
+  useEffect(() => {
+    if (!token) return;
+    if (storedUser?.role === "SECTOR_ADMIN") {
+      setStoredSectorToken(token);
+      setResolved(false);
+      return;
+    }
+    if (storedUser) {
+      setResolved(true);
+      return;
+    }
+    let cancelled = false;
+    fetchMe()
+      .then((res: { user?: string | { id: string; name?: string; email?: string; role?: string; sector_id?: string }; role?: string }) => {
+        if (cancelled) return;
+        const role = res.role ?? (res.user && typeof res.user === "object" ? res.user.role : null);
+        const user = res.user && typeof res.user === "object" ? res.user : null;
+        if (role === "SECTOR_ADMIN") {
+          setStoredSectorToken(token);
+          setStoredUser({ id: user?.id ?? "", name: user?.name, email: user?.email, role: "SECTOR_ADMIN", sector_id: user?.sector_id });
+          setResolved(false);
+        } else {
+          if (user) setStoredUser({ id: user.id, name: user.name, email: user.email, role: (user.role as "SUPER_ADMIN" | "SECTOR_ADMIN") || "SUPER_ADMIN", sector_id: user.sector_id });
+          setResolved(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setResolved(true);
+      });
+    return () => { cancelled = true; };
+  }, [token, storedUser?.role, storedUser]);
+
   if (!token) return <Navigate to="/admin/login" replace />;
+  if (storedUser?.role === "SECTOR_ADMIN" || resolved === false) return <Navigate to="/sector/approvals" replace />;
+  if (resolved === null && !storedUser) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading...</div>;
   return <Outlet />;
 }
 
 function SectorGuard() {
   const token = getStoredSectorToken();
-  if (!token) return <Navigate to="/sector/login" replace />;
+  if (!token) return <Navigate to="/admin/login" replace />;
   return <Outlet />;
 }
 
@@ -114,7 +150,7 @@ const App = () => (
             </Route>
           </Route>
           <Route path="/sector" element={<Outlet />}>
-            <Route path="login" element={<SectorLogin />} />
+            <Route path="login" element={<Navigate to="/admin/login" replace />} />
             <Route element={<SectorGuard />}>
               <Route element={<SectorLayout />}>
                 <Route path="approvals" element={<SectorApprovals />} />

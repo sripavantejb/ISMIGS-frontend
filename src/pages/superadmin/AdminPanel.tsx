@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Building2,
@@ -336,6 +337,11 @@ export default function AdminPanel() {
               <CardDescription className="text-zinc-400">
                 All sectors and their sector admin login (email) and name. Passwords are not stored and cannot be shown.
               </CardDescription>
+              <p className="text-sm text-zinc-400 mt-2">
+                Sector admins sign in at the{" "}
+                <Link to="/admin/login" className="text-primary hover:underline font-medium">Admin login</Link>
+                {" "}page with their <strong className="text-zinc-300">email</strong> and <strong className="text-zinc-300">password</strong>; they are then redirected to the Sector approvals panel.
+              </p>
             </CardHeader>
             <CardContent className={cardContentClass}>
               <div className="overflow-x-auto rounded-md border border-zinc-800">

@@ -2,13 +2,16 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { FileCheck, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearStoredSectorToken } from "@/services/sectorApi";
+import { clearStoredToken, clearStoredUser } from "@/services/adminApi";
 
 export default function SectorLayout() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
     clearStoredSectorToken();
-    navigate("/sector/login", { replace: true });
+    clearStoredToken();
+    clearStoredUser();
+    navigate("/admin/login", { replace: true });
   };
 
   return (
