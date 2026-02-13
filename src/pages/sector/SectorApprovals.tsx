@@ -6,23 +6,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
-  fetchSectorDecisions,
-  respondToDecision,
-  type SectorDecisionRow,
+  fetchSectorAdminPosts,
+  postSectorAdminDecision,
+  type SectorAdminPostRow,
 } from "@/services/sectorApi";
 
-function DecisionCard({
+function PostCard({
   row,
   onRespond,
   isResponding,
 }: {
-  row: SectorDecisionRow;
+  row: SectorAdminPostRow;
   onRespond: (id: string, action: "approve" | "reject") => void;
   isResponding: string | null;
 }) {
   const isPending = row.status === "pending";
-  const isExpired = row.expires_at ? new Date(row.expires_at) < new Date() : false;
-  const canRespond = isPending && !isExpired;
+  const canRespond = isPending;
 
   return (
     <Card className="border-zinc-800 bg-zinc-900/80">
@@ -40,16 +39,10 @@ function DecisionCard({
               : "—"}
           </span>
         </div>
-        {row.expires_at && (
-          <CardDescription className="text-xs">
-            Expires: {new Date(row.expires_at).toLocaleString()}
-            {isExpired && " (expired)"}
-          </CardDescription>
-        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md bg-zinc-800/50 p-3 text-sm text-zinc-300 whitespace-pre-wrap">
-          {row.linkedin_post_text || "—"}
+          {row.post_content || "—"}
         </div>
         {Array.isArray(row.hashtags) && row.hashtags.length > 0 && (
           <p className="text-xs text-muted-foreground">
@@ -90,9 +83,7 @@ function DecisionCard({
                 </Button>
               </>
             ) : (
-              <span className="text-sm text-muted-foreground">
-                {isExpired ? "Link expired" : "Already responded"}
-              </span>
+              <span className="text-sm text-muted-foreground">Already responded</span>
             )}
           </div>
         )}
@@ -117,15 +108,15 @@ export default function SectorApprovals() {
   const [respondingId, setRespondingId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["sector_decisions"],
-    queryFn: () => fetchSectorDecisions({ limit: 50 }),
+    queryKey: ["sector_admin_posts"],
+    queryFn: () => fetchSectorAdminPosts({ limit: 50 }),
   });
 
   const respondMutation = useMutation({
     mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" }) =>
-      respondToDecision(id, action),
+      postSectorAdminDecision(id, action),
     onSuccess: (_, { action }) => {
-      queryClient.invalidateQueries({ queryKey: ["sector_decisions"] });
+      queryClient.invalidateQueries({ queryKey: ["sector_admin_posts"] });
       toast({
         title: action === "approve" ? "Approved" : "Rejected",
         description:
@@ -149,7 +140,7 @@ export default function SectorApprovals() {
     respondMutation.mutate({ id, action });
   };
 
-  const items = data?.items ?? [];
+  const items = (data?.items ?? []) as SectorAdminPostRow[];
   const pending = items.filter((r) => r.status === "pending");
 
   if (isLoading) {
@@ -202,7 +193,7 @@ export default function SectorApprovals() {
       ) : (
         <div className="space-y-4">
           {items.map((row) => (
-            <DecisionCard
+            <PostCard
               key={row.id}
               row={row}
               onRespond={handleRespond}

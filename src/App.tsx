@@ -30,7 +30,9 @@ import AdminSectorAlerts from "./pages/admin/AdminSectorAlerts";
 import SectorLogin from "./pages/sector/SectorLogin";
 import SectorLayout from "./pages/sector/SectorLayout";
 import SectorApprovals from "./pages/sector/SectorApprovals";
-import { getStoredToken } from "./services/adminApi";
+import AdminPanelLayout from "./pages/superadmin/AdminPanelLayout";
+import AdminPanel from "./pages/superadmin/AdminPanel";
+import { getStoredToken, getStoredUser } from "./services/adminApi";
 import { getStoredSectorToken } from "./services/sectorApi";
 import ISMIGSChatbot from "@/chatbot/ISMIGSChatbot";
 
@@ -48,6 +50,14 @@ function SectorGuard() {
   return <Outlet />;
 }
 
+function SuperAdminGuard() {
+  const token = getStoredToken();
+  const user = getStoredUser();
+  if (!token) return <Navigate to="/admin/login" replace />;
+  if (user?.role !== "SUPER_ADMIN") return <Navigate to="/admin/dashboard" replace />;
+  return <Outlet />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -55,6 +65,11 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/admin-panel" element={<SuperAdminGuard />}>
+            <Route element={<AdminPanelLayout />}>
+              <Route index element={<AdminPanel />} />
+            </Route>
+          </Route>
           <Route path="/sector" element={<Outlet />}>
             <Route path="login" element={<SectorLogin />} />
             <Route element={<SectorGuard />}>

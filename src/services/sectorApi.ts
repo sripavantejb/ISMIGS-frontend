@@ -91,3 +91,45 @@ export async function respondToDecision(
   if (!res.ok) throw new Error(data.error ?? "Failed to respond");
   return data;
 }
+
+// ---------- Sector Admin (linkedin_posts: role SECTOR_ADMIN or legacy sector_key) ----------
+
+export type SectorAdminPostRow = {
+  id: string;
+  sector_id?: string;
+  commodity: string | null;
+  post_content: string | null;
+  hashtags: string[];
+  status: string;
+  created_at: string | null;
+  approved_at: string | null;
+  production?: number | null;
+  consumption?: number | null;
+  import_dependency?: number | null;
+  risk_score?: number | null;
+  projected_deficit_year?: number | string | null;
+};
+
+export async function fetchSectorAdminPosts(params?: { status?: string; limit?: number }): Promise<{ items: SectorAdminPostRow[] }> {
+  const q = new URLSearchParams();
+  if (params?.status) q.set("status", params.status);
+  if (params?.limit != null) q.set("limit", String(params.limit));
+  const url = `${API_BASE}/api/sector-admin/posts${q.toString() ? `?${q}` : ""}`;
+  const res = await fetch(url, { headers: getSectorHeaders() });
+  if (res.status === 401) clearStoredSectorToken();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch posts");
+  return data;
+}
+
+export async function postSectorAdminDecision(post_id: string, decision: "approve" | "reject"): Promise<{ ok: boolean; status: string }> {
+  const res = await fetch(`${API_BASE}/api/sector-admin/decision`, {
+    method: "POST",
+    headers: getSectorHeaders(),
+    body: JSON.stringify({ post_id, decision }),
+  });
+  if (res.status === 401) clearStoredSectorToken();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Failed to submit decision");
+  return data;
+}
