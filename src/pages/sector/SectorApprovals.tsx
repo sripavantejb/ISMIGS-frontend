@@ -122,8 +122,8 @@ export default function SectorApprovals() {
         description:
           action === "approve"
             ? result.webhook_sent
-              ? "Post data has been sent to the connected webhook. The workflow will receive the LinkedIn post JSON."
-              : "The post will be sent to LinkedIn via the connected workflow."
+              ? "Full LinkedIn post data was sent to the n8n webhook. Check your workflow executions in n8n."
+              : "Approved. Webhook was not triggered. Set N8N_WEBHOOK_URL in the backend environment (e.g. Vercel) and redeploy to send data to n8n."
             : "No action taken.",
       });
     },
