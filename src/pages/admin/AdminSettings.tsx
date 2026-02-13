@@ -85,7 +85,10 @@ export default function AdminSettings() {
       });
       setCreatedSectorIds((prev) => new Set(prev).add(sector.id));
       setSectorRows((prev) => ({ ...prev, [sector.id]: { ...row, password: "" } }));
-      toast({ title: "Credentials created", description: `Sector Admin for ${sector.sector_name} can now sign in with that email.` });
+      toast({
+        title: "Credentials created",
+        description: `Sector Admin for ${sector.sector_name} can now sign in. They will only see data for ${sector.sector_name}.`,
+      });
     } catch (e) {
       toast({
         variant: "destructive",

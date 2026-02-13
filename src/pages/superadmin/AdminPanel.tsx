@@ -54,9 +54,10 @@ export default function AdminPanel() {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminSectorId, setAdminSectorId] = useState("");
-  const [filterSector, setFilterSector] = useState<string>("");
+  const ALL_FILTER = "__all__";
+  const [filterSector, setFilterSector] = useState<string>(ALL_FILTER);
   const [filterCommodity, setFilterCommodity] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>(ALL_FILTER);
   const [emailSectorId, setEmailSectorId] = useState("");
 
   const { data: sectors = [], isLoading: sectorsLoading } = useQuery({
@@ -69,9 +70,9 @@ export default function AdminPanel() {
     queryFn: () =>
       fetchAllApprovals({
         limit: 100,
-        sector_id: filterSector || undefined,
+        sector_id: filterSector && filterSector !== ALL_FILTER ? filterSector : undefined,
         commodity: filterCommodity || undefined,
-        status: filterStatus || undefined,
+        status: filterStatus && filterStatus !== ALL_FILTER ? filterStatus : undefined,
       }),
   });
 
@@ -99,11 +100,15 @@ export default function AdminPanel() {
         sector_id: adminSectorId,
       }),
     onSuccess: () => {
+      const sectorName = sectors.find((s) => s.id === adminSectorId)?.sector_name ?? "this sector";
       setAdminName("");
       setAdminEmail("");
       setAdminPassword("");
       setAdminSectorId("");
-      toast({ title: "Sector Admin created" });
+      toast({
+        title: "Sector Admin created",
+        description: `They can sign in and will only see data for ${sectorName}.`,
+      });
     },
     onError: (e: Error) => toast({ variant: "destructive", title: "Error", description: e.message }),
   });
@@ -123,50 +128,56 @@ export default function AdminPanel() {
   const approvedCount = items.filter((i) => i.status === "approved").length;
   const rejectedCount = items.filter((i) => i.status === "rejected").length;
 
+  const cardClass = "border border-zinc-800 bg-zinc-900/80 rounded-xl shadow-sm min-w-0";
+  const cardHeaderClass = "p-4 md:p-6 pb-2";
+  const cardContentClass = "p-4 md:p-6 pt-0";
+  const labelClass = "text-sm font-medium text-zinc-300";
+  const inputClass = "bg-zinc-800 border-zinc-700 rounded-md w-full focus:ring-zinc-500 focus:ring-offset-zinc-900";
+
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-8">
-      <motion.div variants={container} initial="hidden" animate="show" className="space-y-8">
+    <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+      <motion.div variants={container} initial="hidden" animate="show" className="space-y-6 md:space-y-8">
         {/* Overview Stats */}
         <motion.section variants={item}>
-          <h2 className="text-lg font-semibold text-zinc-100 mb-4">Overview</h2>
+          <h2 className="text-base font-semibold tracking-tight text-zinc-100 mb-4">Overview</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="border-zinc-800 bg-zinc-900/80">
-              <CardHeader className="pb-2">
+            <Card className={cardClass}>
+              <CardHeader className={cardHeaderClass}>
                 <CardTitle className="text-sm font-medium text-zinc-400 flex items-center gap-2">
                   <Building2 className="h-4 w-4" /> Sectors
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className={cardContentClass}>
                 <p className="text-2xl font-bold text-zinc-100">{sectorsLoading ? "—" : sectors.length}</p>
               </CardContent>
             </Card>
-            <Card className="border-zinc-800 bg-zinc-900/80">
-              <CardHeader className="pb-2">
+            <Card className={cardClass}>
+              <CardHeader className={cardHeaderClass}>
                 <CardTitle className="text-sm font-medium text-zinc-400 flex items-center gap-2">
                   <FileCheck className="h-4 w-4" /> Pending
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className={cardContentClass}>
                 <p className="text-2xl font-bold text-amber-400">{approvalsLoading ? "—" : pendingCount}</p>
               </CardContent>
             </Card>
-            <Card className="border-zinc-800 bg-zinc-900/80">
-              <CardHeader className="pb-2">
+            <Card className={cardClass}>
+              <CardHeader className={cardHeaderClass}>
                 <CardTitle className="text-sm font-medium text-zinc-400 flex items-center gap-2">
                   <FileCheck className="h-4 w-4" /> Approved
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className={cardContentClass}>
                 <p className="text-2xl font-bold text-emerald-500">{approvalsLoading ? "—" : approvedCount}</p>
               </CardContent>
             </Card>
-            <Card className="border-zinc-800 bg-zinc-900/80">
-              <CardHeader className="pb-2">
+            <Card className={cardClass}>
+              <CardHeader className={cardHeaderClass}>
                 <CardTitle className="text-sm font-medium text-zinc-400 flex items-center gap-2">
                   <History className="h-4 w-4" /> Rejected
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className={cardContentClass}>
                 <p className="text-2xl font-bold text-zinc-500">{approvalsLoading ? "—" : rejectedCount}</p>
               </CardContent>
             </Card>
@@ -263,16 +274,20 @@ export default function AdminPanel() {
                 </div>
                 <div className="space-y-2">
                   <Label>Sector</Label>
-                  <Select value={adminSectorId} onValueChange={setAdminSectorId}>
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                  <Select value={adminSectorId || undefined} onValueChange={setAdminSectorId}>
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700 focus:ring-zinc-500 focus:ring-offset-zinc-900">
                       <SelectValue placeholder="Select sector" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {sectors.map((s: SuperadminSector) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.sector_name}
-                        </SelectItem>
-                      ))}
+                    <SelectContent className="z-[100]">
+                      {sectors.length === 0 ? (
+                        <SelectItem value="__none__" disabled>No sectors yet</SelectItem>
+                      ) : (
+                        sectors.map((s: SuperadminSector) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.sector_name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -301,16 +316,20 @@ export default function AdminPanel() {
             <CardContent className="flex flex-wrap items-end gap-4">
               <div className="space-y-2 min-w-[200px]">
                 <Label>Sector</Label>
-                <Select value={emailSectorId} onValueChange={setEmailSectorId}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                <Select value={emailSectorId || undefined} onValueChange={setEmailSectorId}>
+                  <SelectTrigger className="bg-zinc-800 border-zinc-700 focus:ring-zinc-500 focus:ring-offset-zinc-900">
                     <SelectValue placeholder="Select sector" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {sectors.map((s: SuperadminSector) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.sector_name}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="z-[100]">
+                    {sectors.length === 0 ? (
+                      <SelectItem value="__none__" disabled>No sectors yet</SelectItem>
+                    ) : (
+                      sectors.map((s: SuperadminSector) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.sector_name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -332,11 +351,11 @@ export default function AdminPanel() {
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 <Select value={filterSector} onValueChange={setFilterSector}>
-                  <SelectTrigger className="w-[180px] bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="w-[180px] bg-zinc-800 border-zinc-700 focus:ring-zinc-500 focus:ring-offset-zinc-900">
                     <SelectValue placeholder="All sectors" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All sectors</SelectItem>
+                  <SelectContent className="z-[100]">
+                    <SelectItem value={ALL_FILTER}>All sectors</SelectItem>
                     {sectors.map((s: SuperadminSector) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.sector_name}
@@ -351,11 +370,11 @@ export default function AdminPanel() {
                   className="w-[140px] bg-zinc-800 border-zinc-700"
                 />
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-[140px] bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="w-[140px] bg-zinc-800 border-zinc-700 focus:ring-zinc-500 focus:ring-offset-zinc-900">
                     <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All</SelectItem>
+                  <SelectContent className="z-[100]">
+                    <SelectItem value={ALL_FILTER}>All</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>

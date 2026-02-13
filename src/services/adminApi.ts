@@ -454,3 +454,29 @@ export async function sendSuperadminSectorEmail(sector_id: string): Promise<{ ok
   if (!res.ok) throw new Error(data.error ?? "Failed to send email");
   return data;
 }
+
+export type NotificationItem = {
+  type: "linkedin_post" | "audit";
+  id: string;
+  sector_id: string | null;
+  sector_name: string | null;
+  title: string;
+  description: string;
+  timestamp: string | null;
+  meta?: Record<string, unknown> | null;
+};
+
+export async function fetchSuperadminNotifications(params?: {
+  sector_id?: string;
+  limit?: number;
+}): Promise<{ items: NotificationItem[] }> {
+  const sp = new URLSearchParams();
+  if (params?.sector_id) sp.set("sector_id", params.sector_id);
+  if (params?.limit != null) sp.set("limit", String(params.limit));
+  const q = sp.toString();
+  const url = `${API_BASE}/api/superadmin/notifications${q ? `?${q}` : ""}`;
+  const res = await apiFetch(url);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Failed to load notifications");
+  return data;
+}

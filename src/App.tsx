@@ -32,6 +32,7 @@ import SectorLayout from "./pages/sector/SectorLayout";
 import SectorApprovals from "./pages/sector/SectorApprovals";
 import AdminPanelLayout from "./pages/superadmin/AdminPanelLayout";
 import AdminPanel from "./pages/superadmin/AdminPanel";
+import Notifications from "./pages/superadmin/Notifications";
 import { useState, useEffect } from "react";
 import { getStoredToken, getStoredUser, setStoredUser, fetchMe } from "./services/adminApi";
 import { getStoredSectorToken } from "./services/sectorApi";
@@ -74,8 +75,10 @@ function SuperAdminGuard() {
           (res.user && typeof res.user === "object" && res.user.role === "SUPER_ADMIN") ||
           res.user === "admin";
         if (isSuperAdmin) {
-          if (res.user && typeof res.user === "object") setStoredUser({ id: res.user.id, role: "SUPER_ADMIN", ...res.user });
-          else setStoredUser({ id: "admin", role: "SUPER_ADMIN" });
+          if (res.user && typeof res.user === "object") {
+            const u = res.user as { id: string; name?: string; email?: string; role?: string; sector_id?: string };
+            setStoredUser({ id: u.id, name: u.name, email: u.email, role: (u.role as "SUPER_ADMIN" | "SECTOR_ADMIN") || "SUPER_ADMIN", sector_id: u.sector_id });
+          } else setStoredUser({ id: "admin", role: "SUPER_ADMIN" });
           setAllowed(true);
         } else setAllowed(false);
       })
@@ -101,6 +104,13 @@ const App = () => (
           <Route path="/admin-panel" element={<SuperAdminGuard />}>
             <Route element={<AdminPanelLayout />}>
               <Route index element={<AdminPanel />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="notifications" element={<Notifications />} />
+              <Route path="sectors" element={<AdminSectors />} />
+              <Route path="logs" element={<AdminEmailLogs />} />
+              <Route path="alerts" element={<AdminSectorAlerts />} />
+              <Route path="digest" element={<AdminDigest />} />
+              <Route path="settings" element={<AdminSettings />} />
             </Route>
           </Route>
           <Route path="/sector" element={<Outlet />}>

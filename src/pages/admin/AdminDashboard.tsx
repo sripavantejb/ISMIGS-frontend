@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, List, Settings, Loader2, Download, Upload, SendHorizontal, LayoutGrid, Users, Inbox, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,8 @@ import {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/admin-panel") ? "/admin-panel" : "/admin";
   const { toast } = useToast();
   const groups = useSectorList();
   const { recipientsByKey } = useSectorRecipients();
@@ -217,15 +219,15 @@ export default function AdminDashboard() {
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Navigation</p>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigate("/admin/sectors")}>
+              <Button variant="outline" size="sm" onClick={() => navigate(`${basePath}/sectors`)}>
                 <Mail className="h-4 w-4 mr-2" />
                 Sector recipients
               </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate("/admin/logs")}>
+              <Button variant="outline" size="sm" onClick={() => navigate(`${basePath}/logs`)}>
                 <List className="h-4 w-4 mr-2" />
                 Email logs
               </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate("/admin/settings")}>
+              <Button variant="outline" size="sm" onClick={() => navigate(`${basePath}/settings`)}>
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
@@ -236,7 +238,7 @@ export default function AdminDashboard() {
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Commodity</Label>
-                <Select value={disclosureCommodity || (energyCommodities[0] ?? "")} onValueChange={setDisclosureCommodity}>
+                <Select value={disclosureCommodity || energyCommodities[0] || undefined} onValueChange={setDisclosureCommodity}>
                   <SelectTrigger className="w-[180px] h-9">
                     <SelectValue placeholder="Select commodity" />
                   </SelectTrigger>
