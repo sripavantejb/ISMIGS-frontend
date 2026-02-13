@@ -27,7 +27,11 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminDigest from "./pages/admin/AdminDigest";
 import AdminDecision from "./pages/admin/AdminDecision";
 import AdminSectorAlerts from "./pages/admin/AdminSectorAlerts";
+import SectorLogin from "./pages/sector/SectorLogin";
+import SectorLayout from "./pages/sector/SectorLayout";
+import SectorApprovals from "./pages/sector/SectorApprovals";
 import { getStoredToken } from "./services/adminApi";
+import { getStoredSectorToken } from "./services/sectorApi";
 import ISMIGSChatbot from "@/chatbot/ISMIGSChatbot";
 
 const queryClient = new QueryClient();
@@ -38,22 +42,39 @@ function AdminGuard() {
   return <Outlet />;
 }
 
+function SectorGuard() {
+  const token = getStoredSectorToken();
+  if (!token) return <Navigate to="/sector/login" replace />;
+  return <Outlet />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <SidebarProvider>
-          <div className="min-h-screen flex w-full">
-            <AppSidebar />
-            <main className="flex-1 overflow-auto">
-              <div className="flex items-center h-12 border-b border-border/30 px-4 bg-background/50 backdrop-blur-sm sticky top-0 z-40">
-                <SidebarTrigger />
-                <span className="ml-3 text-xs text-muted-foreground font-mono uppercase tracking-widest">ISMIGS — India State Macro Intelligence</span>
-              </div>
-              <Routes>
-                <Route path="/" element={<Overview />} />
+        <Routes>
+          <Route path="/sector" element={<Outlet />}>
+            <Route path="login" element={<SectorLogin />} />
+            <Route element={<SectorGuard />}>
+              <Route element={<SectorLayout />}>
+                <Route path="approvals" element={<SectorApprovals />} />
+              </Route>
+            </Route>
+            <Route index element={<Navigate to="/sector/approvals" replace />} />
+          </Route>
+          <Route path="*" element={
+            <SidebarProvider>
+              <div className="min-h-screen flex w-full">
+                <AppSidebar />
+                <main className="flex-1 overflow-auto">
+                  <div className="flex items-center h-12 border-b border-border/30 px-4 bg-background/50 backdrop-blur-sm sticky top-0 z-40">
+                    <SidebarTrigger />
+                    <span className="ml-3 text-xs text-muted-foreground font-mono uppercase tracking-widest">ISMIGS — India State Macro Intelligence</span>
+                  </div>
+                  <Routes>
+                    <Route path="/" element={<Overview />} />
                 {/* <Route path="/energy-map" element={<EnergyMap />} /> */}
                 <Route path="/energy/:commoditySlug?" element={<EnergyAnalytics />} />
                 <Route path="/iip/:categorySlug?" element={<IndustrialProduction />} />
@@ -80,12 +101,14 @@ const App = () => (
                     </Route>
                   </Route>
                 </Route>
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </main>
-          </div>
-          <ISMIGSChatbot />
-        </SidebarProvider>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </main>
+              </div>
+              <ISMIGSChatbot />
+            </SidebarProvider>
+          } />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

@@ -42,6 +42,7 @@ type SectorExtras = {
   enabled: boolean;
   cc: string[];
   bcc: string[];
+  sector_username: string;
 };
 
 export default function AdminSectors() {
@@ -58,6 +59,7 @@ export default function AdminSectors() {
   const [testWarnings, setTestWarnings] = useState("");
   const [testContentOpen, setTestContentOpen] = useState(false);
   const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null);
+  const [localSectorPassword, setLocalSectorPassword] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setLocalEmails((prev) => {
@@ -83,9 +85,10 @@ export default function AdminSectors() {
               enabled: row.enabled !== false,
               cc: row.cc ?? [],
               bcc: row.bcc ?? [],
+              sector_username: row.sector_username ?? "",
             };
           } else if (!(s.sectorKey in next)) {
-            next[s.sectorKey] = { label: "", enabled: true, cc: [], bcc: [] };
+            next[s.sectorKey] = { label: "", enabled: true, cc: [], bcc: [], sector_username: "" };
           }
         });
       });
@@ -119,13 +122,14 @@ export default function AdminSectors() {
   const setExtra = (sectorKey: string, patch: Partial<SectorExtras>) => {
     setLocalExtras((prev) => ({
       ...prev,
-      [sectorKey]: { ...(prev[sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [] }), ...patch },
+      [sectorKey]: { ...(prev[sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [], sector_username: "" }), ...patch },
     }));
   };
 
   const handleSave = async (sectorKey: string, displayName: string) => {
     const emails = (localEmails[sectorKey] ?? [""]).map((e) => e.trim()).filter(Boolean);
-    const extras = localExtras[sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [] };
+    const extras = localExtras[sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [], sector_username: "" };
+    const password = localSectorPassword[sectorKey] ?? "";
     setSavingKey(sectorKey);
     try {
       await upsert({
@@ -136,7 +140,10 @@ export default function AdminSectors() {
         enabled: extras.enabled,
         cc: extras.cc.filter(Boolean),
         bcc: extras.bcc.filter(Boolean),
+        sector_username: extras.sector_username.trim() || null,
+        sector_password: password.trim() || undefined,
       });
+      if (password.trim()) setLocalSectorPassword((p) => ({ ...p, [sectorKey]: "" }));
       toast({ title: "Saved", description: `Recipients for ${displayName} updated.` });
     } catch (e) {
       toast({
@@ -363,7 +370,7 @@ export default function AdminSectors() {
                       <TableBody>
                         {group.sectors.map((sector) => {
                           const emails = localEmails[sector.sectorKey] ?? [""];
-                          const extras = localExtras[sector.sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [] };
+                          const extras = localExtras[sector.sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [], sector_username: "" };
                           const hasEmails = emails.some((e) => e.trim().length > 0);
                           const count = emails.filter((e) => e.trim()).length;
                           const recipientSummary =
@@ -474,9 +481,39 @@ export default function AdminSectors() {
                               {isExpanded && (
                                 <TableRow key={`${sector.sectorKey}-expanded`} className="bg-muted/30 hover:bg-muted/30">
                                   <TableCell colSpan={7} className="p-4">
-                                    <div className="space-y-2 max-w-2xl">
-                                      <Label className="text-xs text-muted-foreground">Recipient emails</Label>
-                                      {emails.map((email, idx) => (
+                                    <div className="space-y-4 max-w-2xl">
+                                      <div className="space-y-2">
+                                        <Label className="text-xs text-muted-foreground">Sector login (for LinkedIn approvals panel)</Label>
+                                        <div className="flex flex-wrap gap-4 items-end">
+                                          <div className="space-y-1">
+                                            <Label htmlFor={`sector-username-${sector.sectorKey}`} className="text-xs">Username</Label>
+                                            <Input
+                                              id={`sector-username-${sector.sectorKey}`}
+                                              placeholder="e.g. sector_coal"
+                                              value={extras.sector_username}
+                                              onChange={(e) => setExtra(sector.sectorKey, { sector_username: e.target.value })}
+                                              className="h-8 text-sm w-48"
+                                            />
+                                          </div>
+                                          <div className="space-y-1">
+                                            <Label htmlFor={`sector-password-${sector.sectorKey}`} className="text-xs">Password</Label>
+                                            <Input
+                                              id={`sector-password-${sector.sectorKey}`}
+                                              type="password"
+                                              placeholder="Set password to create or change"
+                                              value={localSectorPassword[sector.sectorKey] ?? ""}
+                                              onChange={(e) => setLocalSectorPassword((p) => ({ ...p, [sector.sectorKey]: e.target.value }))}
+                                              className="h-8 text-sm w-48"
+                                            />
+                                          </div>
+                                        </div>
+                                        {recipientsByKey[sector.sectorKey]?.has_sector_login && (
+                                          <p className="text-xs text-muted-foreground">Login is set. Change password above to update.</p>
+                                        )}
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label className="text-xs text-muted-foreground">Recipient emails</Label>
+                                        {emails.map((email, idx) => (
                                         <div key={idx} className="flex gap-2">
                                           <Input
                                             type="email"
@@ -510,6 +547,7 @@ export default function AdminSectors() {
                                         <Plus className="h-4 w-4 mr-1" />
                                         Add email
                                       </Button>
+                                      </div>
                                     </div>
                                   </TableCell>
                                 </TableRow>

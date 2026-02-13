@@ -23,15 +23,33 @@ export function useSectorRecipients() {
       sectorKey,
       displayName,
       emails,
+      label,
+      enabled,
+      cc,
+      bcc,
+      sector_username,
+      sector_password,
     }: {
       sectorKey: string;
       displayName: string;
       emails: string[];
+      label?: string | null;
+      enabled?: boolean;
+      cc?: string[];
+      bcc?: string[];
+      sector_username?: string | null;
+      sector_password?: string;
     }) => {
       await upsertSectorRecipient({
         sector_key: sectorKey,
         display_name: displayName,
         emails: emails.filter((e) => e.trim().length > 0),
+        label,
+        enabled,
+        cc,
+        bcc,
+        sector_username,
+        sector_password,
       });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sector_recipients"] }),

@@ -40,6 +40,8 @@ export type SectorRecipientRow = {
   enabled?: boolean;
   cc?: string[];
   bcc?: string[];
+  has_sector_login?: boolean;
+  sector_username?: string | null;
 };
 
 export type EmailLogRow = {
@@ -98,10 +100,25 @@ export async function upsertSectorRecipient(params: {
   enabled?: boolean;
   cc?: string[];
   bcc?: string[];
+  sector_username?: string | null;
+  sector_password?: string;
 }): Promise<void> {
+  const body: Record<string, unknown> = {
+    sector_key: params.sector_key,
+    display_name: params.display_name,
+    emails: params.emails,
+    label: params.label ?? null,
+    enabled: params.enabled !== false,
+    cc: params.cc ?? [],
+    bcc: params.bcc ?? [],
+  };
+  if (params.sector_username !== undefined) body.sector_username = params.sector_username || null;
+  if (typeof params.sector_password === "string" && params.sector_password.length > 0) {
+    body.sector_password = params.sector_password;
+  }
   const res = await apiFetch(`${API_BASE}/api/sector-recipients`, {
     method: "PUT",
-    body: JSON.stringify(params),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
