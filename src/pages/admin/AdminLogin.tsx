@@ -136,24 +136,27 @@ export default function AdminLogin() {
             <CardTitle>Admin login</CardTitle>
           </div>
           <CardDescription>
-            One login for Super Admin, Admin, and Sector Admin. Sign in with your credentials; you will be redirected to the correct panel based on your role.
+            One login for Super Admin, Admin, and Sector Admin. You will be redirected to the correct panel based on your role.
           </CardDescription>
+          <p className="text-sm text-muted-foreground mt-1">
+            <strong>Account created in Super Admin panel?</strong> Use the <strong>Email</strong> field with the exact email you entered there, and the password you set—not the username field.
+          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="admin-email">Email</Label>
+              <Label htmlFor="admin-email">Email (for Sector Admin / created accounts)</Label>
               <Input
                 id="admin-email"
                 type="email"
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Sector Admin: your email. Super Admin: optional."
+                placeholder="e.g. you@example.com"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="admin-username">Username (if not using email)</Label>
+              <Label htmlFor="admin-username">Username (Super Admin only: admin)</Label>
               <Input
                 id="admin-username"
                 type="text"
