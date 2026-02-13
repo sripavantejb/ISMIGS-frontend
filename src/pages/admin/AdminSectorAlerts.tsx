@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Play } from "lucide-react";
+import { Loader2, Play, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   fetchSectorAlertsLog,
@@ -64,9 +64,11 @@ export default function AdminSectorAlerts() {
     ])
   ).sort();
 
-  const { data: decisionsData } = useQuery({
+  const { data: decisionsData, refetch: refetchDecisions, isFetching: isFetchingDecisions } = useQuery({
     queryKey: ["admin_decisions"],
-    queryFn: () => fetchAdminDecisions({ limit: 50 }),
+    queryFn: () => fetchAdminDecisions({ limit: 100 }),
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
   });
   const decisions = decisionsData?.items ?? [];
 
@@ -282,11 +284,26 @@ export default function AdminSectorAlerts() {
       </Card>
 
       <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-base">LinkedIn post approval status</CardTitle>
-          <CardDescription>
-            Confirmation emails sent to administrators with Yes/No for posting to LinkedIn. Status reflects their response.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-4">
+          <div className="space-y-1.5">
+            <CardTitle className="text-base">LinkedIn post approval status</CardTitle>
+            <CardDescription>
+              Confirmation emails sent to administrators with Yes/No for posting to LinkedIn. Status reflects their response.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["admin_decisions"] })}
+            disabled={isFetchingDecisions}
+          >
+            {isFetchingDecisions ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Refresh
+          </Button>
         </CardHeader>
         <CardContent>
           {decisions.length === 0 ? (
