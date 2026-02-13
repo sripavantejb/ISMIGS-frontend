@@ -32,7 +32,8 @@ import SectorLayout from "./pages/sector/SectorLayout";
 import SectorApprovals from "./pages/sector/SectorApprovals";
 import AdminPanelLayout from "./pages/superadmin/AdminPanelLayout";
 import AdminPanel from "./pages/superadmin/AdminPanel";
-import { getStoredToken, getStoredUser } from "./services/adminApi";
+import { useState, useEffect } from "react";
+import { getStoredToken, getStoredUser, setStoredUser, fetchMe } from "./services/adminApi";
 import { getStoredSectorToken } from "./services/sectorApi";
 import ISMIGSChatbot from "@/chatbot/ISMIGSChatbot";
 
@@ -52,9 +53,41 @@ function SectorGuard() {
 
 function SuperAdminGuard() {
   const token = getStoredToken();
-  const user = getStoredUser();
+  const storedUser = getStoredUser();
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!token) {
+      setAllowed(false);
+      return;
+    }
+    if (storedUser?.role === "SUPER_ADMIN") {
+      setAllowed(true);
+      return;
+    }
+    let cancelled = false;
+    fetchMe()
+      .then((res: { user?: string | { id: string; role?: string }; role?: string }) => {
+        if (cancelled) return;
+        const isSuperAdmin =
+          res.role === "SUPER_ADMIN" ||
+          (res.user && typeof res.user === "object" && res.user.role === "SUPER_ADMIN") ||
+          res.user === "admin";
+        if (isSuperAdmin) {
+          if (res.user && typeof res.user === "object") setStoredUser({ id: res.user.id, role: "SUPER_ADMIN", ...res.user });
+          else setStoredUser({ id: "admin", role: "SUPER_ADMIN" });
+          setAllowed(true);
+        } else setAllowed(false);
+      })
+      .catch(() => {
+        if (!cancelled) setAllowed(false);
+      });
+    return () => { cancelled = true; };
+  }, [token, storedUser?.role]);
+
   if (!token) return <Navigate to="/admin/login" replace />;
-  if (user?.role !== "SUPER_ADMIN") return <Navigate to="/admin/dashboard" replace />;
+  if (allowed === null) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading...</div>;
+  if (!allowed) return <Navigate to="/admin/dashboard" replace />;
   return <Outlet />;
 }
 
