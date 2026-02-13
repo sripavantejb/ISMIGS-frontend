@@ -9,6 +9,10 @@ Copy `.env.example` to `.env` and configure:
 - **VITE_SUPABASE_URL** / **VITE_SUPABASE_PUBLISHABLE_KEY** — For Risk Intelligence AI (Supabase Edge Function)
 - **OPENAI_API_KEY** or **VITE_OPENAI_API_KEY** — Optional, for Predictions page AI outlook (proxied via Vite)
 
+## Admin panel (local)
+
+When using the admin panel (Sector recipients, Email logs, Settings, etc.), the backend must be running or API requests will fail with connection errors. In a separate terminal, run: `cd backend && npm run dev` (or `npm start`). The frontend proxies `/api` to the backend on port 3001.
+
 ## Data Sources
 
 - **MoSPI APIs** — Energy, WPI, NAS, IIP (proxied via `/mospi` in dev to avoid CORS)

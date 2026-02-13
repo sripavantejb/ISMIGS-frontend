@@ -33,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const MONTH_ORDER = [
@@ -310,8 +311,20 @@ const IndustrialProduction = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="min-h-screen p-6 space-y-6">
+        <div>
+          <Skeleton className="h-8 w-72" />
+          <Skeleton className="h-4 w-56 mt-2" />
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <Skeleton className="h-9 w-24" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+        <Skeleton className="h-[320px] w-full rounded-xl" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-[240px] w-full rounded-xl" />
+          <Skeleton className="h-[240px] w-full rounded-xl" />
+        </div>
       </div>
     );
   }

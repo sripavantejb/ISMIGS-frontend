@@ -1,11 +1,20 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ChevronDown, Loader2, Mail, Plus, Send, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Mail, Plus, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Collapsible,
   CollapsibleContent,
@@ -48,6 +57,7 @@ export default function AdminSectors() {
   const [testInsights, setTestInsights] = useState("");
   const [testWarnings, setTestWarnings] = useState("");
   const [testContentOpen, setTestContentOpen] = useState(false);
+  const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalEmails((prev) => {
@@ -281,9 +291,45 @@ export default function AdminSectors() {
       </Collapsible>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        </div>
+        <Card className="border-border bg-card">
+          <CardHeader className="pb-2">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-48 mt-2" />
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[200px]">Sector</TableHead>
+                  <TableHead className="w-[90px]">Enabled</TableHead>
+                  <TableHead className="w-[160px]">Label</TableHead>
+                  <TableHead className="min-w-[140px]">Recipients</TableHead>
+                  <TableHead className="min-w-[160px]">CC</TableHead>
+                  <TableHead className="min-w-[160px]">BCC</TableHead>
+                  <TableHead className="text-right w-[180px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-8 w-36" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-11 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-28" /></TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Skeleton className="h-8 w-20" />
+                        <Skeleton className="h-8 w-24" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-8">
           {groups.map((group) => (
@@ -298,113 +344,182 @@ export default function AdminSectors() {
                   <CardTitle className="text-lg">{group.label}</CardTitle>
                   <CardDescription>Sectors under {group.label}</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  {group.sectors.map((sector) => {
-                    const emails = localEmails[sector.sectorKey] ?? [""];
-                    const extras = localExtras[sector.sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [] };
-                    const hasEmails = emails.some((e) => e.trim().length > 0);
-                    return (
-                      <div
-                        key={sector.sectorKey}
-                        className="flex flex-col gap-3 rounded-lg border border-border/50 p-4 bg-background/50"
-                      >
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium text-foreground">{sector.displayName}</span>
-                          <div className="flex items-center gap-2 ml-2">
-                            <Checkbox
-                              id={`enabled-${sector.sectorKey}`}
-                              checked={extras.enabled}
-                              onCheckedChange={(c) => setExtra(sector.sectorKey, { enabled: c === true })}
-                            />
-                            <Label htmlFor={`enabled-${sector.sectorKey}`} className="text-xs text-muted-foreground">Enabled</Label>
-                          </div>
-                        </div>
-                        <div className="grid gap-2 max-w-md">
-                          <Label className="text-muted-foreground text-xs">Optional label</Label>
-                          <Input
-                            placeholder="Label (optional)"
-                            value={extras.label}
-                            onChange={(e) => setExtra(sector.sectorKey, { label: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground">Recipient emails</Label>
-                          {emails.map((email, idx) => (
-                            <div key={idx} className="flex gap-2">
-                              <Input
-                                type="email"
-                                placeholder="email@example.com"
-                                value={email}
-                                onChange={(e) => updateEmailAt(sector.sectorKey, idx, e.target.value)}
-                                className="max-w-md"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeEmailSlot(sector.sectorKey, idx)}
-                                disabled={emails.length <= 1}
-                                aria-label="Remove email"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addEmailSlot(sector.sectorKey)}
-                            className="w-fit"
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Add email
-                          </Button>
-                        </div>
-                        <div className="grid gap-2 max-w-md">
-                          <Label className="text-muted-foreground text-xs">CC (comma-separated)</Label>
-                          <Input
-                            placeholder="cc1@example.com, cc2@example.com"
-                            value={(extras.cc || []).join(", ")}
-                            onChange={(e) => setExtra(sector.sectorKey, { cc: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) })}
-                          />
-                        </div>
-                        <div className="grid gap-2 max-w-md">
-                          <Label className="text-muted-foreground text-xs">BCC (comma-separated)</Label>
-                          <Input
-                            placeholder="bcc@example.com"
-                            value={(extras.bcc || []).join(", ")}
-                            onChange={(e) => setExtra(sector.sectorKey, { bcc: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) })}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleSave(sector.sectorKey, sector.displayName)}
-                            disabled={isUpserting || savingKey !== null}
-                          >
-                            {savingKey === sector.sectorKey ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleSendTest(sector.sectorKey, sector.displayName)}
-                            disabled={!hasEmails || sendingKey !== null}
-                          >
-                            {sendingKey === sector.sectorKey ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <Send className="h-4 w-4 mr-1" />
-                                Send test email
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <CardContent>
+                  {group.sectors.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4">No sectors in this section.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[200px]">Sector</TableHead>
+                          <TableHead className="w-[90px]">Enabled</TableHead>
+                          <TableHead className="w-[160px]">Label</TableHead>
+                          <TableHead className="min-w-[140px]">Recipients</TableHead>
+                          <TableHead className="min-w-[160px]">CC</TableHead>
+                          <TableHead className="min-w-[160px]">BCC</TableHead>
+                          <TableHead className="text-right w-[180px]">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {group.sectors.map((sector) => {
+                          const emails = localEmails[sector.sectorKey] ?? [""];
+                          const extras = localExtras[sector.sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [] };
+                          const hasEmails = emails.some((e) => e.trim().length > 0);
+                          const count = emails.filter((e) => e.trim()).length;
+                          const recipientSummary =
+                            count === 0
+                              ? "No recipients"
+                              : count === 1
+                                ? (emails.find((e) => e.trim()) ?? "").slice(0, 28) + (emails.find((e) => e.trim())!.length > 28 ? "…" : "")
+                                : `${count} recipients`;
+                          const isExpanded = expandedRowKey === sector.sectorKey;
+                          return (
+                            <React.Fragment key={sector.sectorKey}>
+                              <TableRow className="hover:bg-muted/50">
+                                <TableCell className="font-medium">
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedRowKey((k) => (k === sector.sectorKey ? null : sector.sectorKey))}
+                                    className="flex items-center gap-1.5 text-left hover:opacity-80"
+                                    aria-expanded={isExpanded}
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                    )}
+                                    <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                    <span>{sector.displayName}</span>
+                                  </button>
+                                </TableCell>
+                                <TableCell>
+                                  <Switch
+                                    id={`enabled-${sector.sectorKey}`}
+                                    checked={extras.enabled}
+                                    onCheckedChange={(c) => setExtra(sector.sectorKey, { enabled: c })}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    placeholder="Label (optional)"
+                                    value={extras.label}
+                                    onChange={(e) => setExtra(sector.sectorKey, { label: e.target.value })}
+                                    className="h-8 text-sm"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm">
+                                  {recipientSummary}
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    placeholder="cc@example.com"
+                                    value={(extras.cc || []).join(", ")}
+                                    onChange={(e) =>
+                                      setExtra(sector.sectorKey, {
+                                        cc: e.target.value
+                                          .split(",")
+                                          .map((x) => x.trim())
+                                          .filter(Boolean),
+                                      })
+                                    }
+                                    className="h-8 text-sm"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    placeholder="bcc@example.com"
+                                    value={(extras.bcc || []).join(", ")}
+                                    onChange={(e) =>
+                                      setExtra(sector.sectorKey, {
+                                        bcc: e.target.value
+                                          .split(",")
+                                          .map((x) => x.trim())
+                                          .filter(Boolean),
+                                      })
+                                    }
+                                    className="h-8 text-sm"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleSave(sector.sectorKey, sector.displayName)}
+                                      disabled={isUpserting || savingKey !== null}
+                                    >
+                                      {savingKey === sector.sectorKey ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        "Save"
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => handleSendTest(sector.sectorKey, sector.displayName)}
+                                      disabled={!hasEmails || sendingKey !== null}
+                                    >
+                                      {sendingKey === sector.sectorKey ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <Send className="h-4 w-4 mr-1" />
+                                          Send test
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                              {isExpanded && (
+                                <TableRow key={`${sector.sectorKey}-expanded`} className="bg-muted/30 hover:bg-muted/30">
+                                  <TableCell colSpan={7} className="p-4">
+                                    <div className="space-y-2 max-w-2xl">
+                                      <Label className="text-xs text-muted-foreground">Recipient emails</Label>
+                                      {emails.map((email, idx) => (
+                                        <div key={idx} className="flex gap-2">
+                                          <Input
+                                            type="email"
+                                            placeholder="email@example.com"
+                                            value={email}
+                                            onChange={(e) =>
+                                              updateEmailAt(sector.sectorKey, idx, e.target.value)
+                                            }
+                                            className="h-8 text-sm"
+                                          />
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 shrink-0"
+                                            onClick={() => removeEmailSlot(sector.sectorKey, idx)}
+                                            disabled={emails.length <= 1}
+                                            aria-label="Remove email"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      ))}
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => addEmailSlot(sector.sectorKey)}
+                                        className="w-fit"
+                                      >
+                                        <Plus className="h-4 w-4 mr-1" />
+                                        Add email
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

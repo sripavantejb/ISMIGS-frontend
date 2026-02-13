@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -87,8 +88,41 @@ export default function AdminSettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="space-y-6 max-w-xl">
+        <div>
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-4 w-56 mt-2" />
+        </div>
+        <Card className="border-border bg-card">
+          <CardHeader>
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-4 w-full max-w-md mt-2" />
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-6 w-11 rounded-full" />
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-card">
+          <CardHeader>
+            <Skeleton className="h-5 w-44" />
+            <Skeleton className="h-4 w-full max-w-sm mt-2" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-card">
+          <CardHeader>
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-4 w-full max-w-lg mt-2" />
+          </CardHeader>
+          <CardContent className="flex gap-2">
+            <Skeleton className="h-10 flex-1" />
+            <Skeleton className="h-10 w-24" />
+          </CardContent>
+        </Card>
+        <Skeleton className="h-10 w-32" />
       </div>
     );
   }
