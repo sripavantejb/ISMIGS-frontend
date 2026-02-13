@@ -13,8 +13,8 @@ export default function AdminDecision() {
   const config = isApproved
     ? {
         icon: CheckCircle2,
-        title: "Post approved",
-        message: "Publishing initiated.",
+        title: "Approved for LinkedIn",
+        message: "This post has been approved and will be shared to LinkedIn.",
         className: "text-emerald-500",
         bg: "bg-emerald-500/10 border-emerald-500/30",
       }
