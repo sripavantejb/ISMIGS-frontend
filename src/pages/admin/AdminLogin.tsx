@@ -8,9 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { login, getStoredToken, setStoredToken } from "@/services/adminApi";
 
+// Demo credentials matching backend defaults (ADMIN_USERNAME / ADMIN_PASSWORD)
+const DEMO_USERNAME = "admin";
+const DEMO_PASSWORD = "admin123";
+
 export default function AdminLogin() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState(DEMO_USERNAME);
+  const [password, setPassword] = useState(DEMO_PASSWORD);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);

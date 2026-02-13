@@ -19,13 +19,21 @@ import RiskIntelligence from "./pages/RiskIntelligence";
 import ComingSoon from "./pages/ComingSoon";
 import NotFound from "./pages/NotFound";
 import AdminLayout from "./pages/admin/AdminLayout";
+import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminSectors from "./pages/admin/AdminSectors";
 import AdminEmailLogs from "./pages/admin/AdminEmailLogs";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminDigest from "./pages/admin/AdminDigest";
+import { getStoredToken } from "./services/adminApi";
 
 const queryClient = new QueryClient();
+
+function AdminGuard() {
+  const token = getStoredToken();
+  if (!token) return <Navigate to="/admin/login" replace />;
+  return <Outlet />;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -55,13 +63,16 @@ const App = () => (
                 <Route path="/risk-intelligence" element={<RiskIntelligence />} />
                 <Route path="/explorer" element={<ComingSoon title="Data Explorer" />} />
                 <Route path="/admin" element={<Outlet />}>
-                  <Route index element={<Navigate to="/admin/dashboard" replace />} />
-                  <Route element={<AdminLayout />}>
-                    <Route path="dashboard" element={<AdminDashboard />} />
-                    <Route path="sectors" element={<AdminSectors />} />
-                    <Route path="logs" element={<AdminEmailLogs />} />
-                    <Route path="digest" element={<AdminDigest />} />
-                    <Route path="settings" element={<AdminSettings />} />
+                  <Route path="login" element={<AdminLogin />} />
+                  <Route element={<AdminGuard />}>
+                    <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                    <Route element={<AdminLayout />}>
+                      <Route path="dashboard" element={<AdminDashboard />} />
+                      <Route path="sectors" element={<AdminSectors />} />
+                      <Route path="logs" element={<AdminEmailLogs />} />
+                      <Route path="digest" element={<AdminDigest />} />
+                      <Route path="settings" element={<AdminSettings />} />
+                    </Route>
                   </Route>
                 </Route>
                 <Route path="*" element={<NotFound />} />
