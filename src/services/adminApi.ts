@@ -309,3 +309,27 @@ export async function runSectorAlertsNow(): Promise<{ ok: boolean; results: { co
   if (!res.ok) throw new Error(data.error ?? "Failed to run sector alerts");
   return data;
 }
+
+export type AdminDecisionRow = {
+  id: string;
+  commodity: string | null;
+  status: string;
+  created_at: string | null;
+  responded_at: string | null;
+};
+
+export type AdminDecisionsResponse = {
+  items: AdminDecisionRow[];
+};
+
+export async function fetchAdminDecisions(params?: { limit?: number }): Promise<AdminDecisionsResponse> {
+  const q = new URLSearchParams();
+  if (params?.limit != null) q.set("limit", String(params.limit));
+  const url = `${API_BASE}/api/admin/decisions${q.toString() ? `?${q}` : ""}`;
+  const res = await apiFetch(url);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error ?? "Failed to fetch admin decisions");
+  }
+  return res.json();
+}

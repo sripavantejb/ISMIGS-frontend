@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,13 +12,16 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   fetchSectorAlertsLog,
+  fetchAdminDecisions,
   runSectorAlertsNow,
   type SectorAlertLogRow,
   type SectorAlertsLogResponse,
+  type AdminDecisionRow,
 } from "@/services/adminApi";
 
 function formatAlertType(alert_type: string) {
@@ -27,12 +30,19 @@ function formatAlertType(alert_type: string) {
   return alert_type;
 }
 
+function formatDecisionStatus(status: string) {
+  if (status === "approved") return "Approved for LinkedIn";
+  if (status === "rejected") return "Declined";
+  return "Awaiting response";
+}
+
 export default function AdminSectorAlerts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [commodityFilter, setCommodityFilter] = useState<string>("");
   const [sinceFilter, setSinceFilter] = useState<string>("all");
   const [running, setRunning] = useState(false);
+  const hasAutoRun = useRef(false);
 
   const { data, isLoading } = useQuery<SectorAlertsLogResponse>({
     queryKey: ["sector_alerts_log", commodityFilter, sinceFilter],
@@ -53,6 +63,18 @@ export default function AdminSectorAlerts() {
       ...Object.keys(summary.byCommodity || {}),
     ])
   ).sort();
+
+  const { data: decisionsData } = useQuery({
+    queryKey: ["admin_decisions"],
+    queryFn: () => fetchAdminDecisions({ limit: 50 }),
+  });
+  const decisions = decisionsData?.items ?? [];
+
+  useEffect(() => {
+    if (hasAutoRun.current) return;
+    hasAutoRun.current = true;
+    handleRunNow();
+  }, []);
 
   const handleRunNow = async () => {
     setRunning(true);
@@ -102,10 +124,10 @@ export default function AdminSectorAlerts() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Alerts sent (last 7 days)</CardTitle>
           </CardHeader>
           <CardContent>
-            {data ? (
-              <p className="text-2xl font-bold tabular-nums">{summary.totalLast7Days}</p>
-            ) : (
+            {isLoading ? (
               <Skeleton className="h-8 w-16" />
+            ) : (
+              <p className="text-2xl font-bold tabular-nums">{summary.totalLast7Days}</p>
             )}
           </CardContent>
         </Card>
@@ -114,10 +136,10 @@ export default function AdminSectorAlerts() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total in list</CardTitle>
           </CardHeader>
           <CardContent>
-            {data ? (
-              <p className="text-2xl font-bold tabular-nums">{data.total ?? items.length}</p>
-            ) : (
+            {isLoading ? (
               <Skeleton className="h-8 w-16" />
+            ) : (
+              <p className="text-2xl font-bold tabular-nums">{data?.total ?? items.length}</p>
             )}
           </CardContent>
         </Card>
@@ -126,7 +148,9 @@ export default function AdminSectorAlerts() {
             <CardTitle className="text-sm font-medium text-muted-foreground">By commodity (7 days)</CardTitle>
           </CardHeader>
           <CardContent>
-            {data ? (
+            {isLoading ? (
+              <Skeleton className="h-16 w-full" />
+            ) : (
               <div className="text-sm">
                 {Object.keys(summary.byCommodity).length === 0 ? (
                   <p className="text-muted-foreground">—</p>
@@ -144,41 +168,48 @@ export default function AdminSectorAlerts() {
                   </ul>
                 )}
               </div>
-            ) : (
-              <Skeleton className="h-16 w-full" />
             )}
           </CardContent>
         </Card>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={commodityFilter || "all"} onValueChange={(v) => setCommodityFilter(v === "all" ? "" : v)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All commodities" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All commodities</SelectItem>
-            {commodityOptions.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={sinceFilter || "all"} onValueChange={setSinceFilter}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Since" />
-          </SelectTrigger>
-          <SelectContent>
-            {sinceOptions.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {isLoading ? (
+          <>
+            <Skeleton className="h-9 w-[180px]" />
+            <Skeleton className="h-9 w-[160px]" />
+          </>
+        ) : (
+          <>
+            <Select value={commodityFilter || "all"} onValueChange={(v) => setCommodityFilter(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All commodities" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All commodities</SelectItem>
+                {commodityOptions.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sinceFilter || "all"} onValueChange={setSinceFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Since" />
+              </SelectTrigger>
+              <SelectContent>
+                {sinceOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
       </div>
 
       <Card className="border-border bg-card">
         <CardHeader>
           <CardTitle className="text-base">Alert history</CardTitle>
-          <CardDescription>Sent at, commodity, sector, risk score, alert type, and recipients</CardDescription>
+          <CardDescription>Sent at, commodity, sector, risk score, alert type, recipients, and delivery status</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -193,6 +224,7 @@ export default function AdminSectorAlerts() {
                     <TableHead>Risk score</TableHead>
                     <TableHead>Alert type</TableHead>
                     <TableHead>Recipients</TableHead>
+                    <TableHead>Sent to administrators</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -204,6 +236,7 @@ export default function AdminSectorAlerts() {
                       <TableCell><Skeleton className="h-4 w-12" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-10" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -221,6 +254,7 @@ export default function AdminSectorAlerts() {
                   <TableHead>Risk score</TableHead>
                   <TableHead>Alert type</TableHead>
                   <TableHead>Recipients</TableHead>
+                  <TableHead>Sent to administrators</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -234,6 +268,60 @@ export default function AdminSectorAlerts() {
                     <TableCell className="font-mono tabular-nums">{row.risk_score}</TableCell>
                     <TableCell>{formatAlertType(row.alert_type)}</TableCell>
                     <TableCell className="tabular-nums">{row.recipient_count}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground" title="Alert email delivered to sector recipients">
+                      {row.recipient_count > 0
+                        ? `Delivered to ${row.recipient_count} administrator(s)`
+                        : "Not sent"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle className="text-base">LinkedIn post approval status</CardTitle>
+          <CardDescription>
+            Confirmation emails sent to administrators with Yes/No for posting to LinkedIn. Status reflects their response.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {decisions.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">No LinkedIn confirmation requests yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Commodity</TableHead>
+                  <TableHead>Sent at</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Responded at</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {decisions.map((row: AdminDecisionRow) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="font-medium">{row.commodity ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                      {row.created_at ? new Date(row.created_at).toLocaleString() : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {row.status === "approved" ? (
+                        <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">
+                          {formatDecisionStatus(row.status)}
+                        </Badge>
+                      ) : row.status === "rejected" ? (
+                        <Badge variant="secondary">{formatDecisionStatus(row.status)}</Badge>
+                      ) : (
+                        <Badge variant="outline">{formatDecisionStatus(row.status)}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                      {row.responded_at ? new Date(row.responded_at).toLocaleString() : "—"}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
