@@ -63,8 +63,8 @@ export default function AdminDigest() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
+    <div className="space-y-6 max-w-2xl min-w-0 w-full">
+      <div className="min-w-0">
         <h2 className="text-lg font-semibold text-foreground">Email digest</h2>
         <p className="text-sm text-muted-foreground">
           Send top insights and critical warnings as a LinkedIn-style post. Content is generated via OpenAI and sent to sector recipients.
@@ -113,7 +113,7 @@ export default function AdminDigest() {
               ))}
             </select>
           </div>
-          <Button onClick={handleSend} disabled={sending}>
+          <Button onClick={handleSend} disabled={sending} className="w-full sm:w-auto">
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             <span className="ml-2">Generate & send</span>
           </Button>

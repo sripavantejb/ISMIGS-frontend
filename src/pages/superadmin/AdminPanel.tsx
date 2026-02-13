@@ -36,12 +36,14 @@ import { useSectorList } from "@/hooks/useSectorList";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchSuperadminSectors,
+  fetchSectorsWithAdmins,
   createSector,
   createSectorAdmin,
   ensureSector,
   fetchAllApprovals,
   sendSuperadminSectorEmail,
   type SuperadminSector,
+  type SectorWithAdminRow,
   type AllApprovalRow,
 } from "@/services/adminApi";
 
@@ -71,6 +73,11 @@ export default function AdminPanel() {
     queryFn: fetchSuperadminSectors,
   });
 
+  const { data: sectorsWithAdmins = [], isLoading: sectorsWithAdminsLoading } = useQuery({
+    queryKey: ["superadmin_sectors_with_admins"],
+    queryFn: fetchSectorsWithAdmins,
+  });
+
   const { data: approvalsData, isLoading: approvalsLoading } = useQuery({
     queryKey: ["superadmin_approvals", filterSector, filterCommodity, filterStatus],
     queryFn: () =>
@@ -90,6 +97,7 @@ export default function AdminPanel() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["superadmin_sectors"] });
+      queryClient.invalidateQueries({ queryKey: ["superadmin_sectors_with_admins"] });
       setSectorName("");
       setSectorKey("");
       toast({ title: "Sector created" });
@@ -111,6 +119,7 @@ export default function AdminPanel() {
     onSuccess: () => {
       const displayName = allSectors.find((s) => s.sectorKey === adminSectorKey)?.displayName ?? adminSectorKey;
       queryClient.invalidateQueries({ queryKey: ["superadmin_sectors"] });
+      queryClient.invalidateQueries({ queryKey: ["superadmin_sectors_with_admins"] });
       setAdminName("");
       setAdminEmail("");
       setAdminPassword("");
@@ -149,7 +158,7 @@ export default function AdminPanel() {
   const inputClass = "bg-zinc-800 border-zinc-700 rounded-md w-full focus:ring-zinc-500 focus:ring-offset-zinc-900";
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+    <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 min-w-0 w-full">
       <motion.div variants={container} initial="hidden" animate="show" className="space-y-6 md:space-y-8">
         {/* Overview Stats */}
         <motion.section variants={item}>

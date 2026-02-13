@@ -106,7 +106,7 @@ export default function AdminSectorAlerts() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 w-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Sector alerts</h2>
@@ -184,7 +184,7 @@ export default function AdminSectorAlerts() {
         ) : (
           <>
             <Select value={commodityFilter || "all"} onValueChange={(v) => setCommodityFilter(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px] min-w-0">
                 <SelectValue placeholder="All commodities" />
               </SelectTrigger>
               <SelectContent className="z-[100] max-h-[280px]">
@@ -195,7 +195,7 @@ export default function AdminSectorAlerts() {
               </SelectContent>
             </Select>
             <Select value={sinceFilter || "all"} onValueChange={setSinceFilter}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px] min-w-0">
                 <SelectValue placeholder="Since" />
               </SelectTrigger>
               <SelectContent className="z-[100] max-h-[280px]">
@@ -217,6 +217,7 @@ export default function AdminSectorAlerts() {
           {isLoading ? (
             <>
               <Skeleton className="h-6 w-32 mb-4" />
+              <div className="overflow-x-auto -mx-1 px-1">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -243,10 +244,12 @@ export default function AdminSectorAlerts() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </>
           ) : items.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">No sector alerts logged yet.</p>
           ) : (
+            <div className="overflow-x-auto -mx-1 px-1">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -279,12 +282,13 @@ export default function AdminSectorAlerts() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card">
-        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-4">
+      <Card className="border-border bg-card overflow-hidden">
+        <CardHeader className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between space-y-0 gap-4">
           <div className="space-y-1.5">
             <CardTitle className="text-base">LinkedIn post approval status</CardTitle>
             <CardDescription>
@@ -309,6 +313,7 @@ export default function AdminSectorAlerts() {
           {decisions.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">No LinkedIn confirmation requests yet.</p>
           ) : (
+            <div className="overflow-x-auto -mx-1 px-1">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -343,6 +348,7 @@ export default function AdminSectorAlerts() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

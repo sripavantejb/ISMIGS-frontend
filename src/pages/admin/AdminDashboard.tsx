@@ -235,11 +235,11 @@ export default function AdminDashboard() {
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Energy disclosure (LinkedIn)</p>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-end gap-3">
+              <div className="space-y-1 min-w-0 flex-1 sm:flex-initial sm:w-[180px]">
                 <Label className="text-xs">Commodity</Label>
                 <Select value={disclosureCommodity || energyCommodities[0] || undefined} onValueChange={setDisclosureCommodity}>
-                  <SelectTrigger className="w-[180px] h-9">
+                  <SelectTrigger className="w-full sm:w-[180px] h-9 min-w-0">
                     <SelectValue placeholder="Select commodity" />
                   </SelectTrigger>
                   <SelectContent className="z-[100] max-h-[280px]">
@@ -251,17 +251,17 @@ export default function AdminDashboard() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0 flex-1 sm:flex-initial sm:w-[220px]">
                 <Label className="text-xs">Admin email</Label>
                 <Input
                   type="email"
                   placeholder="admin@example.com"
-                  className="w-[220px] h-9"
+                  className="w-full sm:w-[220px] h-9 min-w-0"
                   value={disclosureEmail}
                   onChange={(e) => setDisclosureEmail(e.target.value)}
                 />
               </div>
-              <Button size="sm" onClick={handleSendEnergyDisclosure} disabled={disclosureSending || energyCommodities.length === 0}>
+              <Button size="sm" onClick={handleSendEnergyDisclosure} disabled={disclosureSending || energyCommodities.length === 0} className="w-full sm:w-auto">
                 {disclosureSending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
                 Send disclosure email
               </Button>

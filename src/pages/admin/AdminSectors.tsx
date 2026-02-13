@@ -239,15 +239,15 @@ export default function AdminSectors() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="space-y-6 min-w-0 w-full">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-foreground">Sector recipients</h2>
           <p className="text-sm text-muted-foreground">
             Add email addresses per sector. Use “Send test” to send a sample email.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={handleExportCsv}>Export CSV</Button>
           <Button variant="outline" size="sm" onClick={handleImportCsv} disabled={importing}>
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Import CSV"}
@@ -304,6 +304,7 @@ export default function AdminSectors() {
             <Skeleton className="h-4 w-48 mt-2" />
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto -mx-1 px-1">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -335,6 +336,7 @@ export default function AdminSectors() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -355,6 +357,7 @@ export default function AdminSectors() {
                   {group.sectors.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4">No sectors in this section.</p>
                   ) : (
+                    <div className="overflow-x-auto -mx-1 px-1">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -557,6 +560,7 @@ export default function AdminSectors() {
                         })}
                       </TableBody>
                     </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>

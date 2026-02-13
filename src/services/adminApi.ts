@@ -405,6 +405,24 @@ export async function fetchSuperadminSectors(): Promise<SuperadminSector[]> {
   return res.json();
 }
 
+export type SectorWithAdminRow = {
+  sector_id: string;
+  sector_name: string;
+  sector_key: string | null;
+  created_at: string | null;
+  admin_name: string | null;
+  admin_email: string | null;
+};
+
+export async function fetchSectorsWithAdmins(): Promise<SectorWithAdminRow[]> {
+  const res = await apiFetch(`${API_BASE}/api/superadmin/sectors-with-admins`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? "Failed to fetch sectors with admins");
+  }
+  return res.json();
+}
+
 export async function createSector(body: { sector_name: string; sector_key?: string }): Promise<{ id: string; sector_name: string; sector_key: string; created_at: string }> {
   const res = await apiFetch(`${API_BASE}/api/superadmin/create-sector`, { method: "POST", body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));

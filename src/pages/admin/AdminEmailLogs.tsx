@@ -24,14 +24,14 @@ export default function AdminEmailLogs() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="space-y-6 min-w-0 w-full">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-foreground">Email logs</h2>
           <p className="text-sm text-muted-foreground">History of sent emails per sector</p>
         </div>
         <Select value={sectorFilter || "all"} onValueChange={(v) => setSectorFilter(v === "all" ? "" : v)}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px] min-w-0">
             <SelectValue placeholder="All sectors" />
           </SelectTrigger>
           <SelectContent className="z-[100] max-h-[280px]">
@@ -47,7 +47,7 @@ export default function AdminEmailLogs() {
         </Select>
       </div>
 
-      <Card className="border-border bg-card">
+      <Card className="border-border bg-card overflow-hidden">
         <CardHeader>
           <CardTitle className="text-base">Recent sends</CardTitle>
           <CardDescription>Ordered by most recent</CardDescription>
@@ -59,6 +59,7 @@ export default function AdminEmailLogs() {
                 <Skeleton className="h-6 w-28" />
                 <Skeleton className="h-4 w-40" />
               </div>
+              <div className="overflow-x-auto -mx-1 px-1">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -83,10 +84,12 @@ export default function AdminEmailLogs() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </>
           ) : logs.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">No log entries yet.</p>
           ) : (
+            <div className="overflow-x-auto -mx-1 px-1">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -119,6 +122,7 @@ export default function AdminEmailLogs() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

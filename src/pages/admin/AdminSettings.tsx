@@ -210,7 +210,7 @@ export default function AdminSettings() {
   }
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-6 max-w-xl min-w-0 w-full">
       <div>
         <h2 className="text-lg font-semibold text-foreground">Settings</h2>
         <p className="text-sm text-muted-foreground">Notifications and email defaults</p>
@@ -251,14 +251,15 @@ export default function AdminSettings() {
           <CardTitle className="text-base">Test SMTP</CardTitle>
           <CardDescription>Send a test email to verify SMTP. Configure SMTP_HOST, SMTP_USER, SMTP_PASS in backend/.env (see .env.example).</CardDescription>
         </CardHeader>
-        <CardContent className="flex gap-2">
+        <CardContent className="flex flex-col sm:flex-row gap-2">
           <Input
             type="email"
             placeholder="recipient@example.com"
             value={smtpTestEmail}
             onChange={(e) => setSmtpTestEmail(e.target.value)}
+            className="min-w-0 flex-1"
           />
-          <Button onClick={handleSmtpTest} disabled={testing}>
+          <Button onClick={handleSmtpTest} disabled={testing} className="w-full sm:w-auto shrink-0">
             {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send test"}
           </Button>
         </CardContent>
