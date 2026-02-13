@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Loader2, Factory, Zap, Pickaxe, TrendingUp, TrendingDown, Building2 } from "lucide-react";
+import { Factory, Zap, Pickaxe, TrendingUp, TrendingDown, Building2 } from "lucide-react";
 import {
   LineChart,
   Line,

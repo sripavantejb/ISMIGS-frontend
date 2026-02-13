@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Shield, AlertTriangle, TrendingUp, Activity, Brain, Loader2, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCPIData } from "@/hooks/useCPIData";
 import { getUniqueStates, getLatestPeriod, getStateDataForPeriod, computeVolatility, getStateTimeSeries, getRiskLevelFromInflation } from "@/services/cpiDataService";
 import { forecastAllStates, ForecastResult } from "@/services/cpiForecastEngine";
@@ -108,8 +109,19 @@ const RiskIntelligence = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="min-h-screen bg-background grid-pattern p-6 space-y-6">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-8 w-8 rounded" />
+          <div>
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-72 mt-2" />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-[280px] w-full rounded-xl" />
+          <Skeleton className="h-[280px] w-full rounded-xl" />
+        </div>
+        <Skeleton className="h-[320px] w-full rounded-xl" />
       </div>
     );
   }

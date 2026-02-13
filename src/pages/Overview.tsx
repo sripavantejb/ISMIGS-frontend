@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { Zap, Factory, TrendingUp, Landmark, BarChart3, Loader2, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Zap, Factory, TrendingUp, Landmark, BarChart3, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
 import KPICard from "@/components/KPICard";
 import { useSupplyData, useConsumptionData } from "@/hooks/useEnergyData";
@@ -87,7 +88,7 @@ const Overview = () => {
             Real-time economic & energy intelligence from MoSPI
           </p>
         </div>
-        {isLoading && <Loader2 className="w-5 h-5 text-primary animate-spin" />}
+        {isLoading && <Skeleton className="h-5 w-5 rounded" />}
       </motion.div>
 
       {/* KPI Row */}
@@ -191,7 +192,7 @@ const ApiStatusCard = ({ label, count, unit, loading }: { label: string; count: 
       </p>
     </div>
     {loading ? (
-      <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+      <Skeleton className="h-4 w-4 rounded" />
     ) : count > 0 ? (
       <ArrowUpRight className="w-4 h-4 text-stable" />
     ) : (

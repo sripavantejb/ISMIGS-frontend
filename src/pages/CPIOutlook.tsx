@@ -6,7 +6,7 @@ import { getUniqueStates, getLatestPeriod, getStateDataForPeriod, computeVolatil
 import { forecastAllStates, ForecastResult } from "@/services/cpiForecastEngine";
 import { generateAlerts } from "@/services/stateAlertEngine";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend } from "recharts";
-import { Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const CPIOutlook = () => {
   const { data: cpiData, isLoading } = useCPIData();
@@ -73,8 +73,16 @@ const CPIOutlook = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="min-h-screen bg-background grid-pattern p-6 space-y-6">
+        <div>
+          <Skeleton className="h-8 w-80" />
+          <Skeleton className="h-4 w-64 mt-2" />
+        </div>
+        <Skeleton className="h-[320px] w-full rounded-xl" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-[260px] w-full rounded-xl" />
+          <Skeleton className="h-[260px] w-full rounded-xl" />
+        </div>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Activity, BarChart3, Loader2, AlertTriangle, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Activity, BarChart3, AlertTriangle, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import ParticleField from "@/components/ParticleField";
 import { useCPIData } from "@/hooks/useCPIData";
 import {
@@ -182,10 +183,7 @@ const CPIMap = () => {
       {/* Map */}
       <div className="flex-1 relative z-20 flex items-center justify-center">
         {isLoading ? (
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <span className="text-xs text-muted-foreground font-mono">Loading CPI Data...</span>
-          </div>
+          <Skeleton className="w-full max-w-[600px] aspect-[4/4.5] rounded-xl" />
         ) : (
           <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }} className="w-full max-w-[750px] aspect-[4/4.5] relative">
             <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-full max-w-[600px] max-h-[680px] mx-auto" style={{ filter: "drop-shadow(0 0 40px rgba(250, 204, 21, 0.08))" }}>

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Loader2, Lightbulb, Users, AlertCircle, Sparkles, ChevronDown, ChevronUp, Building2 } from "lucide-react";
+import { Lightbulb, Users, AlertCircle, Sparkles, ChevronDown, ChevronUp, Building2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,

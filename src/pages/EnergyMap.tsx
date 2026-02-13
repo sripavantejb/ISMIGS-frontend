@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Activity, BarChart3, Database, Loader2 } from "lucide-react";
+import { Activity, BarChart3, Database } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import IndiaMap from "@/components/IndiaMap";
 import StateDashboard from "@/components/StateDashboard";
 import ParticleField from "@/components/ParticleField";
@@ -56,7 +57,7 @@ const EnergyMap = () => {
               <p className="text-sm text-muted-foreground mt-1">Click on a state to see energy intelligence and governance analytics.</p>
             </motion.div>
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="flex items-center gap-2">
-              {isLoading ? <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" /> : <Activity className={`w-4 h-4 ${isLive ? "text-stable" : "text-primary"} animate-pulse`} />}
+              {isLoading ? <Skeleton className="h-4 w-4 rounded" /> : <Activity className={`w-4 h-4 ${isLive ? "text-stable" : "text-primary"} animate-pulse`} />}
               <span className="text-xs text-muted-foreground font-mono">{isLoading ? "SYNCING" : isLive ? "LIVE — MoSPI" : "OFFLINE"}</span>
               {isLive && <Database className="w-3 h-3 text-stable" />}
             </motion.div>

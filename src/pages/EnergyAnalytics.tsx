@@ -1,7 +1,8 @@
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, useParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Loader2, Building2 } from "lucide-react";
+import { Building2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { commodityNameToSlug, resolveCommodityFromSlug } from "@/utils/energySlug";
 import { EnergyCommodityHero } from "@/components/EnergyCommodityHero";
 import {
@@ -296,8 +297,17 @@ const EnergyAnalytics = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="min-h-screen p-6 space-y-6">
+        <div>
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-48 mt-2" />
+        </div>
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-[320px] w-full rounded-xl" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-[280px] w-full rounded-xl" />
+          <Skeleton className="h-[280px] w-full rounded-xl" />
+        </div>
       </div>
     );
   }

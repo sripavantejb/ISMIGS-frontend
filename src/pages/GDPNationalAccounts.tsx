@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2, TrendingUp, TrendingDown, IndianRupee, Landmark, Building2, BarChart3 } from "lucide-react";
+import { TrendingUp, TrendingDown, IndianRupee, Landmark, Building2, BarChart3 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend, BarChart, Bar, AreaChart, Area, Cell,
@@ -260,7 +261,7 @@ const GDPNationalAccounts = () => {
           <h1 className="text-2xl font-bold text-foreground">Gross Domestic Product (GDP)</h1>
           <p className="text-sm text-muted-foreground">National accounts: GDP, growth, and GVA by industry.</p>
         </div>
-        {isLoading && <Loader2 className="w-5 h-5 text-primary animate-spin" />}
+        {isLoading && <Skeleton className="h-5 w-5 rounded" />}
       </div>
 
       {/* Insights — GDP intelligence briefing */}

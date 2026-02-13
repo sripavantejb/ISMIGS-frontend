@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
 import { useForecast } from "@/hooks/useForecast";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PredictionCard } from "@/components/PredictionCard";
 import { ForecastChart } from "@/components/ForecastChart";
 import { OutlookSummary } from "@/components/OutlookSummary";
@@ -10,8 +10,17 @@ const PredictionsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="min-h-screen p-6 space-y-6">
+        <div>
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96 mt-2" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-[140px] w-full rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-[300px] w-full rounded-xl" />
       </div>
     );
   }

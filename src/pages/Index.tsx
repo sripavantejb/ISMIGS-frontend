@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Activity, BarChart3, Database, Loader2 } from "lucide-react";
+import { Activity, BarChart3, Database } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import IndiaMap from "@/components/IndiaMap";
 import StateDashboard from "@/components/StateDashboard";
 import ParticleField from "@/components/ParticleField";
@@ -88,7 +89,7 @@ const Index = () => {
               className="flex items-center gap-2"
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+                <Skeleton className="h-4 w-4 rounded" />
               ) : (
                 <Activity className={`w-4 h-4 ${isLive ? "text-stable" : "text-primary"} animate-pulse`} />
               )}
