@@ -26,6 +26,7 @@ import AdminEmailLogs from "./pages/admin/AdminEmailLogs";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminDigest from "./pages/admin/AdminDigest";
 import AdminDecision from "./pages/admin/AdminDecision";
+import AdminSectorAlerts from "./pages/admin/AdminSectorAlerts";
 import { getStoredToken } from "./services/adminApi";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,7 @@ const App = () => (
                       <Route path="dashboard" element={<AdminDashboard />} />
                       <Route path="sectors" element={<AdminSectors />} />
                       <Route path="logs" element={<AdminEmailLogs />} />
+                      <Route path="alerts" element={<AdminSectorAlerts />} />
                       <Route path="digest" element={<AdminDigest />} />
                       <Route path="settings" element={<AdminSettings />} />
                     </Route>

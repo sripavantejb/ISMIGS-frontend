@@ -267,3 +267,46 @@ export async function sendEnergyDisclosure(commodity: string, adminEmail: string
   if (!res.ok) throw new Error(data.error ?? "Failed to send energy disclosure");
   return data;
 }
+
+export type SectorAlertLogRow = {
+  id: string;
+  commodity: string;
+  sector: string;
+  risk_score: number;
+  sent_at: string | null;
+  alert_type: string;
+  recipient_count: number;
+};
+
+export type SectorAlertsLogResponse = {
+  items: SectorAlertLogRow[];
+  total: number;
+  summary: { totalLast7Days: number; byCommodity: Record<string, number> };
+};
+
+export async function fetchSectorAlertsLog(params?: {
+  limit?: number;
+  offset?: number;
+  commodity?: string;
+  since?: string;
+}): Promise<SectorAlertsLogResponse> {
+  const q = new URLSearchParams();
+  if (params?.limit != null) q.set("limit", String(params.limit));
+  if (params?.offset != null) q.set("offset", String(params.offset));
+  if (params?.commodity) q.set("commodity", params.commodity);
+  if (params?.since) q.set("since", params.since);
+  const url = `${API_BASE}/api/sector-alerts-log${q.toString() ? `?${q}` : ""}`;
+  const res = await apiFetch(url);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error ?? "Failed to fetch sector alerts log");
+  }
+  return res.json();
+}
+
+export async function runSectorAlertsNow(): Promise<{ ok: boolean; results: { commodity: string; sector: string; sent: number }[] }> {
+  const res = await apiFetch(`${API_BASE}/api/admin/run-sector-alerts`, { method: "POST" });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Failed to run sector alerts");
+  return data;
+}
