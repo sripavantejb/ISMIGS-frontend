@@ -122,7 +122,10 @@ export async function fetchSectorAdminPosts(params?: { status?: string; limit?: 
   return data;
 }
 
-export async function postSectorAdminDecision(post_id: string, decision: "approve" | "reject"): Promise<{ ok: boolean; status: string }> {
+export async function postSectorAdminDecision(
+  post_id: string,
+  decision: "approve" | "reject"
+): Promise<{ ok: boolean; status: string; webhook_sent?: boolean }> {
   const res = await fetch(`${API_BASE}/api/sector-admin/decision`, {
     method: "POST",
     headers: getSectorHeaders(),

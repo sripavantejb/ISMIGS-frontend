@@ -115,13 +115,15 @@ export default function SectorApprovals() {
   const respondMutation = useMutation({
     mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" }) =>
       postSectorAdminDecision(id, action),
-    onSuccess: (_, { action }) => {
+    onSuccess: (result, { action }) => {
       queryClient.invalidateQueries({ queryKey: ["sector_admin_posts"] });
       toast({
         title: action === "approve" ? "Approved" : "Rejected",
         description:
           action === "approve"
-            ? "The post will be sent to LinkedIn via the connected workflow."
+            ? result.webhook_sent
+              ? "Post data has been sent to the connected webhook. The workflow will receive the LinkedIn post JSON."
+              : "The post will be sent to LinkedIn via the connected workflow."
             : "No action taken.",
       });
     },
