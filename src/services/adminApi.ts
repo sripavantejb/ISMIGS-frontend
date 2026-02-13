@@ -315,10 +315,21 @@ export async function fetchEnergyCommodities(): Promise<string[]> {
   return res.json();
 }
 
-export async function sendEnergyDisclosure(commodity: string, adminEmail: string): Promise<{ ok: boolean; message: string; commodity: string }> {
+export async function sendEnergyDisclosure(
+  commodity: string,
+  adminEmail: string,
+  sectorKey?: string,
+  sectorName?: string
+): Promise<{ ok: boolean; message: string; commodity: string; sector_approval_created?: boolean }> {
+  const body: { commodity?: string; adminEmail: string; sector_key?: string; sector_name?: string } = {
+    adminEmail,
+    commodity: commodity || undefined,
+  };
+  if (sectorKey) body.sector_key = sectorKey;
+  if (sectorName) body.sector_name = sectorName;
   const res = await apiFetch(`${API_BASE}/api/send-energy-disclosure`, {
     method: "POST",
-    body: JSON.stringify({ commodity: commodity || undefined, adminEmail }),
+    body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error ?? "Failed to send energy disclosure");

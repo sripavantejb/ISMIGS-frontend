@@ -48,6 +48,7 @@ export default function AdminDashboard() {
   const [disclosureSending, setDisclosureSending] = useState(false);
   const [disclosureEmail, setDisclosureEmail] = useState("");
   const [disclosureCommodity, setDisclosureCommodity] = useState<string>("");
+  const [disclosureSectorKey, setDisclosureSectorKey] = useState<string>("");
 
   const totalSectors = groups.reduce((acc, g) => acc + g.sectors.length, 0);
   const sectorsWithEmails = Object.values(recipientsByKey).filter(
@@ -77,7 +78,15 @@ export default function AdminDashboard() {
     }
     setDisclosureSending(true);
     try {
-      const result = await sendEnergyDisclosure(disclosureCommodity || energyCommodities[0], email);
+      const displayName = disclosureSectorKey
+        ? groups.flatMap((g) => g.sectors).find((s) => s.sectorKey === disclosureSectorKey)?.displayName
+        : undefined;
+      const result = await sendEnergyDisclosure(
+        disclosureCommodity || energyCommodities[0],
+        email,
+        disclosureSectorKey || undefined,
+        displayName
+      );
       toast({
         title: "Confirmation email sent",
         description: result.message || `Check ${email} and use Yes/No to approve or reject the LinkedIn post.`,
@@ -251,6 +260,24 @@ export default function AdminDashboard() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1 min-w-0 flex-1 sm:flex-initial sm:w-[200px]">
+                <Label className="text-xs">Sector (optional)</Label>
+                <Select value={disclosureSectorKey || "__none__"} onValueChange={(v) => setDisclosureSectorKey(v === "__none__" ? "" : v)}>
+                  <SelectTrigger className="w-full sm:w-[200px] h-9 min-w-0">
+                    <SelectValue placeholder="None – email only" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100] max-h-[280px]">
+                    <SelectItem value="__none__">— None —</SelectItem>
+                    {groups.flatMap((group) =>
+                      group.sectors.map((s) => (
+                        <SelectItem key={s.sectorKey} value={s.sectorKey}>
+                          {group.label} – {s.displayName}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1 min-w-0 flex-1 sm:flex-initial sm:w-[220px]">
                 <Label className="text-xs">Admin email</Label>
                 <Input
@@ -266,7 +293,7 @@ export default function AdminDashboard() {
                 Send disclosure email
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">Uses real commodity data. Admin receives email with LinkedIn draft and Yes/No to post.</p>
+            <p className="text-xs text-muted-foreground mt-2">Uses real commodity data. Admin receives email with LinkedIn draft and Yes/No to post. If you select a sector, the post is also added to that sector’s approvals; the sector admin can approve from the sector panel, then the LinkedIn content is sent to the webhook.</p>
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Bulk actions</p>
