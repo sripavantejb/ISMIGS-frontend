@@ -1,4 +1,4 @@
-const MOSPI_BASE = import.meta.env.DEV ? "/mospi/api" : "https://api.mospi.gov.in/api";
+const MOSPI_BASE = "https://api.mospi.gov.in/api";
 const BASE_URL = `${MOSPI_BASE}/energy/getEnergyRecords`;
 
 export interface EnergyRecord {

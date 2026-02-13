@@ -1,9 +1,9 @@
 /**
- * Admin backend API client. Uses VITE_API_URL when set; otherwise the deployed backend URL
- * so admin API calls hit the deployed server (no local backend required).
+ * Admin backend API client. Uses shared API_BASE (deployed backend when VITE_API_URL unset).
  * Auth: Bearer token from localStorage (set after POST /api/auth/login).
  */
-const API_BASE = (import.meta.env.VITE_API_URL || "").trim() || "https://ismigs-backend.vercel.app";
+import { API_BASE } from "@/config/api";
+
 const TOKEN_KEY = "ismigs_admin_token";
 
 export function getStoredToken(): string | null {

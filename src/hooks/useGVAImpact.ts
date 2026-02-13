@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { API_BASE } from "@/config/api";
 
 export interface GVATrendDataPoint {
   fiscalYear: string;
@@ -95,7 +96,7 @@ async function fetchGVAImpact(
   latestYear?: string,
   trendData?: GVATrendDataPoint[]
 ): Promise<GVAImpactContent> {
-  const res = await fetch("/api/openai/v1/chat/completions", {
+  const res = await fetch(`${API_BASE}/api/openai/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

@@ -1,6 +1,6 @@
 // WPI, NAS, IIP API services
 
-const MOSPI_BASE = import.meta.env.DEV ? "/mospi/api" : "https://api.mospi.gov.in/api";
+const MOSPI_BASE = "https://api.mospi.gov.in/api";
 const ENERGY_BASE = `${MOSPI_BASE}/energy/getEnergyRecords`;
 const WPI_BASE = `${MOSPI_BASE}/wpi/getWpiRecords`;
 const NAS_BASE = `${MOSPI_BASE}/nas/getNASData`;

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { API_BASE } from "@/config/api";
 
 export interface SectorData {
   gdpGrowth?: string;
@@ -252,7 +253,7 @@ Structure the output exactly with these section headers. Use • for section hea
 Be data-driven, use numbers from input, neutral and suitable for a government dashboard.`
     : "You are an economic analyst writing neutral, public-facing summaries for a government statistics dashboard.";
 
-  const response = await fetch("/api/openai/v1/chat/completions", {
+  const response = await fetch(`${API_BASE}/api/openai/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
