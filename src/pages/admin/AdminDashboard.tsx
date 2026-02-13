@@ -1,9 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Send, List, Settings, Loader2, Download, Upload, SendHorizontal } from "lucide-react";
+import { Mail, List, Settings, Loader2, Download, Upload, SendHorizontal, LayoutGrid, Users, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useSectorList } from "@/hooks/useSectorList";
 import { useSectorRecipients } from "@/hooks/useSectorRecipients";
@@ -110,99 +119,125 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">Dashboard</h2>
-        <p className="text-sm text-muted-foreground">Overview and quick actions</p>
+    <div className="space-y-8 max-w-5xl">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+        <p className="text-muted-foreground">Overview and quick actions for sector notifications.</p>
       </div>
 
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-4"
+        transition={{ duration: 0.2 }}
+        className="grid grid-cols-1 sm:grid-cols-3 gap-4"
       >
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
+        <Card className="border-border bg-card shadow-sm transition-shadow hover:shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total sectors</CardTitle>
+            <LayoutGrid className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-foreground">{totalSectors}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums">{totalSectors}</p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
+        <Card className="border-border bg-card shadow-sm transition-shadow hover:shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Sectors with recipients</CardTitle>
+            <Inbox className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-foreground">{sectorsWithEmails}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums">{sectorsWithEmails}</p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
+        <Card className="border-border bg-card shadow-sm transition-shadow hover:shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total recipients</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-foreground">{totalRecipients}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums">{totalRecipients}</p>
           </CardContent>
         </Card>
       </motion.div>
 
-      <Card className="border-border bg-card">
+      <Card className="border-border bg-card shadow-sm">
         <CardHeader>
-          <CardTitle className="text-base">Quick actions</CardTitle>
-          <CardDescription>Navigate or run bulk actions</CardDescription>
+          <CardTitle className="text-base font-semibold">Quick actions</CardTitle>
+          <CardDescription>Navigate to admin sections or run bulk actions.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Button variant="outline" size="sm" onClick={() => navigate("/admin/sectors")}>
-            <Mail className="h-4 w-4 mr-2" />
-            Sector recipients
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate("/admin/logs")}>
-            <List className="h-4 w-4 mr-2" />
-            Email logs
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate("/admin/settings")}>
-            <Settings className="h-4 w-4 mr-2" />
-            Settings
-          </Button>
-          <Button size="sm" onClick={handleSendTestToAll} disabled={sendingAll}>
-            {sendingAll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <SendHorizontal className="h-4 w-4 mr-2" />}
-            Send test to all sectors
-          </Button>
-          <Button variant="secondary" size="sm" onClick={handleExportCsv}>
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-          <Button variant="secondary" size="sm" onClick={handleImportCsv} disabled={importing}>
-            {importing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-            Import CSV
-          </Button>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Navigation</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate("/admin/sectors")}>
+                <Mail className="h-4 w-4 mr-2" />
+                Sector recipients
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate("/admin/logs")}>
+                <List className="h-4 w-4 mr-2" />
+                Email logs
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate("/admin/settings")}>
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Button>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Bulk actions</p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={handleSendTestToAll} disabled={sendingAll}>
+                {sendingAll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <SendHorizontal className="h-4 w-4 mr-2" />}
+                Send test to all sectors
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleExportCsv}>
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleImportCsv} disabled={importing}>
+                {importing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                Import CSV
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card">
+      <Card className="border-border bg-card shadow-sm">
         <CardHeader>
-          <CardTitle className="text-base">Recent email activity</CardTitle>
-          <CardDescription>Last 5 sent emails</CardDescription>
+          <CardTitle className="text-base font-semibold">Recent email activity</CardTitle>
+          <CardDescription>Last 5 sent emails across all sectors.</CardDescription>
         </CardHeader>
         <CardContent>
           {recentLogs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No emails sent yet.</p>
+            <p className="text-sm text-muted-foreground py-6 text-center">No emails sent yet.</p>
           ) : (
-            <ul className="space-y-2">
-              {(recentLogs as EmailLogRow[]).map((log) => (
-                <li key={log.id} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{log.sector_key}</span>
-                  <span className="truncate max-w-[200px]">{log.recipient}</span>
-                  <span className={log.success ? "text-green-600" : "text-destructive"}>
-                    {log.success ? "Sent" : "Failed"}
-                  </span>
-                  <span className="text-muted-foreground font-mono text-xs">
-                    {new Date(log.sent_at).toLocaleString()}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[180px]">Sector</TableHead>
+                  <TableHead>Recipient</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
+                  <TableHead className="w-[160px] text-right">Sent at</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(recentLogs as EmailLogRow[]).map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="font-medium text-muted-foreground">{log.sector_key}</TableCell>
+                    <TableCell className="truncate max-w-[240px]">{log.recipient}</TableCell>
+                    <TableCell>
+                      <Badge variant={log.success ? "default" : "destructive"} className="font-normal">
+                        {log.success ? "Sent" : "Failed"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground font-mono text-xs">
+                      {new Date(log.sent_at).toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
