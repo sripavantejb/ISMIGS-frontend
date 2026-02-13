@@ -248,3 +248,22 @@ export async function importSectorRecipientsCsvFile(csvText: string): Promise<{ 
   }
   return res.json();
 }
+
+export async function fetchEnergyCommodities(): Promise<string[]> {
+  const res = await apiFetch(`${API_BASE}/api/energy-commodities`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error ?? "Failed to fetch commodities");
+  }
+  return res.json();
+}
+
+export async function sendEnergyDisclosure(commodity: string, adminEmail: string): Promise<{ ok: boolean; message: string; commodity: string }> {
+  const res = await apiFetch(`${API_BASE}/api/send-energy-disclosure`, {
+    method: "POST",
+    body: JSON.stringify({ commodity: commodity || undefined, adminEmail }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Failed to send energy disclosure");
+  return data;
+}

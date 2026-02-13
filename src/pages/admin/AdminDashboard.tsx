@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, List, Settings, Loader2, Download, Upload, SendHorizontal, LayoutGrid, Users, Inbox } from "lucide-react";
+import { Mail, List, Settings, Loader2, Download, Upload, SendHorizontal, LayoutGrid, Users, Inbox, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,9 +21,20 @@ import {
   sendTestToAllSectors,
   exportSectorRecipientsCsv,
   importSectorRecipientsCsvFile,
+  fetchEnergyCommodities,
+  sendEnergyDisclosure,
   type EmailLogRow,
 } from "@/services/adminApi";
 import { useQuery } from "@tanstack/react-query";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -32,6 +43,9 @@ export default function AdminDashboard() {
   const { recipientsByKey } = useSectorRecipients();
   const [sendingAll, setSendingAll] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [disclosureSending, setDisclosureSending] = useState(false);
+  const [disclosureEmail, setDisclosureEmail] = useState("");
+  const [disclosureCommodity, setDisclosureCommodity] = useState<string>("");
 
   const totalSectors = groups.reduce((acc, g) => acc + g.sectors.length, 0);
   const sectorsWithEmails = Object.values(recipientsByKey).filter(
@@ -46,6 +60,36 @@ export default function AdminDashboard() {
     queryKey: ["email_logs", 5],
     queryFn: () => fetchEmailLogs({ limit: 5 }),
   });
+
+  const { data: energyCommodities = [] } = useQuery({
+    queryKey: ["energy_commodities"],
+    queryFn: fetchEnergyCommodities,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const handleSendEnergyDisclosure = async () => {
+    const email = disclosureEmail.trim();
+    if (!email) {
+      toast({ variant: "destructive", title: "Email required", description: "Enter admin email to receive the confirmation." });
+      return;
+    }
+    setDisclosureSending(true);
+    try {
+      const result = await sendEnergyDisclosure(disclosureCommodity || energyCommodities[0], email);
+      toast({
+        title: "Confirmation email sent",
+        description: result.message || `Check ${email} and use Yes/No to approve or reject the LinkedIn post.`,
+      });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Send failed",
+        description: e instanceof Error ? e.message : "Could not send energy disclosure.",
+      });
+    } finally {
+      setDisclosureSending(false);
+    }
+  };
 
   const handleSendTestToAll = async () => {
     setSendingAll(true);
@@ -182,6 +226,41 @@ export default function AdminDashboard() {
                 Settings
               </Button>
             </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Energy disclosure (LinkedIn)</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Commodity</Label>
+                <Select value={disclosureCommodity || (energyCommodities[0] ?? "")} onValueChange={setDisclosureCommodity}>
+                  <SelectTrigger className="w-[180px] h-9">
+                    <SelectValue placeholder="Select commodity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {energyCommodities.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Admin email</Label>
+                <Input
+                  type="email"
+                  placeholder="admin@example.com"
+                  className="w-[220px] h-9"
+                  value={disclosureEmail}
+                  onChange={(e) => setDisclosureEmail(e.target.value)}
+                />
+              </div>
+              <Button size="sm" onClick={handleSendEnergyDisclosure} disabled={disclosureSending || energyCommodities.length === 0}>
+                {disclosureSending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
+                Send disclosure email
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">Uses real commodity data. Admin receives email with LinkedIn draft and Yes/No to post.</p>
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Bulk actions</p>
