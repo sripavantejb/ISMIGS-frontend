@@ -28,6 +28,7 @@ import AdminDigest from "./pages/admin/AdminDigest";
 import AdminDecision from "./pages/admin/AdminDecision";
 import AdminSectorAlerts from "./pages/admin/AdminSectorAlerts";
 import { getStoredToken } from "./services/adminApi";
+import ISMIGSChatbot from "@/chatbot/ISMIGSChatbot";
 
 const queryClient = new QueryClient();
 
@@ -83,6 +84,7 @@ const App = () => (
               </Routes>
             </main>
           </div>
+          <ISMIGSChatbot />
         </SidebarProvider>
       </BrowserRouter>
     </TooltipProvider>
