@@ -23,6 +23,17 @@ import {
   type SectorAlertsLogResponse,
   type AdminDecisionRow,
 } from "@/services/adminApi";
+import {
+  adminPanelCardClass,
+  adminPanelCardHeaderClass,
+  adminPanelCardContentClass,
+  adminPanelInputClass,
+  adminPanelTableWrapperClass,
+  adminPanelTableRowClass,
+  adminPanelTableHeadClass,
+  adminPanelPageTitleClass,
+  adminPanelPageSubtitleClass,
+} from "@/lib/adminPanelStyles";
 
 function formatAlertType(alert_type: string) {
   if (alert_type === "projected_deficit") return "Projected deficit";
@@ -106,56 +117,56 @@ export default function AdminSectorAlerts() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6 min-w-0 w-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Sector alerts</h2>
-          <p className="text-sm text-muted-foreground">
+          <h1 className={adminPanelPageTitleClass}>Sector alerts</h1>
+          <p className={adminPanelPageSubtitleClass}>
             Automated critical alerts sent to sector recipients. Alerts run on schedule (e.g. every 6h) or run now.
           </p>
         </div>
-        <Button onClick={handleRunNow} disabled={running} size="sm">
+        <Button onClick={handleRunNow} disabled={running} size="sm" className="rounded-lg">
           {running ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
           Run sector alerts now
         </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Alerts sent (last 7 days)</CardTitle>
+        <Card className={adminPanelCardClass}>
+          <CardHeader className={adminPanelCardHeaderClass}>
+            <CardTitle className="text-sm font-medium text-zinc-400">Alerts sent (last 7 days)</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className={adminPanelCardContentClass}>
             {isLoading ? (
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-16 bg-zinc-800" />
             ) : (
-              <p className="text-2xl font-bold tabular-nums">{summary.totalLast7Days}</p>
+              <p className="text-2xl font-bold text-zinc-100 tabular-nums">{summary.totalLast7Days}</p>
             )}
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total in list</CardTitle>
+        <Card className={adminPanelCardClass}>
+          <CardHeader className={adminPanelCardHeaderClass}>
+            <CardTitle className="text-sm font-medium text-zinc-400">Total in list</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className={adminPanelCardContentClass}>
             {isLoading ? (
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-16 bg-zinc-800" />
             ) : (
-              <p className="text-2xl font-bold tabular-nums">{data?.total ?? items.length}</p>
+              <p className="text-2xl font-bold text-zinc-100 tabular-nums">{data?.total ?? items.length}</p>
             )}
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">By commodity (7 days)</CardTitle>
+        <Card className={adminPanelCardClass}>
+          <CardHeader className={adminPanelCardHeaderClass}>
+            <CardTitle className="text-sm font-medium text-zinc-400">By commodity (7 days)</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className={adminPanelCardContentClass}>
             {isLoading ? (
-              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full bg-zinc-800" />
             ) : (
-              <div className="text-sm">
+              <div className="text-sm text-zinc-300">
                 {Object.keys(summary.byCommodity).length === 0 ? (
-                  <p className="text-muted-foreground">—</p>
+                  <p className="text-zinc-500">—</p>
                 ) : (
                   <ul className="space-y-0.5">
                     {Object.entries(summary.byCommodity)
@@ -178,16 +189,16 @@ export default function AdminSectorAlerts() {
       <div className="flex flex-wrap items-center gap-3">
         {isLoading ? (
           <>
-            <Skeleton className="h-9 w-[180px]" />
-            <Skeleton className="h-9 w-[160px]" />
+            <Skeleton className="h-9 w-[180px] bg-zinc-800" />
+            <Skeleton className="h-9 w-[160px] bg-zinc-800" />
           </>
         ) : (
           <>
             <Select value={commodityFilter || "all"} onValueChange={(v) => setCommodityFilter(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className={adminPanelInputClass + " w-full sm:w-[180px] min-w-0"}>
                 <SelectValue placeholder="All commodities" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[100] max-h-[280px] bg-zinc-900 border-zinc-800">
                 <SelectItem value="all">All commodities</SelectItem>
                 {commodityOptions.map((c) => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
@@ -195,10 +206,10 @@ export default function AdminSectorAlerts() {
               </SelectContent>
             </Select>
             <Select value={sinceFilter || "all"} onValueChange={setSinceFilter}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className={adminPanelInputClass + " w-full sm:w-[160px] min-w-0"}>
                 <SelectValue placeholder="Since" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[100] max-h-[280px] bg-zinc-900 border-zinc-800">
                 {sinceOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
@@ -208,69 +219,72 @@ export default function AdminSectorAlerts() {
         )}
       </div>
 
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-base">Alert history</CardTitle>
-          <CardDescription>Sent at, commodity, sector, risk score, alert type, recipients, and delivery status</CardDescription>
+      <Card className={adminPanelCardClass}>
+        <CardHeader className={adminPanelCardHeaderClass}>
+          <CardTitle className="text-zinc-100 text-base">Alert history</CardTitle>
+          <CardDescription className="text-zinc-400">Sent at, commodity, sector, risk score, alert type, recipients, and delivery status</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className={adminPanelCardContentClass}>
           {isLoading ? (
             <>
-              <Skeleton className="h-6 w-32 mb-4" />
+              <Skeleton className="h-6 w-32 mb-4 bg-zinc-800" />
+              <div className={adminPanelTableWrapperClass}>
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Sent at</TableHead>
-                    <TableHead>Commodity</TableHead>
-                    <TableHead>Sector</TableHead>
-                    <TableHead>Risk score</TableHead>
-                    <TableHead>Alert type</TableHead>
-                    <TableHead>Recipients</TableHead>
-                    <TableHead>Sent to administrators</TableHead>
+                  <TableRow className={adminPanelTableRowClass}>
+                    <TableHead className={adminPanelTableHeadClass}>Sent at</TableHead>
+                    <TableHead className={adminPanelTableHeadClass}>Commodity</TableHead>
+                    <TableHead className={adminPanelTableHeadClass}>Sector</TableHead>
+                    <TableHead className={adminPanelTableHeadClass}>Risk score</TableHead>
+                    <TableHead className={adminPanelTableHeadClass}>Alert type</TableHead>
+                    <TableHead className={adminPanelTableHeadClass}>Recipients</TableHead>
+                    <TableHead className={adminPanelTableHeadClass}>Sent to administrators</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-10" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableRow key={i} className={adminPanelTableRowClass}>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-28 bg-zinc-800" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-20 bg-zinc-800" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-24 bg-zinc-800" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-12 bg-zinc-800" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-24 bg-zinc-800" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-10 bg-zinc-800" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-32 bg-zinc-800" /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </>
           ) : items.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">No sector alerts logged yet.</p>
+            <p className="text-sm text-zinc-500 py-6 text-center">No sector alerts logged yet.</p>
           ) : (
+            <div className={adminPanelTableWrapperClass}>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Sent at</TableHead>
-                  <TableHead>Commodity</TableHead>
-                  <TableHead>Sector</TableHead>
-                  <TableHead>Risk score</TableHead>
-                  <TableHead>Alert type</TableHead>
-                  <TableHead>Recipients</TableHead>
-                  <TableHead>Sent to administrators</TableHead>
+                <TableRow className={adminPanelTableRowClass}>
+                  <TableHead className={adminPanelTableHeadClass}>Sent at</TableHead>
+                  <TableHead className={adminPanelTableHeadClass}>Commodity</TableHead>
+                  <TableHead className={adminPanelTableHeadClass}>Sector</TableHead>
+                  <TableHead className={adminPanelTableHeadClass}>Risk score</TableHead>
+                  <TableHead className={adminPanelTableHeadClass}>Alert type</TableHead>
+                  <TableHead className={adminPanelTableHeadClass}>Recipients</TableHead>
+                  <TableHead className={adminPanelTableHeadClass}>Sent to administrators</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {items.map((row: SectorAlertLogRow) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                  <TableRow key={row.id} className={adminPanelTableRowClass}>
+                    <TableCell className="text-zinc-500 text-sm whitespace-nowrap py-3 px-4">
                       {row.sent_at ? new Date(row.sent_at).toLocaleString() : "—"}
                     </TableCell>
-                    <TableCell className="font-medium">{row.commodity}</TableCell>
-                    <TableCell>{row.sector}</TableCell>
-                    <TableCell className="font-mono tabular-nums">{row.risk_score}</TableCell>
-                    <TableCell>{formatAlertType(row.alert_type)}</TableCell>
-                    <TableCell className="tabular-nums">{row.recipient_count}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground" title="Alert email delivered to sector recipients">
+                    <TableCell className="font-medium text-zinc-200 text-sm py-3 px-4">{row.commodity}</TableCell>
+                    <TableCell className="text-zinc-300 text-sm py-3 px-4">{row.sector}</TableCell>
+                    <TableCell className="font-mono tabular-nums text-zinc-300 text-sm py-3 px-4">{row.risk_score}</TableCell>
+                    <TableCell className="text-zinc-300 text-sm py-3 px-4">{formatAlertType(row.alert_type)}</TableCell>
+                    <TableCell className="tabular-nums text-zinc-300 text-sm py-3 px-4">{row.recipient_count}</TableCell>
+                    <TableCell className="text-sm text-zinc-500 py-3 px-4" title="Alert email delivered to sector recipients">
                       {row.recipient_count > 0
                         ? `Delivered to ${row.recipient_count} administrator(s)`
                         : "Not sent"}
@@ -279,21 +293,23 @@ export default function AdminSectorAlerts() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card">
-        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-4">
+      <Card className={adminPanelCardClass + " overflow-hidden"}>
+        <CardHeader className={adminPanelCardHeaderClass + " flex flex-col sm:flex-row items-stretch sm:items-start justify-between space-y-0 gap-4"}>
           <div className="space-y-1.5">
-            <CardTitle className="text-base">LinkedIn post approval status</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-zinc-100 text-base">LinkedIn post approval status</CardTitle>
+            <CardDescription className="text-zinc-400">
               Confirmation emails sent to administrators with Yes/No for posting to LinkedIn. Status reflects their response.
             </CardDescription>
           </div>
           <Button
             variant="outline"
             size="sm"
+            className="rounded-lg border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
             onClick={() => queryClient.invalidateQueries({ queryKey: ["admin_decisions"] })}
             disabled={isFetchingDecisions}
           >
@@ -305,44 +321,46 @@ export default function AdminSectorAlerts() {
             Refresh
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className={adminPanelCardContentClass}>
           {decisions.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">No LinkedIn confirmation requests yet.</p>
+            <p className="text-sm text-zinc-500 py-6 text-center">No LinkedIn confirmation requests yet.</p>
           ) : (
+            <div className={adminPanelTableWrapperClass}>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Commodity</TableHead>
-                  <TableHead>Sent at</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Responded at</TableHead>
+                <TableRow className={adminPanelTableRowClass}>
+                  <TableHead className={adminPanelTableHeadClass}>Commodity</TableHead>
+                  <TableHead className={adminPanelTableHeadClass}>Sent at</TableHead>
+                  <TableHead className={adminPanelTableHeadClass}>Status</TableHead>
+                  <TableHead className={adminPanelTableHeadClass}>Responded at</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {decisions.map((row: AdminDecisionRow) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-medium">{row.commodity ?? "—"}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                  <TableRow key={row.id} className={adminPanelTableRowClass}>
+                    <TableCell className="font-medium text-zinc-200 text-sm py-3 px-4">{row.commodity ?? "—"}</TableCell>
+                    <TableCell className="text-zinc-500 text-sm whitespace-nowrap py-3 px-4">
                       {row.created_at ? new Date(row.created_at).toLocaleString() : "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-3 px-4">
                       {row.status === "approved" ? (
                         <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">
                           {formatDecisionStatus(row.status)}
                         </Badge>
                       ) : row.status === "rejected" ? (
-                        <Badge variant="secondary">{formatDecisionStatus(row.status)}</Badge>
+                        <Badge variant="secondary" className="bg-zinc-700 text-zinc-300">{formatDecisionStatus(row.status)}</Badge>
                       ) : (
-                        <Badge variant="outline">{formatDecisionStatus(row.status)}</Badge>
+                        <Badge variant="outline" className="border-zinc-600 text-zinc-400">{formatDecisionStatus(row.status)}</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                    <TableCell className="text-zinc-500 text-sm whitespace-nowrap py-3 px-4">
                       {row.responded_at ? new Date(row.responded_at).toLocaleString() : "—"}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

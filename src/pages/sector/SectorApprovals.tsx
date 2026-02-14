@@ -1,0 +1,242 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, XCircle, Loader2, FileText, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import {
+  fetchSectorAdminPosts,
+  postSectorAdminDecision,
+  type SectorAdminPostRow,
+} from "@/services/sectorApi";
+
+function PostCard({
+  row,
+  onRespond,
+  isResponding,
+}: {
+  row: SectorAdminPostRow;
+  onRespond: (id: string, action: "approve" | "reject") => void;
+  isResponding: string | null;
+}) {
+  const isPending = row.status === "pending";
+  const canRespond = isPending;
+  const borderAccent =
+    row.status === "approved"
+      ? "border-l-4 border-l-emerald-500"
+      : row.status === "rejected"
+        ? "border-l-4 border-l-amber-500"
+        : "";
+
+  return (
+    <Card
+      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 transition-colors ${isPending ? "hover:border-zinc-700 hover:bg-zinc-900/80" : ""} ${borderAccent}`}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant="secondary" className="bg-zinc-800 text-zinc-200 font-medium">
+            {row.commodity || "LinkedIn post"}
+          </Badge>
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5" />
+            {row.created_at
+              ? new Date(row.created_at).toLocaleString(undefined, {
+                  dateStyle: "short",
+                  timeStyle: "short",
+                })
+              : "—"}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-lg bg-zinc-800/40 border border-zinc-800/60 p-4 text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
+          {row.post_content || "—"}
+        </div>
+        {Array.isArray(row.hashtags) && row.hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {row.hashtags.map((tag) => (
+              <Badge key={tag} variant="outline" className="text-xs font-normal border-zinc-700 text-zinc-400">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+        {isPending && (
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            {canRespond ? (
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => onRespond(row.id, "approve")}
+                  disabled={isResponding !== null}
+                  className="rounded-md bg-emerald-600 hover:bg-emerald-700 px-4"
+                >
+                  {isResponding === row.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Approve
+                    </>
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => onRespond(row.id, "reject")}
+                  disabled={isResponding !== null}
+                  className="rounded-md hover:bg-zinc-800"
+                >
+                  {isResponding === row.id ? null : (
+                    <>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">Already responded</span>
+            )}
+          </div>
+        )}
+        {row.status === "approved" && (
+          <Badge variant="outline" className="border-emerald-500/50 bg-emerald-500/10 text-emerald-500 font-medium">
+            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+            Approved
+          </Badge>
+        )}
+        {row.status === "rejected" && (
+          <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-500 font-medium">
+            <XCircle className="h-3.5 w-3.5 mr-1.5" />
+            Rejected
+          </Badge>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function SectorApprovals() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [respondingId, setRespondingId] = useState<string | null>(null);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["sector_admin_posts"],
+    queryFn: () => fetchSectorAdminPosts({ limit: 50 }),
+  });
+
+  const respondMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" }) =>
+      postSectorAdminDecision(id, action),
+    onSuccess: (result, { action }) => {
+      console.log("[Sector Approve] Response:", { ok: result.ok, status: result.status, webhook_sent: result.webhook_sent });
+      queryClient.invalidateQueries({ queryKey: ["sector_admin_posts"] });
+      toast({
+        title: action === "approve" ? "Approved" : "Rejected",
+        description:
+          action === "approve"
+            ? result.webhook_sent
+              ? "Full LinkedIn post data was sent to the n8n webhook. Check your workflow executions in n8n."
+              : "Approved. Webhook was not triggered. Set N8N_WEBHOOK_URL in the backend environment (e.g. Vercel) and redeploy to send data to n8n."
+            : "No action taken.",
+      });
+    },
+    onError: (e: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: e.message || "Failed to submit response.",
+      });
+    },
+    onSettled: () => setRespondingId(null),
+  });
+
+  const items = (data?.items ?? []) as SectorAdminPostRow[];
+
+  const handleRespond = (id: string, action: "approve" | "reject") => {
+    const row = items.find((r) => r.id === id);
+    console.log("[Sector Approve] Request:", { post_id: id, decision: action });
+    if (row) {
+      console.log("[Sector Approve] LinkedIn content:", {
+        commodity: row.commodity,
+        post_content: row.post_content,
+        hashtags: row.hashtags,
+      });
+    }
+    setRespondingId(id);
+    respondMutation.mutate({ id, action });
+  };
+  const pending = items.filter((r) => r.status === "pending");
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48 rounded-lg" />
+        <Skeleton className="h-40 w-full rounded-lg" />
+        <Skeleton className="h-40 w-full rounded-lg" />
+        <Skeleton className="h-40 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="rounded-xl border border-destructive/50 bg-destructive/10">
+        <CardContent className="pt-6">
+          <p className="text-destructive font-medium">
+            {error instanceof Error ? error.message : "Failed to load decisions."}
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            You may need to sign in again.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <h1 className="text-xl font-semibold text-zinc-100">LinkedIn post approvals</h1>
+          {pending.length > 0 && (
+            <Badge variant="secondary" className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+              {pending.length} pending
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-zinc-500 leading-relaxed">
+          {pending.length > 0
+            ? `${pending.length} pending. Approve to send the post to the connected workflow.`
+            : "No pending posts. New posts will appear here when your admin sends sector emails."}
+        </p>
+      </div>
+      {items.length === 0 ? (
+        <Card className="rounded-xl border border-zinc-800 bg-zinc-900/50">
+          <CardContent className="py-16 flex flex-col items-center justify-center text-center">
+            <FileText className="h-12 w-12 text-zinc-500 mb-4" />
+            <p className="font-medium text-zinc-300">No decisions yet</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm leading-relaxed">
+              When your admin sends a test email or energy disclosure for your sector, posts will appear here for approval.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {items.map((row) => (
+            <PostCard
+              key={row.id}
+              row={row}
+              onRespond={handleRespond}
+              isResponding={respondingId}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -21,6 +21,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { useSectorList } from "@/hooks/useSectorList";
 import { useSectorRecipients } from "@/hooks/useSectorRecipients";
 import {
@@ -28,6 +29,18 @@ import {
   exportSectorRecipientsCsv,
   importSectorRecipientsCsvFile,
 } from "@/services/adminApi";
+import {
+  adminPanelCardClass,
+  adminPanelCardHeaderClass,
+  adminPanelCardContentClass,
+  adminPanelLabelClass,
+  adminPanelInputClass,
+  adminPanelTableWrapperClass,
+  adminPanelTableRowClass,
+  adminPanelTableHeadClass,
+  adminPanelPageTitleClass,
+  adminPanelPageSubtitleClass,
+} from "@/lib/adminPanelStyles";
 
 function parseLines(value: string): string[] {
   return value
@@ -42,6 +55,7 @@ type SectorExtras = {
   enabled: boolean;
   cc: string[];
   bcc: string[];
+  sector_username: string;
 };
 
 export default function AdminSectors() {
@@ -58,6 +72,7 @@ export default function AdminSectors() {
   const [testWarnings, setTestWarnings] = useState("");
   const [testContentOpen, setTestContentOpen] = useState(false);
   const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null);
+  const [localSectorPassword, setLocalSectorPassword] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setLocalEmails((prev) => {
@@ -83,9 +98,10 @@ export default function AdminSectors() {
               enabled: row.enabled !== false,
               cc: row.cc ?? [],
               bcc: row.bcc ?? [],
+              sector_username: row.sector_username ?? "",
             };
           } else if (!(s.sectorKey in next)) {
-            next[s.sectorKey] = { label: "", enabled: true, cc: [], bcc: [] };
+            next[s.sectorKey] = { label: "", enabled: true, cc: [], bcc: [], sector_username: "" };
           }
         });
       });
@@ -119,13 +135,14 @@ export default function AdminSectors() {
   const setExtra = (sectorKey: string, patch: Partial<SectorExtras>) => {
     setLocalExtras((prev) => ({
       ...prev,
-      [sectorKey]: { ...(prev[sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [] }), ...patch },
+      [sectorKey]: { ...(prev[sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [], sector_username: "" }), ...patch },
     }));
   };
 
   const handleSave = async (sectorKey: string, displayName: string) => {
     const emails = (localEmails[sectorKey] ?? [""]).map((e) => e.trim()).filter(Boolean);
-    const extras = localExtras[sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [] };
+    const extras = localExtras[sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [], sector_username: "" };
+    const password = localSectorPassword[sectorKey] ?? "";
     setSavingKey(sectorKey);
     try {
       await upsert({
@@ -136,7 +153,10 @@ export default function AdminSectors() {
         enabled: extras.enabled,
         cc: extras.cc.filter(Boolean),
         bcc: extras.bcc.filter(Boolean),
+        sector_username: extras.sector_username.trim() || null,
+        sector_password: password.trim() || undefined,
       });
+      if (password.trim()) setLocalSectorPassword((p) => ({ ...p, [sectorKey]: "" }));
       toast({ title: "Saved", description: `Recipients for ${displayName} updated.` });
     } catch (e) {
       toast({
@@ -232,27 +252,27 @@ export default function AdminSectors() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Sector recipients</h2>
-          <p className="text-sm text-muted-foreground">
+    <div className="max-w-7xl mx-auto space-y-6 min-w-0 w-full">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className={adminPanelPageTitleClass}>Sector recipients</h1>
+          <p className={adminPanelPageSubtitleClass}>
             Add email addresses per sector. Use “Send test” to send a sample email.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportCsv}>Export CSV</Button>
-          <Button variant="outline" size="sm" onClick={handleImportCsv} disabled={importing}>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <Button variant="outline" size="sm" className="rounded-lg border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100" onClick={handleExportCsv}>Export CSV</Button>
+          <Button variant="outline" size="sm" className="rounded-lg border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100" onClick={handleImportCsv} disabled={importing}>
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Import CSV"}
           </Button>
         </div>
       </div>
 
       <Collapsible open={testContentOpen} onOpenChange={setTestContentOpen}>
-        <Card className="border-border bg-card">
+        <Card className={adminPanelCardClass}>
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between px-4 py-3">
-              <span className="text-sm font-medium text-muted-foreground">
+            <Button variant="ghost" className="w-full justify-between px-4 py-3 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/50">
+              <span className="text-sm font-medium">
                 Customize test email content (optional)
               </span>
               <ChevronDown className={`h-4 w-4 transition-transform ${testContentOpen ? "rotate-180" : ""}`} />
@@ -260,14 +280,14 @@ export default function AdminSectors() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="pt-0 pb-4 space-y-3">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-zinc-500">
                 If you fill these, the test email will use a LinkedIn-style post generated from them instead of the sector sample.
               </p>
               <div className="space-y-2">
-                <Label htmlFor="test-insights" className="text-xs">Top insights (one per line)</Label>
+                <Label htmlFor="test-insights" className={adminPanelLabelClass}>Top insights (one per line)</Label>
                 <textarea
                   id="test-insights"
-                  className="flex min-h-[60px] w-full max-w-xl rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className={cn("flex min-h-[60px] w-full max-w-xl rounded-lg px-3 py-2 text-sm", adminPanelInputClass)}
                   placeholder="e.g. Growth in manufacturing index"
                   value={testInsights}
                   onChange={(e) => setTestInsights(e.target.value)}
@@ -275,10 +295,10 @@ export default function AdminSectors() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="test-warnings" className="text-xs">Critical warnings (one per line)</Label>
+                <Label htmlFor="test-warnings" className={adminPanelLabelClass}>Critical warnings (one per line)</Label>
                 <textarea
                   id="test-warnings"
-                  className="flex min-h-[60px] w-full max-w-xl rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className={cn("flex min-h-[60px] w-full max-w-xl rounded-lg px-3 py-2 text-sm", adminPanelInputClass)}
                   placeholder="e.g. Input cost pressure in Q2"
                   value={testWarnings}
                   onChange={(e) => setTestWarnings(e.target.value)}
@@ -291,43 +311,45 @@ export default function AdminSectors() {
       </Collapsible>
 
       {isLoading ? (
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-4 w-48 mt-2" />
+        <Card className={adminPanelCardClass}>
+          <CardHeader className={adminPanelCardHeaderClass}>
+            <Skeleton className="h-6 w-32 bg-zinc-800" />
+            <Skeleton className="h-4 w-48 mt-2 bg-zinc-800" />
           </CardHeader>
-          <CardContent>
+          <CardContent className={adminPanelCardContentClass}>
+            <div className={adminPanelTableWrapperClass}>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[200px]">Sector</TableHead>
-                  <TableHead className="w-[90px]">Enabled</TableHead>
-                  <TableHead className="w-[160px]">Label</TableHead>
-                  <TableHead className="min-w-[140px]">Recipients</TableHead>
-                  <TableHead className="min-w-[160px]">CC</TableHead>
-                  <TableHead className="min-w-[160px]">BCC</TableHead>
-                  <TableHead className="text-right w-[180px]">Actions</TableHead>
+                <TableRow className={adminPanelTableRowClass}>
+                  <TableHead className={adminPanelTableHeadClass + " w-[200px]"}>Sector</TableHead>
+                  <TableHead className={adminPanelTableHeadClass + " w-[90px]"}>Enabled</TableHead>
+                  <TableHead className={adminPanelTableHeadClass + " w-[160px]"}>Label</TableHead>
+                  <TableHead className={adminPanelTableHeadClass + " min-w-[140px]"}>Recipients</TableHead>
+                  <TableHead className={adminPanelTableHeadClass + " min-w-[160px]"}>CC</TableHead>
+                  <TableHead className={adminPanelTableHeadClass + " min-w-[160px]"}>BCC</TableHead>
+                  <TableHead className={adminPanelTableHeadClass + " text-right w-[180px]"}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-8 w-36" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-11 rounded-full" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-28" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-28" /></TableCell>
-                    <TableCell className="text-right">
+                  <TableRow key={i} className={adminPanelTableRowClass}>
+                    <TableCell className="py-3 px-4"><Skeleton className="h-8 w-36 bg-zinc-800" /></TableCell>
+                    <TableCell className="py-3 px-4"><Skeleton className="h-6 w-11 rounded-full bg-zinc-800" /></TableCell>
+                    <TableCell className="py-3 px-4"><Skeleton className="h-8 w-28 bg-zinc-800" /></TableCell>
+                    <TableCell className="py-3 px-4"><Skeleton className="h-4 w-24 bg-zinc-800" /></TableCell>
+                    <TableCell className="py-3 px-4"><Skeleton className="h-8 w-32 bg-zinc-800" /></TableCell>
+                    <TableCell className="py-3 px-4"><Skeleton className="h-8 w-28 bg-zinc-800" /></TableCell>
+                    <TableCell className="text-right py-3 px-4">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Skeleton className="h-8 w-20" />
-                        <Skeleton className="h-8 w-24" />
+                        <Skeleton className="h-8 w-20 bg-zinc-800" />
+                        <Skeleton className="h-8 w-24 bg-zinc-800" />
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -339,31 +361,32 @@ export default function AdminSectors() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <Card className="border-border bg-card">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">{group.label}</CardTitle>
-                  <CardDescription>Sectors under {group.label}</CardDescription>
+              <Card className={adminPanelCardClass}>
+                <CardHeader className={adminPanelCardHeaderClass}>
+                  <CardTitle className="text-zinc-100 text-lg">{group.label}</CardTitle>
+                  <CardDescription className="text-zinc-400">Sectors under {group.label}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className={adminPanelCardContentClass}>
                   {group.sectors.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4">No sectors in this section.</p>
+                    <p className="text-sm text-zinc-500 py-4">No sectors in this section.</p>
                   ) : (
+                    <div className={adminPanelTableWrapperClass}>
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[200px]">Sector</TableHead>
-                          <TableHead className="w-[90px]">Enabled</TableHead>
-                          <TableHead className="w-[160px]">Label</TableHead>
-                          <TableHead className="min-w-[140px]">Recipients</TableHead>
-                          <TableHead className="min-w-[160px]">CC</TableHead>
-                          <TableHead className="min-w-[160px]">BCC</TableHead>
-                          <TableHead className="text-right w-[180px]">Actions</TableHead>
+                        <TableRow className={adminPanelTableRowClass}>
+                          <TableHead className={adminPanelTableHeadClass + " w-[200px]"}>Sector</TableHead>
+                          <TableHead className={adminPanelTableHeadClass + " w-[90px]"}>Enabled</TableHead>
+                          <TableHead className={adminPanelTableHeadClass + " w-[160px]"}>Label</TableHead>
+                          <TableHead className={adminPanelTableHeadClass + " min-w-[140px]"}>Recipients</TableHead>
+                          <TableHead className={adminPanelTableHeadClass + " min-w-[160px]"}>CC</TableHead>
+                          <TableHead className={adminPanelTableHeadClass + " min-w-[160px]"}>BCC</TableHead>
+                          <TableHead className={adminPanelTableHeadClass + " text-right w-[180px]"}>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {group.sectors.map((sector) => {
                           const emails = localEmails[sector.sectorKey] ?? [""];
-                          const extras = localExtras[sector.sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [] };
+                          const extras = localExtras[sector.sectorKey] ?? { label: "", enabled: true, cc: [], bcc: [], sector_username: "" };
                           const hasEmails = emails.some((e) => e.trim().length > 0);
                           const count = emails.filter((e) => e.trim()).length;
                           const recipientSummary =
@@ -375,42 +398,42 @@ export default function AdminSectors() {
                           const isExpanded = expandedRowKey === sector.sectorKey;
                           return (
                             <React.Fragment key={sector.sectorKey}>
-                              <TableRow className="hover:bg-muted/50">
-                                <TableCell className="font-medium">
+                              <TableRow className={adminPanelTableRowClass}>
+                                <TableCell className="font-medium py-3 px-4">
                                   <button
                                     type="button"
                                     onClick={() => setExpandedRowKey((k) => (k === sector.sectorKey ? null : sector.sectorKey))}
-                                    className="flex items-center gap-1.5 text-left hover:opacity-80"
+                                    className="flex items-center gap-1.5 text-left hover:opacity-80 text-zinc-200"
                                     aria-expanded={isExpanded}
                                   >
                                     {isExpanded ? (
-                                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                      <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
                                     ) : (
-                                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-500" />
                                     )}
-                                    <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                    <Mail className="h-4 w-4 shrink-0 text-zinc-500" />
                                     <span>{sector.displayName}</span>
                                   </button>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="py-3 px-4">
                                   <Switch
                                     id={`enabled-${sector.sectorKey}`}
                                     checked={extras.enabled}
                                     onCheckedChange={(c) => setExtra(sector.sectorKey, { enabled: c })}
                                   />
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="py-3 px-4">
                                   <Input
                                     placeholder="Label (optional)"
                                     value={extras.label}
                                     onChange={(e) => setExtra(sector.sectorKey, { label: e.target.value })}
-                                    className="h-8 text-sm"
+                                    className={cn(adminPanelInputClass, "h-8 text-sm")}
                                   />
                                 </TableCell>
-                                <TableCell className="text-muted-foreground text-sm">
+                                <TableCell className="text-zinc-500 text-sm py-3 px-4">
                                   {recipientSummary}
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="py-3 px-4">
                                   <Input
                                     placeholder="cc@example.com"
                                     value={(extras.cc || []).join(", ")}
@@ -422,10 +445,10 @@ export default function AdminSectors() {
                                           .filter(Boolean),
                                       })
                                     }
-                                    className="h-8 text-sm"
+                                    className={cn(adminPanelInputClass, "h-8 text-sm")}
                                   />
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="py-3 px-4">
                                   <Input
                                     placeholder="bcc@example.com"
                                     value={(extras.bcc || []).join(", ")}
@@ -437,10 +460,10 @@ export default function AdminSectors() {
                                           .filter(Boolean),
                                       })
                                     }
-                                    className="h-8 text-sm"
+                                    className={cn(adminPanelInputClass, "h-8 text-sm")}
                                   />
                                 </TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right py-3 px-4">
                                   <div className="flex items-center justify-end gap-1.5">
                                     <Button
                                       size="sm"
@@ -472,11 +495,41 @@ export default function AdminSectors() {
                                 </TableCell>
                               </TableRow>
                               {isExpanded && (
-                                <TableRow key={`${sector.sectorKey}-expanded`} className="bg-muted/30 hover:bg-muted/30">
+                                <TableRow key={`${sector.sectorKey}-expanded`} className="bg-zinc-800/50 hover:bg-zinc-800/50">
                                   <TableCell colSpan={7} className="p-4">
-                                    <div className="space-y-2 max-w-2xl">
-                                      <Label className="text-xs text-muted-foreground">Recipient emails</Label>
-                                      {emails.map((email, idx) => (
+                                    <div className="space-y-4 max-w-2xl">
+                                      <div className="space-y-2">
+                                        <Label className={adminPanelLabelClass}>Sector login (for LinkedIn approvals panel)</Label>
+                                        <div className="flex flex-wrap gap-4 items-end">
+                                          <div className="space-y-1">
+                                            <Label htmlFor={`sector-username-${sector.sectorKey}`} className={adminPanelLabelClass}>Username</Label>
+                                            <Input
+                                              id={`sector-username-${sector.sectorKey}`}
+                                              placeholder="e.g. sector_coal"
+                                              value={extras.sector_username}
+                                              onChange={(e) => setExtra(sector.sectorKey, { sector_username: e.target.value })}
+                                              className={cn(adminPanelInputClass, "h-8 text-sm w-48")}
+                                            />
+                                          </div>
+                                          <div className="space-y-1">
+                                            <Label htmlFor={`sector-password-${sector.sectorKey}`} className={adminPanelLabelClass}>Password</Label>
+                                            <Input
+                                              id={`sector-password-${sector.sectorKey}`}
+                                              type="password"
+                                              placeholder="Set password to create or change"
+                                              value={localSectorPassword[sector.sectorKey] ?? ""}
+                                              onChange={(e) => setLocalSectorPassword((p) => ({ ...p, [sector.sectorKey]: e.target.value }))}
+                                              className={cn(adminPanelInputClass, "h-8 text-sm w-48")}
+                                            />
+                                          </div>
+                                        </div>
+                                        {recipientsByKey[sector.sectorKey]?.has_sector_login && (
+                                          <p className="text-xs text-zinc-500">Login is set. Change password above to update.</p>
+                                        )}
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label className={adminPanelLabelClass}>Recipient emails</Label>
+                                        {emails.map((email, idx) => (
                                         <div key={idx} className="flex gap-2">
                                           <Input
                                             type="email"
@@ -485,7 +538,7 @@ export default function AdminSectors() {
                                             onChange={(e) =>
                                               updateEmailAt(sector.sectorKey, idx, e.target.value)
                                             }
-                                            className="h-8 text-sm"
+                                            className={cn(adminPanelInputClass, "h-8 text-sm")}
                                           />
                                           <Button
                                             type="button"
@@ -510,6 +563,7 @@ export default function AdminSectors() {
                                         <Plus className="h-4 w-4 mr-1" />
                                         Add email
                                       </Button>
+                                      </div>
                                     </div>
                                   </TableCell>
                                 </TableRow>
@@ -519,6 +573,7 @@ export default function AdminSectors() {
                         })}
                       </TableBody>
                     </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>

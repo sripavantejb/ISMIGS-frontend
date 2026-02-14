@@ -6,13 +6,31 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { login, getStoredToken, setStoredToken } from "@/services/adminApi";
+import { login, getStoredToken, setStoredToken, setStoredUser, fetchMe } from "@/services/adminApi";
+import { setStoredSectorToken } from "@/services/sectorApi";
 
 // Demo credentials matching backend defaults (ADMIN_USERNAME / ADMIN_PASSWORD)
 const DEMO_USERNAME = "admin";
 const DEMO_PASSWORD = "admin123";
 
+function redirectByRole(
+  res: { role?: string; user?: { id: string; name?: string; email?: string; role?: string; sector_id?: string } },
+  navigate: (path: string, opts?: { replace: boolean }) => void,
+  setStoredUser: (u: { id: string; name?: string; email?: string; role: "SUPER_ADMIN" | "SECTOR_ADMIN"; sector_id?: string }) => void,
+  setStoredSectorToken: (t: string) => void,
+  token: string
+) {
+  if (res.user) setStoredUser({ id: res.user.id, name: res.user.name, email: res.user.email, role: (res.user.role as "SUPER_ADMIN" | "SECTOR_ADMIN") || "SECTOR_ADMIN", sector_id: res.user.sector_id });
+  else if (res.role === "SUPER_ADMIN") setStoredUser({ id: "admin", role: "SUPER_ADMIN" });
+  if (res.role === "SECTOR_ADMIN") {
+    setStoredSectorToken(token);
+    navigate("/sector/approvals", { replace: true });
+  } else if (res.role === "SUPER_ADMIN") navigate("/admin-panel", { replace: true });
+  else navigate("/admin/dashboard", { replace: true });
+}
+
 export default function AdminLogin() {
+  const [email, setEmail] = useState("");
   const [username, setUsername] = useState(DEMO_USERNAME);
   const [password, setPassword] = useState(DEMO_PASSWORD);
   const [error, setError] = useState("");
@@ -21,32 +39,61 @@ export default function AdminLogin() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (getStoredToken()) {
-      navigate("/admin/dashboard", { replace: true });
+    const token = getStoredToken();
+    if (!token) {
+      setChecking(false);
       return;
     }
-    setChecking(false);
+    let cancelled = false;
+    fetchMe()
+      .then((res: { user?: string | { id: string; name?: string; email?: string; role?: string; sector_id?: string }; role?: string }) => {
+        if (cancelled) return;
+        const role = res.role ?? (res.user && typeof res.user === "object" ? res.user.role : null);
+        const user = res.user && typeof res.user === "object" ? res.user : null;
+        if (role === "SECTOR_ADMIN") {
+          setStoredSectorToken(token);
+          setStoredUser({ id: user?.id ?? "", name: user?.name, email: user?.email, role: "SECTOR_ADMIN", sector_id: user?.sector_id });
+          navigate("/sector/approvals", { replace: true });
+        } else if (role === "SUPER_ADMIN") {
+          setStoredUser({ id: "admin", role: "SUPER_ADMIN" });
+          navigate("/admin-panel", { replace: true });
+        } else {
+          if (user) setStoredUser({ id: user.id, name: user.name, email: user.email, role: (user.role as "SUPER_ADMIN" | "SECTOR_ADMIN") || "SUPER_ADMIN", sector_id: user.sector_id });
+          navigate("/admin/dashboard", { replace: true });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setChecking(false);
+      });
+    return () => { cancelled = true; };
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
+    const emailVal = email.trim();
+    const usernameVal = username.trim();
+    // Accounts created in Super Admin (Sector Admin) are logged in by EMAIL. If user typed email in either field, use it.
+    const loginEmail = emailVal || (usernameVal.includes("@") ? usernameVal : "");
+    const loginPayload = loginEmail
+      ? { email: loginEmail, password }
+      : { username: usernameVal, password };
     try {
-      const { token } = await login(username.trim(), password);
-      setStoredToken(token);
-      navigate("/admin/dashboard", { replace: true });
+      const res = await login(loginPayload);
+      setStoredToken(res.token);
+      redirectByRole(res, navigate, setStoredUser, setStoredSectorToken, res.token);
     } catch (err) {
-      const e = err as Error & { status?: number };
-      const is401 = e.status === 401;
+      const errObj = err as Error & { status?: number };
+      const is401 = errObj.status === 401;
       const isNetworkError =
-        e instanceof TypeError || e.message === "Failed to fetch";
+        errObj instanceof TypeError || errObj.message === "Failed to fetch";
       setError(
         is401
-          ? "Invalid username or password."
+          ? "Invalid email or password. If your account was created in the Super Admin panel, use the exact email (in the Email field above) and password that were set when the account was created."
           : isNetworkError
             ? "Cannot reach the backend. Check your connection or that the backend URL is correct."
-            : "Something went wrong. Try again."
+            : errObj.message || "Something went wrong. Try again."
       );
     } finally {
       setLoading(false);
@@ -55,25 +102,25 @@ export default function AdminLogin() {
 
   if (checking) {
     return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
-        <Card className="w-full max-w-md border-border bg-card">
-          <CardHeader>
-            <div className="flex items-center gap-2">
+      <div className="min-h-screen p-6 flex items-center justify-center bg-zinc-950">
+        <Card className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900/80 shadow-xl shadow-black/20">
+          <CardHeader className="px-6 pt-6 pb-4">
+            <div className="flex items-center gap-3">
               <Shield className="h-6 w-6 text-primary" />
-              <Skeleton className="h-6 w-16" />
+              <Skeleton className="h-6 w-24 rounded-lg" />
             </div>
-            <Skeleton className="h-4 w-full mt-2" />
+            <Skeleton className="h-4 w-full mt-3 rounded-lg" />
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-6 pb-6">
             <div className="space-y-2">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-4 w-20 rounded-lg" />
+              <Skeleton className="h-10 w-full rounded-lg" />
             </div>
             <div className="space-y-2">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-4 w-16 rounded-lg" />
+              <Skeleton className="h-10 w-full rounded-lg" />
             </div>
-            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full rounded-lg" />
           </CardContent>
         </Card>
       </div>
@@ -81,31 +128,50 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen p-6 flex items-center justify-center">
-      <Card className="w-full max-w-md border-border bg-card">
-        <CardHeader>
-          <div className="flex items-center gap-2">
+    <div className="min-h-screen p-6 flex items-center justify-center bg-zinc-950">
+      <Card className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900/80 shadow-xl shadow-black/20">
+        <CardHeader className="px-6 pt-6 pb-4">
+          <div className="flex items-center gap-3">
             <Shield className="h-6 w-6 text-primary" />
-            <CardTitle>Admin</CardTitle>
+            <CardTitle className="text-xl font-semibold text-zinc-100">Admin login</CardTitle>
           </div>
-          <CardDescription>Sign in to manage sector notifications. Use the sample credentials (e.g. admin / admin123).</CardDescription>
+          <CardDescription className="text-sm text-zinc-500 leading-relaxed">
+            One login for Super Admin, Admin, and Sector Admin. You will be redirected to the correct panel based on your role.
+          </CardDescription>
+          <div className="rounded-lg bg-zinc-800/40 border border-zinc-800/60 p-3 mt-3">
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              <strong className="text-zinc-300">Account created in Super Admin panel?</strong> Use the <strong className="text-zinc-300">Email</strong> field with the exact email you entered there, and the password you set—not the username field.
+            </p>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="admin-username">Username</Label>
+              <Label htmlFor="admin-email" className="text-sm font-medium text-zinc-300">Email (for Sector Admin / created accounts)</Label>
+              <Input
+                id="admin-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="e.g. you@example.com"
+                className="bg-zinc-800/60 border-zinc-700 rounded-lg focus-visible:ring-2 focus-visible:ring-primary/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="admin-username" className="text-sm font-medium text-zinc-300">Username (Super Admin only: admin)</Label>
               <Input
                 id="admin-username"
                 type="text"
                 autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
-                autoFocus
+                placeholder="Super Admin: admin"
+                className="bg-zinc-800/60 border-zinc-700 rounded-lg focus-visible:ring-2 focus-visible:ring-primary/50"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="admin-password">Password</Label>
+              <Label htmlFor="admin-password" className="text-sm font-medium text-zinc-300">Password</Label>
               <Input
                 id="admin-password"
                 type="password"
@@ -113,10 +179,15 @@ export default function AdminLogin() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
+                className="bg-zinc-800/60 border-zinc-700 rounded-lg focus-visible:ring-2 focus-visible:ring-primary/50"
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
+            {error && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
+            <Button type="submit" className="w-full rounded-lg py-2.5 bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign in"}
             </Button>
           </form>

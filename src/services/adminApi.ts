@@ -5,6 +5,7 @@
 import { API_BASE } from "@/config/api";
 
 const TOKEN_KEY = "ismigs_admin_token";
+const USER_KEY = "ismigs_admin_user";
 
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -16,6 +17,33 @@ export function setStoredToken(token: string): void {
 
 export function clearStoredToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
+export type StoredUser = {
+  id: string;
+  name?: string;
+  email?: string;
+  role: "SUPER_ADMIN" | "SECTOR_ADMIN";
+  sector_id?: string;
+};
+
+export function getStoredUser(): StoredUser | null {
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as StoredUser;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredUser(user: StoredUser): void {
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function clearStoredUser(): void {
+  localStorage.removeItem(USER_KEY);
 }
 
 function getHeaders(): HeadersInit {
@@ -40,6 +68,8 @@ export type SectorRecipientRow = {
   enabled?: boolean;
   cc?: string[];
   bcc?: string[];
+  has_sector_login?: boolean;
+  sector_username?: string | null;
 };
 
 export type EmailLogRow = {
@@ -57,11 +87,25 @@ export type AdminSettings = {
   default_from: string | null;
 };
 
-export async function login(username: string, password: string): Promise<{ token: string }> {
+export type LoginResponse = {
+  token: string;
+  role?: "SUPER_ADMIN" | "SECTOR_ADMIN";
+  sector_id?: string;
+  user?: { id: string; name?: string; email?: string; role: string; sector_id?: string };
+};
+
+export async function login(params: {
+  email?: string;
+  username?: string;
+  password: string;
+}): Promise<LoginResponse> {
+  const body: { password: string; email?: string; username?: string } = { password: params.password };
+  if (params.email?.trim()) body.email = params.email.trim();
+  else if (params.username?.trim()) body.username = params.username.trim();
   const res = await fetch(`${API_BASE}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -98,10 +142,25 @@ export async function upsertSectorRecipient(params: {
   enabled?: boolean;
   cc?: string[];
   bcc?: string[];
+  sector_username?: string | null;
+  sector_password?: string;
 }): Promise<void> {
+  const body: Record<string, unknown> = {
+    sector_key: params.sector_key,
+    display_name: params.display_name,
+    emails: params.emails,
+    label: params.label ?? null,
+    enabled: params.enabled !== false,
+    cc: params.cc ?? [],
+    bcc: params.bcc ?? [],
+  };
+  if (params.sector_username !== undefined) body.sector_username = params.sector_username || null;
+  if (typeof params.sector_password === "string" && params.sector_password.length > 0) {
+    body.sector_password = params.sector_password;
+  }
   const res = await apiFetch(`${API_BASE}/api/sector-recipients`, {
     method: "PUT",
-    body: JSON.stringify(params),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -256,10 +315,21 @@ export async function fetchEnergyCommodities(): Promise<string[]> {
   return res.json();
 }
 
-export async function sendEnergyDisclosure(commodity: string, adminEmail: string): Promise<{ ok: boolean; message: string; commodity: string }> {
+export async function sendEnergyDisclosure(
+  commodity: string,
+  adminEmail: string,
+  sectorKey?: string,
+  sectorName?: string
+): Promise<{ ok: boolean; message: string; commodity: string; sector_approval_created?: boolean }> {
+  const body: { commodity?: string; adminEmail: string; sector_key?: string; sector_name?: string } = {
+    adminEmail,
+    commodity: commodity || undefined,
+  };
+  if (sectorKey) body.sector_key = sectorKey;
+  if (sectorName) body.sector_name = sectorName;
   const res = await apiFetch(`${API_BASE}/api/send-energy-disclosure`, {
     method: "POST",
-    body: JSON.stringify({ commodity: commodity || undefined, adminEmail }),
+    body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error ?? "Failed to send energy disclosure");
@@ -331,4 +401,118 @@ export async function fetchAdminDecisions(params?: { limit?: number }): Promise<
     throw new Error(err.error ?? "Failed to fetch admin decisions");
   }
   return res.json();
+}
+
+// ---------- Super Admin (requires SUPER_ADMIN role) ----------
+
+export type SuperadminSector = { id: string; sector_name: string; sector_key: string | null; created_at: string | null; has_sector_admin?: boolean };
+
+export async function fetchSuperadminSectors(): Promise<SuperadminSector[]> {
+  const res = await apiFetch(`${API_BASE}/api/superadmin/sectors`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? "Failed to fetch sectors");
+  }
+  return res.json();
+}
+
+export type SectorWithAdminRow = {
+  sector_id: string;
+  sector_name: string;
+  sector_key: string | null;
+  created_at: string | null;
+  admin_name: string | null;
+  admin_email: string | null;
+};
+
+export async function fetchSectorsWithAdmins(): Promise<SectorWithAdminRow[]> {
+  const res = await apiFetch(`${API_BASE}/api/superadmin/sectors-with-admins`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? "Failed to fetch sectors with admins");
+  }
+  return res.json();
+}
+
+export async function createSector(body: { sector_name: string; sector_key?: string }): Promise<{ id: string; sector_name: string; sector_key: string; created_at: string }> {
+  const res = await apiFetch(`${API_BASE}/api/superadmin/create-sector`, { method: "POST", body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Failed to create sector");
+  return data;
+}
+
+export async function ensureSector(body: { sector_key: string; sector_name: string }): Promise<{ id: string; sector_name: string; sector_key: string }> {
+  const res = await apiFetch(`${API_BASE}/api/superadmin/ensure-sector`, { method: "POST", body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Failed to ensure sector");
+  return data;
+}
+
+export async function createSectorAdmin(body: { name: string; email: string; password: string; sector_id: string }): Promise<{ id: string }> {
+  const res = await apiFetch(`${API_BASE}/api/superadmin/create-sector-admin`, { method: "POST", body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Failed to create sector admin");
+  return data;
+}
+
+export type AllApprovalRow = {
+  id: string;
+  sector_id: string | null;
+  sector_name: string | null;
+  commodity: string | null;
+  post_content: string | null;
+  hashtags: string[];
+  status: string;
+  created_at: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+};
+
+export async function fetchAllApprovals(params?: { limit?: number; offset?: number; sector_id?: string; commodity?: string; status?: string }): Promise<{ items: AllApprovalRow[]; total: number }> {
+  const q = new URLSearchParams();
+  if (params?.limit != null) q.set("limit", String(params.limit));
+  if (params?.offset != null) q.set("offset", String(params.offset));
+  if (params?.sector_id) q.set("sector_id", params.sector_id);
+  if (params?.commodity) q.set("commodity", params.commodity);
+  if (params?.status) q.set("status", params.status);
+  const url = `${API_BASE}/api/superadmin/all-approvals${q.toString() ? `?${q}` : ""}`;
+  const res = await apiFetch(url);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? "Failed to fetch approvals");
+  }
+  return res.json();
+}
+
+export async function sendSuperadminSectorEmail(sector_id: string): Promise<{ ok: boolean; post_id: string; sent: number }> {
+  const res = await apiFetch(`${API_BASE}/api/superadmin/send-sector-email`, { method: "POST", body: JSON.stringify({ sector_id }) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Failed to send email");
+  return data;
+}
+
+export type NotificationItem = {
+  type: "linkedin_post" | "audit";
+  id: string;
+  sector_id: string | null;
+  sector_name: string | null;
+  title: string;
+  description: string;
+  timestamp: string | null;
+  meta?: Record<string, unknown> | null;
+};
+
+export async function fetchSuperadminNotifications(params?: {
+  sector_id?: string;
+  limit?: number;
+}): Promise<{ items: NotificationItem[] }> {
+  const sp = new URLSearchParams();
+  if (params?.sector_id) sp.set("sector_id", params.sector_id);
+  if (params?.limit != null) sp.set("limit", String(params.limit));
+  const q = sp.toString();
+  const url = `${API_BASE}/api/superadmin/notifications${q ? `?${q}` : ""}`;
+  const res = await apiFetch(url);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "Failed to load notifications");
+  return data;
 }
