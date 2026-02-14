@@ -28,20 +28,22 @@ export default function SectorLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950">
-      <header className="sticky top-0 z-40 flex h-12 items-center justify-between border-b border-zinc-800 bg-zinc-900/95 px-4 backdrop-blur">
-        <div className="flex items-center gap-2">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-900/80 px-6 backdrop-blur">
+        <div className="flex items-center gap-3">
           <FileCheck className="h-5 w-5 text-primary" />
-          <span className="text-sm font-medium text-zinc-200">
+          <span className="text-base font-semibold text-zinc-100">
             Sector approvals{sectorName ? ` – ${sectorName}` : ""}
           </span>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout} className="text-zinc-400 hover:text-zinc-100">
-          <LogOut className="h-4 w-4 mr-1" />
+        <Button variant="outline" size="sm" onClick={handleLogout} className="text-zinc-400 hover:text-zinc-100 border-zinc-700 hover:border-zinc-600">
+          <LogOut className="h-4 w-4 mr-2" />
           Log out
         </Button>
       </header>
       <main className="flex-1 overflow-auto">
-        <Outlet />
+        <div className="max-w-4xl mx-auto w-full px-6 py-6">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

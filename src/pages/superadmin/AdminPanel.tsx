@@ -33,6 +33,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  adminPanelCardClass,
+  adminPanelCardHeaderClass,
+  adminPanelCardContentClass,
+  adminPanelLabelClass,
+  adminPanelInputClass,
+  adminPanelTableWrapperClass,
+  adminPanelTableRowClass,
+  adminPanelTableHeadClass,
+  adminPanelPageTitleClass,
+  adminPanelPageSubtitleClass,
+} from "@/lib/adminPanelStyles";
 import { useToast } from "@/hooks/use-toast";
 import { useSectorList } from "@/hooks/useSectorList";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -153,56 +165,62 @@ export default function AdminPanel() {
   const approvedCount = items.filter((i) => i.status === "approved").length;
   const rejectedCount = items.filter((i) => i.status === "rejected").length;
 
-  const cardClass = "border border-zinc-800 bg-zinc-900/80 rounded-xl shadow-sm min-w-0";
-  const cardHeaderClass = "p-4 md:p-6 pb-2";
-  const cardContentClass = "p-4 md:p-6 pt-0";
-  const labelClass = "text-sm font-medium text-zinc-300";
-  const inputClass = "bg-zinc-800 border-zinc-700 rounded-md w-full focus:ring-zinc-500 focus:ring-offset-zinc-900";
+  // Aliases for shared styles (keep in sync with adminPanelStyles)
+  const cardClass = adminPanelCardClass;
+  const cardHeaderClass = adminPanelCardHeaderClass;
+  const cardContentClass = adminPanelCardContentClass;
+  const labelClass = adminPanelLabelClass;
+  const inputClass = adminPanelInputClass;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 min-w-0 w-full">
       <motion.div variants={container} initial="hidden" animate="show" className="space-y-6 md:space-y-8">
+        {/* Page title */}
+        <motion.section variants={item}>
+          <h1 className={adminPanelPageTitleClass}>Overview</h1>
+          <p className={adminPanelPageSubtitleClass}>Sectors, admins, and LinkedIn post approvals.</p>
+        </motion.section>
         {/* Overview Stats */}
         <motion.section variants={item}>
-          <h2 className="text-base font-semibold tracking-tight text-zinc-100 mb-4">Overview</h2>
+          <h2 className="text-base font-semibold tracking-tight text-zinc-100 mb-4">Summary</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className={cardClass}>
-              <CardHeader className={cardHeaderClass}>
+            <Card className={adminPanelCardClass}>
+              <CardHeader className={adminPanelCardHeaderClass}>
                 <CardTitle className="text-sm font-medium text-zinc-400 flex items-center gap-2">
                   <Building2 className="h-4 w-4" /> Sectors
                 </CardTitle>
               </CardHeader>
-              <CardContent className={cardContentClass}>
+              <CardContent className={adminPanelCardContentClass}>
                 <p className="text-2xl font-bold text-zinc-100">{sectorsLoading ? "—" : sectors.length}</p>
               </CardContent>
             </Card>
-            <Card className={cardClass}>
-              <CardHeader className={cardHeaderClass}>
+            <Card className={adminPanelCardClass}>
+              <CardHeader className={adminPanelCardHeaderClass}>
                 <CardTitle className="text-sm font-medium text-zinc-400 flex items-center gap-2">
                   <FileCheck className="h-4 w-4" /> Pending
                 </CardTitle>
               </CardHeader>
-              <CardContent className={cardContentClass}>
+              <CardContent className={adminPanelCardContentClass}>
                 <p className="text-2xl font-bold text-amber-400">{approvalsLoading ? "—" : pendingCount}</p>
               </CardContent>
             </Card>
-            <Card className={cardClass}>
-              <CardHeader className={cardHeaderClass}>
+            <Card className={adminPanelCardClass}>
+              <CardHeader className={adminPanelCardHeaderClass}>
                 <CardTitle className="text-sm font-medium text-zinc-400 flex items-center gap-2">
                   <FileCheck className="h-4 w-4" /> Approved
                 </CardTitle>
               </CardHeader>
-              <CardContent className={cardContentClass}>
+              <CardContent className={adminPanelCardContentClass}>
                 <p className="text-2xl font-bold text-emerald-500">{approvalsLoading ? "—" : approvedCount}</p>
               </CardContent>
             </Card>
-            <Card className={cardClass}>
-              <CardHeader className={cardHeaderClass}>
+            <Card className={adminPanelCardClass}>
+              <CardHeader className={adminPanelCardHeaderClass}>
                 <CardTitle className="text-sm font-medium text-zinc-400 flex items-center gap-2">
                   <History className="h-4 w-4" /> Rejected
                 </CardTitle>
               </CardHeader>
-              <CardContent className={cardContentClass}>
+              <CardContent className={adminPanelCardContentClass}>
                 <p className="text-2xl font-bold text-zinc-500">{approvalsLoading ? "—" : rejectedCount}</p>
               </CardContent>
             </Card>
@@ -211,33 +229,33 @@ export default function AdminPanel() {
 
         {/* Sector Management */}
         <motion.section variants={item}>
-          <Card className={cardClass}>
-            <CardHeader className={cardHeaderClass}>
+          <Card className={adminPanelCardClass}>
+            <CardHeader className={adminPanelCardHeaderClass}>
               <CardTitle className="text-zinc-100 flex items-center gap-2">
                 <Building2 className="h-5 w-5" /> Sector Management
               </CardTitle>
               <CardDescription className="text-zinc-400">Create new sectors. Optionally set sector_key (e.g. energy:coal).</CardDescription>
             </CardHeader>
-            <CardContent className={cn(cardContentClass, "space-y-4")}>
+            <CardContent className={cn(adminPanelCardContentClass, "space-y-4")}>
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 min-w-0 space-y-2">
-                  <Label htmlFor="sector-name" className={labelClass}>Sector name</Label>
+                  <Label htmlFor="sector-name" className={adminPanelLabelClass}>Sector name</Label>
                   <Input
                     id="sector-name"
                     value={sectorName}
                     onChange={(e) => setSectorName(e.target.value)}
                     placeholder="e.g. Electricity"
-                    className={inputClass}
+                    className={adminPanelInputClass}
                   />
                 </div>
                 <div className="flex-1 min-w-0 space-y-2">
-                  <Label htmlFor="sector-key" className={labelClass}>Sector key (optional)</Label>
+                  <Label htmlFor="sector-key" className={adminPanelLabelClass}>Sector key (optional)</Label>
                   <Input
                     id="sector-key"
                     value={sectorKey}
                     onChange={(e) => setSectorKey(e.target.value)}
                     placeholder="e.g. energy:electricity"
-                    className={inputClass}
+                    className={adminPanelInputClass}
                   />
                 </div>
                 <div className="flex items-end">
@@ -250,18 +268,18 @@ export default function AdminPanel() {
                   </Button>
                 </div>
               </div>
-              <div className="overflow-x-auto rounded-md border border-zinc-800">
+              <div className={adminPanelTableWrapperClass}>
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-zinc-800 hover:bg-zinc-800/50">
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Name</TableHead>
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Key</TableHead>
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Created</TableHead>
+                    <TableRow className={adminPanelTableRowClass}>
+                      <TableHead className={adminPanelTableHeadClass}>Name</TableHead>
+                      <TableHead className={adminPanelTableHeadClass}>Key</TableHead>
+                      <TableHead className={adminPanelTableHeadClass}>Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sectors.map((s: SuperadminSector) => (
-                      <TableRow key={s.id} className="border-zinc-800 hover:bg-zinc-800/50">
+                      <TableRow key={s.id} className={adminPanelTableRowClass}>
                         <TableCell className="text-zinc-200 text-sm py-3 px-4">{s.sector_name}</TableCell>
                         <TableCell className="text-zinc-400 font-mono text-sm py-3 px-4">{s.sector_key ?? "—"}</TableCell>
                         <TableCell className="text-zinc-500 text-sm py-3 px-4">{s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}</TableCell>
@@ -276,31 +294,31 @@ export default function AdminPanel() {
 
         {/* Create Sector Admin */}
         <motion.section variants={item}>
-          <Card className={cardClass}>
-            <CardHeader className={cardHeaderClass}>
+          <Card className={adminPanelCardClass}>
+            <CardHeader className={adminPanelCardHeaderClass}>
               <CardTitle className="text-zinc-100 flex items-center gap-2">
                 <Users className="h-5 w-5" /> Create Sector Admin
               </CardTitle>
               <CardDescription className="text-zinc-400">Add a Sector Admin user for a specific sector.</CardDescription>
             </CardHeader>
-            <CardContent className={cardContentClass}>
+            <CardContent className={adminPanelCardContentClass}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2 min-w-0">
-                  <Label className={labelClass}>Name</Label>
-                  <Input value={adminName} onChange={(e) => setAdminName(e.target.value)} placeholder="Full name" className={inputClass} />
+                  <Label className={adminPanelLabelClass}>Name</Label>
+                  <Input value={adminName} onChange={(e) => setAdminName(e.target.value)} placeholder="Full name" className={adminPanelInputClass} />
                 </div>
                 <div className="space-y-2 min-w-0">
-                  <Label className={labelClass}>Email</Label>
-                  <Input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="email@example.com" className={inputClass} />
+                  <Label className={adminPanelLabelClass}>Email</Label>
+                  <Input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="email@example.com" className={adminPanelInputClass} />
                 </div>
                 <div className="space-y-2 min-w-0">
-                  <Label className={labelClass}>Password</Label>
-                  <Input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="••••••••" className={inputClass} />
+                  <Label className={adminPanelLabelClass}>Password</Label>
+                  <Input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="••••••••" className={adminPanelInputClass} />
                 </div>
                 <div className="space-y-2 min-w-0">
-                  <Label className={labelClass}>Sector</Label>
+                  <Label className={adminPanelLabelClass}>Sector</Label>
                   <Select value={adminSectorKey || undefined} onValueChange={setAdminSectorKey}>
-                    <SelectTrigger className={inputClass}>
+                    <SelectTrigger className={adminPanelInputClass}>
                       <SelectValue placeholder="Select sector" />
                     </SelectTrigger>
                     <SelectContent className="z-[100] max-h-[280px]">
@@ -329,8 +347,8 @@ export default function AdminPanel() {
 
         {/* Created sectors & admin credentials */}
         <motion.section variants={item}>
-          <Card className={cardClass}>
-            <CardHeader className={cardHeaderClass}>
+          <Card className={adminPanelCardClass}>
+            <CardHeader className={adminPanelCardHeaderClass}>
               <CardTitle className="text-zinc-100 flex items-center gap-2">
                 <ClipboardList className="h-5 w-5" /> Created sectors & admin credentials
               </CardTitle>
@@ -343,34 +361,34 @@ export default function AdminPanel() {
                 {" "}page with their <strong className="text-zinc-300">email</strong> and <strong className="text-zinc-300">password</strong>; they are then redirected to the Sector approvals panel.
               </p>
             </CardHeader>
-            <CardContent className={cardContentClass}>
-              <div className="overflow-x-auto rounded-md border border-zinc-800">
+            <CardContent className={adminPanelCardContentClass}>
+              <div className={adminPanelTableWrapperClass}>
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-zinc-800 hover:bg-zinc-800/50">
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Sector name</TableHead>
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Sector key</TableHead>
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Admin name</TableHead>
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Login (email / username)</TableHead>
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Created</TableHead>
+                    <TableRow className={adminPanelTableRowClass}>
+                      <TableHead className={adminPanelTableHeadClass}>Sector name</TableHead>
+                      <TableHead className={adminPanelTableHeadClass}>Sector key</TableHead>
+                      <TableHead className={adminPanelTableHeadClass}>Admin name</TableHead>
+                      <TableHead className={adminPanelTableHeadClass}>Login (email / username)</TableHead>
+                      <TableHead className={adminPanelTableHeadClass}>Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sectorsWithAdminsLoading ? (
-                      <TableRow className="border-zinc-800">
+                      <TableRow className={adminPanelTableRowClass}>
                         <TableCell colSpan={5} className="text-zinc-500 text-sm py-6 text-center">
                           Loading…
                         </TableCell>
                       </TableRow>
                     ) : sectorsWithAdmins.length === 0 ? (
-                      <TableRow className="border-zinc-800">
+                      <TableRow className={adminPanelTableRowClass}>
                         <TableCell colSpan={5} className="text-zinc-500 text-sm py-6 text-center">
                           No sectors yet. Create sectors in Sector Management and assign admins above.
                         </TableCell>
                       </TableRow>
                     ) : (
                       (sectorsWithAdmins as SectorWithAdminRow[]).map((row) => (
-                        <TableRow key={row.sector_id} className="border-zinc-800 hover:bg-zinc-800/50">
+                        <TableRow key={row.sector_id} className={adminPanelTableRowClass}>
                           <TableCell className="text-zinc-200 text-sm py-3 px-4 font-medium">{row.sector_name}</TableCell>
                           <TableCell className="text-zinc-400 font-mono text-sm py-3 px-4">{row.sector_key ?? "—"}</TableCell>
                           <TableCell className="text-zinc-200 text-sm py-3 px-4">{row.admin_name ?? "—"}</TableCell>
@@ -388,18 +406,18 @@ export default function AdminPanel() {
 
         {/* Trigger email to sector */}
         <motion.section variants={item}>
-          <Card className={cardClass}>
-            <CardHeader className={cardHeaderClass}>
+          <Card className={adminPanelCardClass}>
+            <CardHeader className={adminPanelCardHeaderClass}>
               <CardTitle className="text-zinc-100 flex items-center gap-2">
                 <Mail className="h-5 w-5" /> Send sector email
               </CardTitle>
               <CardDescription className="text-zinc-400">Generate sector-specific LinkedIn draft and email recipients for the selected sector.</CardDescription>
             </CardHeader>
-            <CardContent className={cn(cardContentClass, "flex flex-wrap items-end gap-4")}>
+            <CardContent className={cn(adminPanelCardContentClass, "flex flex-wrap items-end gap-4")}>
               <div className="space-y-2 w-full sm:min-w-[200px] flex-1 min-w-0">
-                <Label className={labelClass}>Sector</Label>
+                <Label className={adminPanelLabelClass}>Sector</Label>
                 <Select value={emailSectorKey || undefined} onValueChange={setEmailSectorKey}>
-                  <SelectTrigger className={inputClass}>
+                  <SelectTrigger className={adminPanelInputClass}>
                     <SelectValue placeholder="Select sector" />
                   </SelectTrigger>
                   <SelectContent className="z-[100] max-h-[280px]">
@@ -423,15 +441,15 @@ export default function AdminPanel() {
 
         {/* LinkedIn post approvals & history */}
         <motion.section variants={item}>
-          <Card className={cardClass}>
-            <CardHeader className={cardHeaderClass}>
+          <Card className={adminPanelCardClass}>
+            <CardHeader className={adminPanelCardHeaderClass}>
               <CardTitle className="text-zinc-100">LinkedIn post approvals</CardTitle>
               <CardDescription className="text-zinc-400">Filter by sector, commodity, or status. Total: {total}</CardDescription>
             </CardHeader>
-            <CardContent className={cn(cardContentClass, "space-y-4")}>
+            <CardContent className={cn(adminPanelCardContentClass, "space-y-4")}>
               <div className="flex flex-wrap gap-2">
                 <Select value={filterSector} onValueChange={setFilterSector}>
-                  <SelectTrigger className={cn(inputClass, "w-full sm:w-[180px]")}>
+                  <SelectTrigger className={cn(adminPanelInputClass, "w-full sm:w-[180px]")}>
                     <SelectValue placeholder="All sectors" />
                   </SelectTrigger>
                   <SelectContent className="z-[100]">
@@ -447,10 +465,10 @@ export default function AdminPanel() {
                   placeholder="Commodity"
                   value={filterCommodity}
                   onChange={(e) => setFilterCommodity(e.target.value)}
-                  className={cn(inputClass, "w-full sm:w-[140px]")}
+                  className={cn(adminPanelInputClass, "w-full sm:w-[140px]")}
                 />
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className={cn(inputClass, "w-full sm:w-[140px]")}>
+                  <SelectTrigger className={cn(adminPanelInputClass, "w-full sm:w-[140px]")}>
                     <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
                   <SelectContent className="z-[100]">
@@ -461,21 +479,21 @@ export default function AdminPanel() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="overflow-x-auto rounded-md border border-zinc-800">
+              <div className={adminPanelTableWrapperClass}>
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-zinc-800 hover:bg-zinc-800/50">
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Sector</TableHead>
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Commodity</TableHead>
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Status</TableHead>
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Created</TableHead>
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Approved at</TableHead>
-                      <TableHead className="text-xs font-medium uppercase tracking-wider text-zinc-500 py-3 px-4">Approved by</TableHead>
+                    <TableRow className={adminPanelTableRowClass}>
+                      <TableHead className={adminPanelTableHeadClass}>Sector</TableHead>
+                      <TableHead className={adminPanelTableHeadClass}>Commodity</TableHead>
+                      <TableHead className={adminPanelTableHeadClass}>Status</TableHead>
+                      <TableHead className={adminPanelTableHeadClass}>Created</TableHead>
+                      <TableHead className={adminPanelTableHeadClass}>Approved at</TableHead>
+                      <TableHead className={adminPanelTableHeadClass}>Approved by</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.map((row: AllApprovalRow) => (
-                      <TableRow key={row.id} className="border-zinc-800 hover:bg-zinc-800/50">
+                      <TableRow key={row.id} className={adminPanelTableRowClass}>
                         <TableCell className="text-zinc-200 text-sm py-3 px-4">{row.sector_name ?? "—"}</TableCell>
                         <TableCell className="text-zinc-300 text-sm py-3 px-4">{row.commodity ?? "—"}</TableCell>
                         <TableCell className="py-3 px-4">

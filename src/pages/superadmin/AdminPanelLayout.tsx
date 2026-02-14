@@ -7,7 +7,6 @@ import {
   Mail,
   List,
   Settings,
-  FileText,
   AlertTriangle,
   LayoutGrid,
   Bell,
@@ -25,7 +24,6 @@ const navItems = [
   { to: "/admin-panel/notifications", end: false, label: "Notifications", icon: Bell },
   { to: "/admin-panel/sectors", end: false, label: "Sector recipients", icon: Mail },
   { to: "/admin-panel/alerts", end: false, label: "Sector alerts", icon: AlertTriangle },
-  { to: "/admin-panel/digest", end: false, label: "Email digest", icon: FileText },
   { to: "/admin-panel/logs", end: false, label: "Email logs", icon: List },
   { to: "/admin-panel/settings", end: false, label: "Settings", icon: Settings },
 ];
@@ -84,11 +82,9 @@ export default function AdminPanelLayout() {
           end={item.end}
           onClick={() => setSheetOpen(false)}
           className={cn(
-            "flex items-center gap-3 rounded-md py-2.5 pr-3 text-sm font-medium transition-colors",
+            "flex items-center gap-3 rounded-lg py-2.5 pr-3 pl-3 text-sm font-medium transition-colors",
             "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80",
-            isActive(item)
-              ? "bg-zinc-800 text-zinc-100 border-l-2 border-primary pl-[14px]"
-              : "pl-3"
+            isActive(item) && "bg-zinc-800 text-zinc-100 border-l-2 border-primary pl-[14px]"
           )}
         >
           <NavLinkContent item={item} />

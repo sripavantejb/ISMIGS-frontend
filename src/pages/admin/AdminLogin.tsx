@@ -102,25 +102,25 @@ export default function AdminLogin() {
 
   if (checking) {
     return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
-        <Card className="w-full max-w-md border-border bg-card">
-          <CardHeader>
-            <div className="flex items-center gap-2">
+      <div className="min-h-screen p-6 flex items-center justify-center bg-zinc-950">
+        <Card className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900/80 shadow-xl shadow-black/20">
+          <CardHeader className="px-6 pt-6 pb-4">
+            <div className="flex items-center gap-3">
               <Shield className="h-6 w-6 text-primary" />
-              <Skeleton className="h-6 w-16" />
+              <Skeleton className="h-6 w-24 rounded-lg" />
             </div>
-            <Skeleton className="h-4 w-full mt-2" />
+            <Skeleton className="h-4 w-full mt-3 rounded-lg" />
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-6 pb-6">
             <div className="space-y-2">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-4 w-20 rounded-lg" />
+              <Skeleton className="h-10 w-full rounded-lg" />
             </div>
             <div className="space-y-2">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-4 w-16 rounded-lg" />
+              <Skeleton className="h-10 w-full rounded-lg" />
             </div>
-            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full rounded-lg" />
           </CardContent>
         </Card>
       </div>
@@ -128,24 +128,26 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen p-6 flex items-center justify-center">
-      <Card className="w-full max-w-md border-border bg-card">
-        <CardHeader>
-          <div className="flex items-center gap-2">
+    <div className="min-h-screen p-6 flex items-center justify-center bg-zinc-950">
+      <Card className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900/80 shadow-xl shadow-black/20">
+        <CardHeader className="px-6 pt-6 pb-4">
+          <div className="flex items-center gap-3">
             <Shield className="h-6 w-6 text-primary" />
-            <CardTitle>Admin login</CardTitle>
+            <CardTitle className="text-xl font-semibold text-zinc-100">Admin login</CardTitle>
           </div>
-          <CardDescription>
+          <CardDescription className="text-sm text-zinc-500 leading-relaxed">
             One login for Super Admin, Admin, and Sector Admin. You will be redirected to the correct panel based on your role.
           </CardDescription>
-          <p className="text-sm text-muted-foreground mt-1">
-            <strong>Account created in Super Admin panel?</strong> Use the <strong>Email</strong> field with the exact email you entered there, and the password you set—not the username field.
-          </p>
+          <div className="rounded-lg bg-zinc-800/40 border border-zinc-800/60 p-3 mt-3">
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              <strong className="text-zinc-300">Account created in Super Admin panel?</strong> Use the <strong className="text-zinc-300">Email</strong> field with the exact email you entered there, and the password you set—not the username field.
+            </p>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="admin-email">Email (for Sector Admin / created accounts)</Label>
+              <Label htmlFor="admin-email" className="text-sm font-medium text-zinc-300">Email (for Sector Admin / created accounts)</Label>
               <Input
                 id="admin-email"
                 type="email"
@@ -153,10 +155,11 @@ export default function AdminLogin() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="e.g. you@example.com"
+                className="bg-zinc-800/60 border-zinc-700 rounded-lg focus-visible:ring-2 focus-visible:ring-primary/50"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="admin-username">Username (Super Admin only: admin)</Label>
+              <Label htmlFor="admin-username" className="text-sm font-medium text-zinc-300">Username (Super Admin only: admin)</Label>
               <Input
                 id="admin-username"
                 type="text"
@@ -164,10 +167,11 @@ export default function AdminLogin() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Super Admin: admin"
+                className="bg-zinc-800/60 border-zinc-700 rounded-lg focus-visible:ring-2 focus-visible:ring-primary/50"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="admin-password">Password</Label>
+              <Label htmlFor="admin-password" className="text-sm font-medium text-zinc-300">Password</Label>
               <Input
                 id="admin-password"
                 type="password"
@@ -175,10 +179,15 @@ export default function AdminLogin() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
+                className="bg-zinc-800/60 border-zinc-700 rounded-lg focus-visible:ring-2 focus-visible:ring-primary/50"
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
+            {error && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
+            <Button type="submit" className="w-full rounded-lg py-2.5 bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign in"}
             </Button>
           </form>

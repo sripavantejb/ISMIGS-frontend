@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, FileText, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -22,15 +23,24 @@ function PostCard({
 }) {
   const isPending = row.status === "pending";
   const canRespond = isPending;
+  const borderAccent =
+    row.status === "approved"
+      ? "border-l-4 border-l-emerald-500"
+      : row.status === "rejected"
+        ? "border-l-4 border-l-amber-500"
+        : "";
 
   return (
-    <Card className="border-zinc-800 bg-zinc-900/80">
+    <Card
+      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 transition-colors ${isPending ? "hover:border-zinc-700 hover:bg-zinc-900/80" : ""} ${borderAccent}`}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base text-zinc-100">
+          <Badge variant="secondary" className="bg-zinc-800 text-zinc-200 font-medium">
             {row.commodity || "LinkedIn post"}
-          </CardTitle>
-          <span className="text-xs text-muted-foreground">
+          </Badge>
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5" />
             {row.created_at
               ? new Date(row.created_at).toLocaleString(undefined, {
                   dateStyle: "short",
@@ -41,29 +51,33 @@ function PostCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-md bg-zinc-800/50 p-3 text-sm text-zinc-300 whitespace-pre-wrap">
+        <div className="rounded-lg bg-zinc-800/40 border border-zinc-800/60 p-4 text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
           {row.post_content || "—"}
         </div>
         {Array.isArray(row.hashtags) && row.hashtags.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            Hashtags: {row.hashtags.join(" ")}
-          </p>
+          <div className="flex flex-wrap gap-2">
+            {row.hashtags.map((tag) => (
+              <Badge key={tag} variant="outline" className="text-xs font-normal border-zinc-700 text-zinc-400">
+                {tag}
+              </Badge>
+            ))}
+          </div>
         )}
         {isPending && (
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex flex-wrap items-center gap-3 pt-2">
             {canRespond ? (
               <>
                 <Button
                   size="sm"
                   onClick={() => onRespond(row.id, "approve")}
                   disabled={isResponding !== null}
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className="rounded-md bg-emerald-600 hover:bg-emerald-700 px-4"
                 >
                   {isResponding === row.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
-                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
                       Approve
                     </>
                   )}
@@ -73,10 +87,11 @@ function PostCard({
                   variant="secondary"
                   onClick={() => onRespond(row.id, "reject")}
                   disabled={isResponding !== null}
+                  className="rounded-md hover:bg-zinc-800"
                 >
                   {isResponding === row.id ? null : (
                     <>
-                      <XCircle className="h-4 w-4 mr-1" />
+                      <XCircle className="h-4 w-4 mr-2" />
                       Reject
                     </>
                   )}
@@ -88,14 +103,16 @@ function PostCard({
           </div>
         )}
         {row.status === "approved" && (
-          <p className="text-sm text-emerald-500 flex items-center gap-1">
-            <CheckCircle2 className="h-4 w-4" /> Approved
-          </p>
+          <Badge variant="outline" className="border-emerald-500/50 bg-emerald-500/10 text-emerald-500 font-medium">
+            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+            Approved
+          </Badge>
         )}
         {row.status === "rejected" && (
-          <p className="text-sm text-amber-500 flex items-center gap-1">
-            <XCircle className="h-4 w-4" /> Rejected
-          </p>
+          <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-500 font-medium">
+            <XCircle className="h-3.5 w-3.5 mr-1.5" />
+            Rejected
+          </Badge>
         )}
       </CardContent>
     </Card>
@@ -157,47 +174,53 @@ export default function SectorApprovals() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-32 w-full" />
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48 rounded-lg" />
+        <Skeleton className="h-40 w-full rounded-lg" />
+        <Skeleton className="h-40 w-full rounded-lg" />
+        <Skeleton className="h-40 w-full rounded-lg" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6">
-        <Card className="border-destructive/50 bg-destructive/10">
-          <CardContent className="pt-6">
-            <p className="text-destructive">
-              {error instanceof Error ? error.message : "Failed to load decisions."}
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              You may need to sign in again.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="rounded-xl border border-destructive/50 bg-destructive/10">
+        <CardContent className="pt-6">
+          <p className="text-destructive font-medium">
+            {error instanceof Error ? error.message : "Failed to load decisions."}
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            You may need to sign in again.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-zinc-100">LinkedIn post approvals</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <h1 className="text-xl font-semibold text-zinc-100">LinkedIn post approvals</h1>
+          {pending.length > 0 && (
+            <Badge variant="secondary" className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+              {pending.length} pending
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-zinc-500 leading-relaxed">
           {pending.length > 0
             ? `${pending.length} pending. Approve to send the post to the connected workflow.`
             : "No pending posts. New posts will appear here when your admin sends sector emails."}
         </p>
       </div>
       {items.length === 0 ? (
-        <Card className="border-zinc-800 bg-zinc-900/50">
-          <CardContent className="py-12 flex flex-col items-center justify-center text-center">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No decisions yet</p>
-            <p className="text-sm text-muted-foreground mt-1">
+        <Card className="rounded-xl border border-zinc-800 bg-zinc-900/50">
+          <CardContent className="py-16 flex flex-col items-center justify-center text-center">
+            <FileText className="h-12 w-12 text-zinc-500 mb-4" />
+            <p className="font-medium text-zinc-300">No decisions yet</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm leading-relaxed">
               When your admin sends a test email or energy disclosure for your sector, posts will appear here for approval.
             </p>
           </CardContent>

@@ -6,6 +6,15 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSectorList } from "@/hooks/useSectorList";
 import { sendSectorTestEmail, sendTestToAllSectors } from "@/services/adminApi";
+import {
+  adminPanelCardClass,
+  adminPanelCardHeaderClass,
+  adminPanelCardContentClass,
+  adminPanelLabelClass,
+  adminPanelInputClass,
+  adminPanelPageTitleClass,
+  adminPanelPageSubtitleClass,
+} from "@/lib/adminPanelStyles";
 
 function parseLines(value: string): string[] {
   return value
@@ -63,45 +72,45 @@ export default function AdminDigest() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl min-w-0 w-full">
+    <div className="max-w-2xl mx-auto space-y-6 min-w-0 w-full">
       <div className="min-w-0">
-        <h2 className="text-lg font-semibold text-foreground">Email digest</h2>
-        <p className="text-sm text-muted-foreground">
+        <h1 className={adminPanelPageTitleClass}>Email digest</h1>
+        <p className={adminPanelPageSubtitleClass}>
           Send top insights and critical warnings as a LinkedIn-style post. Content is generated via OpenAI and sent to sector recipients.
         </p>
       </div>
 
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-base">Top insights & critical warnings</CardTitle>
-          <CardDescription>One item per line. Backend will format this as a professional LinkedIn-style post using OpenAI.</CardDescription>
+      <Card className={adminPanelCardClass}>
+        <CardHeader className={adminPanelCardHeaderClass}>
+          <CardTitle className="text-zinc-100 text-base">Top insights & critical warnings</CardTitle>
+          <CardDescription className="text-zinc-400">One item per line. Backend will format this as a professional LinkedIn-style post using OpenAI.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className={adminPanelCardContentClass + " space-y-4"}>
           <div className="space-y-2">
-            <Label htmlFor="digest-insights">Top insights</Label>
+            <Label htmlFor="digest-insights" className={adminPanelLabelClass}>Top insights</Label>
             <textarea
               id="digest-insights"
-              className="w-full min-h-[100px] px-3 py-2 rounded-md border border-input bg-background text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={adminPanelInputClass + " w-full min-h-[100px] px-3 py-2 text-sm"}
               placeholder="e.g. GDP growth at 7.2% YoY&#10;Energy balance ratio improved in Q3&#10;WPI inflation easing in major groups"
               value={insightsText}
               onChange={(e) => setInsightsText(e.target.value)}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="digest-warnings">Critical warnings</Label>
+            <Label htmlFor="digest-warnings" className={adminPanelLabelClass}>Critical warnings</Label>
             <textarea
               id="digest-warnings"
-              className="w-full min-h-[100px] px-3 py-2 rounded-md border border-input bg-background text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={adminPanelInputClass + " w-full min-h-[100px] px-3 py-2 text-sm"}
               placeholder="e.g. Industrial stress: 3 consecutive months of negative IIP growth&#10;WPI inflation above 6% in fuel group"
               value={warningsText}
               onChange={(e) => setWarningsText(e.target.value)}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="digest-sector">Send to</Label>
+            <Label htmlFor="digest-sector" className={adminPanelLabelClass}>Send to</Label>
             <select
               id="digest-sector"
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={adminPanelInputClass}
               value={sectorKey}
               onChange={(e) => setSectorKey(e.target.value)}
             >
@@ -113,7 +122,7 @@ export default function AdminDigest() {
               ))}
             </select>
           </div>
-          <Button onClick={handleSend} disabled={sending} className="w-full sm:w-auto">
+          <Button onClick={handleSend} disabled={sending} className="rounded-lg w-full sm:w-auto">
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             <span className="ml-2">Generate & send</span>
           </Button>

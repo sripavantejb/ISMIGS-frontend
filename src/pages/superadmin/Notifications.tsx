@@ -10,6 +10,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  adminPanelCardClass,
+  adminPanelCardHeaderClass,
+  adminPanelCardContentClass,
+  adminPanelInputClass,
+  adminPanelPageTitleClass,
+  adminPanelPageSubtitleClass,
+} from "@/lib/adminPanelStyles";
 
 const ALL_SECTORS = "__all__";
 
@@ -46,9 +55,13 @@ export default function Notifications() {
   const items: NotificationItem[] = data?.items ?? [];
 
   return (
-    <div className="space-y-4 min-w-0">
-      <Card className="border border-zinc-800 bg-zinc-900/80 overflow-hidden">
-        <CardHeader className="pb-2 p-4 md:p-6">
+    <div className="max-w-7xl mx-auto space-y-6 min-w-0 w-full">
+      <div className="space-y-1">
+        <h1 className={adminPanelPageTitleClass}>Notifications</h1>
+        <p className={adminPanelPageSubtitleClass}>Activity feed across sectors.</p>
+      </div>
+      <Card className={cn(adminPanelCardClass, "overflow-hidden")}>
+        <CardHeader className={adminPanelCardHeaderClass}>
           <CardTitle className="text-zinc-100">Activity feed</CardTitle>
           <CardDescription className="text-zinc-400">
             LinkedIn posts, approvals, sector admin creation, and emails across sectors.
@@ -56,10 +69,10 @@ export default function Notifications() {
           <div className="pt-2 flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center">
             <span className="text-sm text-zinc-400 shrink-0">Sector:</span>
             <Select value={sectorFilter} onValueChange={setSectorFilter}>
-              <SelectTrigger className="w-full sm:w-[220px] bg-zinc-800 border-zinc-700 text-zinc-100 min-w-0">
+              <SelectTrigger className={cn(adminPanelInputClass, "w-full sm:w-[220px] min-w-0")}>
                 <SelectValue placeholder="All sectors" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[100] bg-zinc-900 border-zinc-800">
                 <SelectItem value={ALL_SECTORS}>All sectors</SelectItem>
                 {sectors.map((s: SuperadminSector) => (
                   <SelectItem key={s.id} value={s.id}>
@@ -70,20 +83,20 @@ export default function Notifications() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent className="p-4 md:p-6 pt-0">
+        <CardContent className={adminPanelCardContentClass}>
           {isLoading ? (
             <div className="flex items-center justify-center py-12 text-zinc-400">
               <Loader2 className="h-8 w-8 animate-spin mr-2" />
               Loading…
             </div>
           ) : items.length === 0 ? (
-            <p className="text-zinc-500 py-8 text-center">No activity yet.</p>
+            <p className="text-zinc-500 py-8 text-center text-sm">No activity yet.</p>
           ) : (
-            <ul className="space-y-2 min-w-0">
+            <ul className="space-y-0 min-w-0 divide-y divide-zinc-800">
               {items.map((item) => (
                 <li
                   key={`${item.type}-${item.id}`}
-                  className="flex flex-wrap items-baseline gap-x-2 gap-y-1 py-2 border-b border-zinc-800 last:border-0 text-sm min-w-0"
+                  className="flex flex-wrap items-baseline gap-x-2 gap-y-1 py-3 text-sm min-w-0 hover:bg-zinc-800/30 -mx-2 px-2 rounded-lg transition-colors"
                 >
                   <span className="font-medium text-zinc-100 break-words">{item.title}</span>
                   {item.sector_name && (

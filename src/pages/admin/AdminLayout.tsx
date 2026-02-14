@@ -1,5 +1,5 @@
 import { useLocation, Outlet, NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Mail, List, Settings, LogOut, FileText, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, Mail, List, Settings, LogOut, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { clearStoredToken } from "@/services/adminApi";
@@ -8,7 +8,6 @@ const navItems = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/sectors", label: "Sector recipients", icon: Mail },
   { to: "/admin/alerts", label: "Sector alerts", icon: AlertTriangle },
-  { to: "/admin/digest", label: "Email digest", icon: FileText },
   { to: "/admin/logs", label: "Email logs", icon: List },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ];

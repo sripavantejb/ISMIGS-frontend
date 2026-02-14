@@ -25,6 +25,18 @@ import {
   createSectorAdmin,
   type SuperadminSector,
 } from "@/services/adminApi";
+import {
+  adminPanelCardClass,
+  adminPanelCardHeaderClass,
+  adminPanelCardContentClass,
+  adminPanelLabelClass,
+  adminPanelInputClass,
+  adminPanelTableWrapperClass,
+  adminPanelTableRowClass,
+  adminPanelTableHeadClass,
+  adminPanelPageTitleClass,
+  adminPanelPageSubtitleClass,
+} from "@/lib/adminPanelStyles";
 
 type SectorRowState = { name: string; email: string; password: string };
 
@@ -170,59 +182,59 @@ export default function AdminSettings() {
 
   if (loading) {
     return (
-      <div className="space-y-6 max-w-xl">
+      <div className="max-w-xl mx-auto space-y-6">
         <div>
-          <Skeleton className="h-6 w-24" />
-          <Skeleton className="h-4 w-56 mt-2" />
+          <Skeleton className="h-7 w-24 bg-zinc-800" />
+          <Skeleton className="h-4 w-56 mt-2 bg-zinc-800" />
         </div>
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <Skeleton className="h-5 w-36" />
-            <Skeleton className="h-4 w-full max-w-md mt-2" />
+        <Card className={adminPanelCardClass}>
+          <CardHeader className={adminPanelCardHeaderClass}>
+            <Skeleton className="h-5 w-36 bg-zinc-800" />
+            <Skeleton className="h-4 w-full max-w-md mt-2 bg-zinc-800" />
           </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-6 w-11 rounded-full" />
+          <CardContent className={adminPanelCardContentClass + " flex items-center justify-between"}>
+            <Skeleton className="h-4 w-40 bg-zinc-800" />
+            <Skeleton className="h-6 w-11 rounded-full bg-zinc-800" />
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <Skeleton className="h-5 w-44" />
-            <Skeleton className="h-4 w-full max-w-sm mt-2" />
+        <Card className={adminPanelCardClass}>
+          <CardHeader className={adminPanelCardHeaderClass}>
+            <Skeleton className="h-5 w-44 bg-zinc-800" />
+            <Skeleton className="h-4 w-full max-w-sm mt-2 bg-zinc-800" />
           </CardHeader>
-          <CardContent>
-            <Skeleton className="h-10 w-full" />
+          <CardContent className={adminPanelCardContentClass}>
+            <Skeleton className="h-10 w-full bg-zinc-800" />
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-4 w-full max-w-lg mt-2" />
+        <Card className={adminPanelCardClass}>
+          <CardHeader className={adminPanelCardHeaderClass}>
+            <Skeleton className="h-5 w-28 bg-zinc-800" />
+            <Skeleton className="h-4 w-full max-w-lg mt-2 bg-zinc-800" />
           </CardHeader>
-          <CardContent className="flex gap-2">
-            <Skeleton className="h-10 flex-1" />
-            <Skeleton className="h-10 w-24" />
+          <CardContent className={adminPanelCardContentClass + " flex gap-2"}>
+            <Skeleton className="h-10 flex-1 bg-zinc-800" />
+            <Skeleton className="h-10 w-24 bg-zinc-800" />
           </CardContent>
         </Card>
-        <Skeleton className="h-10 w-32" />
+        <Skeleton className="h-10 w-32 bg-zinc-800" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-xl min-w-0 w-full">
+    <div className="max-w-xl mx-auto space-y-6 min-w-0 w-full">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Settings</h2>
-        <p className="text-sm text-muted-foreground">Notifications and email defaults</p>
+        <h1 className={adminPanelPageTitleClass}>Settings</h1>
+        <p className={adminPanelPageSubtitleClass}>Notifications and email defaults</p>
       </div>
 
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-base">Notifications</CardTitle>
-          <CardDescription>When disabled, no sector emails will be sent (test or real).</CardDescription>
+      <Card className={adminPanelCardClass}>
+        <CardHeader className={adminPanelCardHeaderClass}>
+          <CardTitle className="text-zinc-100 text-base">Notifications</CardTitle>
+          <CardDescription className="text-zinc-400">When disabled, no sector emails will be sent (test or real).</CardDescription>
         </CardHeader>
-        <CardContent className="flex items-center justify-between">
-          <Label htmlFor="notifications-enabled" className="cursor-pointer">Notifications enabled</Label>
+        <CardContent className={adminPanelCardContentClass + " flex items-center justify-between"}>
+          <Label htmlFor="notifications-enabled" className={adminPanelLabelClass + " cursor-pointer"}>Notifications enabled</Label>
           <Switch
             id="notifications-enabled"
             checked={notificationsEnabled}
@@ -231,71 +243,72 @@ export default function AdminSettings() {
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-base">Default from address</CardTitle>
-          <CardDescription>Overrides SMTP_FROM when set. Leave empty to use server default.</CardDescription>
+      <Card className={adminPanelCardClass}>
+        <CardHeader className={adminPanelCardHeaderClass}>
+          <CardTitle className="text-zinc-100 text-base">Default from address</CardTitle>
+          <CardDescription className="text-zinc-400">Overrides SMTP_FROM when set. Leave empty to use server default.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className={adminPanelCardContentClass}>
           <Input
             type="email"
             placeholder="e.g. notifications@example.com"
             value={defaultFrom}
             onChange={(e) => setDefaultFrom(e.target.value)}
+            className={adminPanelInputClass}
           />
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-base">Test SMTP</CardTitle>
-          <CardDescription>Send a test email to verify SMTP. Configure SMTP_HOST, SMTP_USER, SMTP_PASS in backend/.env (see .env.example).</CardDescription>
+      <Card className={adminPanelCardClass}>
+        <CardHeader className={adminPanelCardHeaderClass}>
+          <CardTitle className="text-zinc-100 text-base">Test SMTP</CardTitle>
+          <CardDescription className="text-zinc-400">Send a test email to verify SMTP. Configure SMTP_HOST, SMTP_USER, SMTP_PASS in backend/.env (see .env.example).</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row gap-2">
+        <CardContent className={adminPanelCardContentClass + " flex flex-col sm:flex-row gap-2"}>
           <Input
             type="email"
             placeholder="recipient@example.com"
             value={smtpTestEmail}
             onChange={(e) => setSmtpTestEmail(e.target.value)}
-            className="min-w-0 flex-1"
+            className={adminPanelInputClass + " min-w-0 flex-1"}
           />
-          <Button onClick={handleSmtpTest} disabled={testing} className="w-full sm:w-auto shrink-0">
+          <Button onClick={handleSmtpTest} disabled={testing} className="rounded-lg w-full sm:w-auto shrink-0">
             {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send test"}
           </Button>
         </CardContent>
       </Card>
 
       {isSuperAdmin && (
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
+        <Card className={adminPanelCardClass}>
+          <CardHeader className={adminPanelCardHeaderClass}>
+            <CardTitle className="text-zinc-100 text-base flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
               Sector admin credentials
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-zinc-400">
               Create login credentials (email and password) for each sector. Sector Admins can then sign in at the login page and access their sector&apos;s approvals.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className={adminPanelCardContentClass}>
             {sectorsError && (
               <p className="text-sm text-destructive mb-4">
                 {sectorsError instanceof Error ? sectorsError.message : "Failed to load sectors."}
               </p>
             )}
             {sectorsLoading ? (
-              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-32 w-full bg-zinc-800" />
             ) : sectors.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No sectors yet. Create sectors from the Super Admin panel first.</p>
+              <p className="text-sm text-zinc-500">No sectors yet. Create sectors from the Super Admin panel first.</p>
             ) : (
-              <div className="overflow-x-auto rounded-md border border-border">
+              <div className={adminPanelTableWrapperClass}>
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[140px]">Sector</TableHead>
-                      <TableHead className="min-w-[160px]">Name</TableHead>
-                      <TableHead className="min-w-[180px]">Email</TableHead>
-                      <TableHead className="min-w-[140px]">Password</TableHead>
-                      <TableHead className="text-right w-[160px]">Action</TableHead>
+                    <TableRow className={adminPanelTableRowClass}>
+                      <TableHead className={adminPanelTableHeadClass + " w-[140px]"}>Sector</TableHead>
+                      <TableHead className={adminPanelTableHeadClass + " min-w-[160px]"}>Name</TableHead>
+                      <TableHead className={adminPanelTableHeadClass + " min-w-[180px]"}>Email</TableHead>
+                      <TableHead className={adminPanelTableHeadClass + " min-w-[140px]"}>Password</TableHead>
+                      <TableHead className={adminPanelTableHeadClass + " text-right w-[160px]"}>Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -305,42 +318,43 @@ export default function AdminSettings() {
                       const creating = creatingSectorId === sector.id;
                       const canCreate = row.email.trim() && row.password && !creating;
                       return (
-                        <TableRow key={sector.id}>
-                          <TableCell className="font-medium">{sector.sector_name}</TableCell>
-                          <TableCell>
+                        <TableRow key={sector.id} className={adminPanelTableRowClass}>
+                          <TableCell className="font-medium text-zinc-200 text-sm py-3 px-4">{sector.sector_name}</TableCell>
+                          <TableCell className="py-3 px-4">
                             <Input
                               placeholder={`Sector Admin – ${sector.sector_name}`}
                               value={row.name}
                               onChange={(e) => updateSectorRow(sector.id, "name", e.target.value)}
-                              className="h-8"
+                              className={adminPanelInputClass + " h-8"}
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-3 px-4">
                             <Input
                               type="email"
                               placeholder="admin@example.com"
                               value={row.email}
                               onChange={(e) => updateSectorRow(sector.id, "email", e.target.value)}
-                              className="h-8"
+                              className={adminPanelInputClass + " h-8"}
                               disabled={created}
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-3 px-4">
                             <Input
                               type="password"
                               placeholder="••••••••"
                               value={row.password}
                               onChange={(e) => updateSectorRow(sector.id, "password", e.target.value)}
-                              className="h-8"
+                              className={adminPanelInputClass + " h-8"}
                               disabled={created}
                             />
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right py-3 px-4">
                             {created ? (
-                              <span className="text-sm text-muted-foreground">Credentials created</span>
+                              <span className="text-sm text-zinc-500">Credentials created</span>
                             ) : (
                               <Button
                                 size="sm"
+                                className="rounded-lg"
                                 disabled={!canCreate}
                                 onClick={() => handleCreateCredentials(sector)}
                               >
@@ -359,7 +373,7 @@ export default function AdminSettings() {
         </Card>
       )}
 
-      <Button onClick={handleSave} disabled={saving}>
+      <Button onClick={handleSave} disabled={saving} className="rounded-lg">
         {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
         Save settings
       </Button>
