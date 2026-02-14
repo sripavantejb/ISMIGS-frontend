@@ -116,6 +116,7 @@ export default function SectorApprovals() {
     mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" }) =>
       postSectorAdminDecision(id, action),
     onSuccess: (result, { action }) => {
+      console.log("[Sector Approve] Response:", { ok: result.ok, status: result.status, webhook_sent: result.webhook_sent });
       queryClient.invalidateQueries({ queryKey: ["sector_admin_posts"] });
       toast({
         title: action === "approve" ? "Approved" : "Rejected",
@@ -137,12 +138,21 @@ export default function SectorApprovals() {
     onSettled: () => setRespondingId(null),
   });
 
+  const items = (data?.items ?? []) as SectorAdminPostRow[];
+
   const handleRespond = (id: string, action: "approve" | "reject") => {
+    const row = items.find((r) => r.id === id);
+    console.log("[Sector Approve] Request:", { post_id: id, decision: action });
+    if (row) {
+      console.log("[Sector Approve] LinkedIn content:", {
+        commodity: row.commodity,
+        post_content: row.post_content,
+        hashtags: row.hashtags,
+      });
+    }
     setRespondingId(id);
     respondMutation.mutate({ id, action });
   };
-
-  const items = (data?.items ?? []) as SectorAdminPostRow[];
   const pending = items.filter((r) => r.status === "pending");
 
   if (isLoading) {

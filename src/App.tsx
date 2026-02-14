@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
 import AdminSectors from "./pages/admin/AdminSectors";
 import AdminEmailLogs from "./pages/admin/AdminEmailLogs";
 import AdminSettings from "./pages/admin/AdminSettings";
@@ -140,7 +141,7 @@ const App = () => (
           <Route path="/admin-panel" element={<SuperAdminGuard />}>
             <Route element={<AdminPanelLayout />}>
               <Route index element={<AdminPanel />} />
-              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="dashboard" element={<SuperAdminDashboard />} />
               <Route path="notifications" element={<Notifications />} />
               <Route path="sectors" element={<AdminSectors />} />
               <Route path="logs" element={<AdminEmailLogs />} />
