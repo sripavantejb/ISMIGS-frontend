@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Lightbulb, Users, AlertCircle, Sparkles, ChevronDown, ChevronUp, Building2 } from "lucide-react";
+import { Lightbulb, Users, AlertCircle, Sparkles, ChevronDown, ChevronUp, Building2, TrendingUp, ChevronRight, Info, AlertTriangle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,11 +12,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useGVAImpact, type GVAAffectedSector } from "@/hooks/useGVAImpact";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar } from "recharts";
 import { useGVADetailed } from "@/hooks/useMacroData";
+import { useGVAPredictions } from "@/hooks/useGVAPredictions";
 import { normalizeGvaRows, aggregateGvaByYear } from "@/utils/gvaLogic";
 import { resolveGvaIndustryFromSlug, gvaIndustryToSlug } from "@/utils/gvaSlug";
 import { useGVAIndustryList } from "@/hooks/useGVAIndustryList";
 import { FilterBar } from "@/components/FilterBar";
 import { GVAIndustryHero } from "@/components/GVAIndustryHero";
+import { cn } from "@/lib/utils";
 
 const tooltipStyle = {
   backgroundColor: "hsl(222 44% 9%)",
@@ -37,8 +39,10 @@ const GVAPage = () => {
   const [pendingYear, setPendingYear] = useState("ALL");
   const [pendingSubindustry, setPendingSubindustry] = useState("ALL");
   const [pendingInstitution, setPendingInstitution] = useState("ALL");
+  const [viewMode, setViewMode] = useState<"history" | "predictions">("history");
 
   const { data: raw, isLoading } = useGVADetailed();
+  const { loading: predictionsLoading, error: predictionsError, predictions, generatePredictions } = useGVAPredictions();
 
   const allRows = useMemo(
     () => (raw ? normalizeGvaRows(raw as Record<string, unknown>[]) : []),
@@ -68,10 +72,21 @@ const GVAPage = () => {
   }, [allRows, selectedIndustry]);
 
   const yearsOptions = useMemo(() => {
-    const set = new Set<string>();
-    baseRows.forEach((r) => set.add(r.fiscalYear));
-    return ["ALL", ...Array.from(set).sort()];
-  }, [baseRows]);
+    if (viewMode === "predictions") {
+      // For predictions mode, show future years (next 10 years)
+      const currentYear = new Date().getFullYear();
+      const futureYears: string[] = [];
+      for (let i = 1; i <= 10; i++) {
+        futureYears.push(`${currentYear + i}-${String((currentYear + i + 1) % 100).padStart(2, "0")}`);
+      }
+      return ["ALL", ...futureYears];
+    } else {
+      // For history mode, show historical years
+      const set = new Set<string>();
+      baseRows.forEach((r) => set.add(r.fiscalYear));
+      return ["ALL", ...Array.from(set).sort()];
+    }
+  }, [baseRows, viewMode]);
 
   const subindustryOptions = useMemo(() => {
     const set = new Set<string>();
@@ -117,6 +132,8 @@ const GVAPage = () => {
 
   const [showFullBriefing, setShowFullBriefing] = useState(false);
   const [sectorForModal, setSectorForModal] = useState<GVAAffectedSector | null>(null);
+  const [showAIDetailsModal, setShowAIDetailsModal] = useState(false);
+  const [gvaSectorForModal, setGvaSectorForModal] = useState<{ sector: string; impact: string; reason: string } | null>(null);
 
   const { data: impactContent, loading: impactLoading, error: impactError } = useGVAImpact(
     selectedIndustry ?? null,
@@ -137,6 +154,127 @@ const GVAPage = () => {
     setSelectedSubindustry("ALL");
     setSelectedInstitution("ALL");
   };
+
+  // Prepare historical data for AI predictions
+  const historicalDataForAI = useMemo(() => {
+    if (!selectedIndustry || !byYearTotals || byYearTotals.length === 0) return null;
+    
+    const historicalData = byYearTotals.map((r) => ({
+      fiscalYear: r.fiscalYear,
+      currentPrice: r.totalCurrent,
+      constantPrice: r.totalConstant,
+      growthRate: r.growthRate,
+    }));
+
+    return {
+      industry: selectedIndustry,
+      historicalData,
+      latestCurrentPrice: latest?.totalCurrent,
+      latestConstantPrice: latest?.totalConstant,
+      latestGrowthRate: latest?.growthRate,
+      selectedYear: viewMode === "predictions" ? (selectedYear !== "ALL" ? selectedYear : undefined) : undefined,
+      trendDirection: impactContent?.trendDirection,
+    };
+  }, [selectedIndustry, byYearTotals, latest, selectedYear, viewMode, impactContent]);
+
+  // Generate predictions when switching to predictions mode or when filters change
+  useEffect(() => {
+    if (viewMode === "predictions" && historicalDataForAI) {
+      const dataKey = JSON.stringify({
+        year: selectedYear,
+        industry: selectedIndustry,
+      });
+      const lastDataKey = sessionStorage.getItem('last-gva-prediction-data-key');
+      
+      // Only regenerate if the year or industry actually changed
+      // This prevents unnecessary API calls when the same data is requested
+      if (lastDataKey !== dataKey) {
+        sessionStorage.setItem('last-gva-prediction-data-key', dataKey);
+        // Generate new predictions with updated year - this will call OpenAI API
+        // The hook will check cache first and show cached data immediately if available
+        generatePredictions(historicalDataForAI);
+      }
+    } else if (viewMode === "history") {
+      sessionStorage.removeItem('last-gva-prediction-data-key');
+    }
+  }, [viewMode, selectedYear, selectedIndustry, historicalDataForAI, generatePredictions]);
+
+  // Prepare AI forecast data for charts
+  const aiForecastData = useMemo(() => {
+    if (viewMode === "predictions" && predictions && predictions.forecasts && predictions.forecasts.years && predictions.forecasts.years.length > 0) {
+      const history = byYearTotals && byYearTotals.length > 0 ? byYearTotals.slice(-5).map((d) => ({
+        x: d.fiscalYear,
+        currentPrice: d.totalCurrent,
+        constantPrice: d.totalConstant,
+        growthRate: d.growthRate,
+      })) : [];
+
+      // Create future data from predictions
+      const future = predictions.forecasts.years.map((year, idx) => ({
+        x: year,
+        currentPrice: predictions.forecasts.currentPrice[idx] != null ? predictions.forecasts.currentPrice[idx] : 0,
+        constantPrice: predictions.forecasts.constantPrice[idx] != null ? predictions.forecasts.constantPrice[idx] : 0,
+        growthRate: predictions.forecasts.growthRate[idx] != null ? predictions.forecasts.growthRate[idx] : 0,
+      }));
+
+      // Find data for selected year if a specific year is selected
+      let targetYearIndex = 0;
+      let targetYear: number | null = null;
+      
+      if (selectedYear && selectedYear !== "ALL") {
+        const yearMatch = selectedYear.match(/^(\d{4})/);
+        if (yearMatch) {
+          targetYear = parseInt(yearMatch[1], 10);
+          // Find exact match first
+          const foundIndex = predictions.forecasts.years.findIndex(y => y === targetYear);
+          if (foundIndex >= 0) {
+            targetYearIndex = foundIndex;
+          } else {
+            // If exact year not found, find the closest year that's <= targetYear
+            // This ensures we show data for the selected year or the closest previous year
+            let closestIndex = -1;
+            let closestYear = -1;
+            predictions.forecasts.years.forEach((year, idx) => {
+              if (year <= targetYear && (closestYear === -1 || year > closestYear)) {
+                closestYear = year;
+                closestIndex = idx;
+              }
+            });
+            if (closestIndex >= 0) {
+              targetYearIndex = closestIndex;
+              targetYear = closestYear;
+            } else {
+              // Fallback to first year if no year <= targetYear found
+              targetYearIndex = 0;
+              targetYear = predictions.forecasts.years[0];
+            }
+          }
+        }
+      } else {
+        // If no specific year selected, use the first forecast year
+        targetYear = predictions.forecasts.years[0] || null;
+        targetYearIndex = 0;
+      }
+
+      const nextYear = targetYear || predictions.forecasts.years[0] || null;
+      const projectedCurrentPrice = predictions.forecasts.currentPrice[targetYearIndex] != null ? predictions.forecasts.currentPrice[targetYearIndex] : 0;
+      const projectedConstantPrice = predictions.forecasts.constantPrice[targetYearIndex] != null ? predictions.forecasts.constantPrice[targetYearIndex] : 0;
+      const projectedGrowthRate = predictions.forecasts.growthRate[targetYearIndex] != null ? predictions.forecasts.growthRate[targetYearIndex] : 0;
+
+      // Don't filter here - include ALL future data from predictions
+      // The chart will filter based on selected year when rendering
+      // This ensures all prediction data (including years up to 2034+) is available
+      return {
+        nextYear,
+        projectedCurrentPrice,
+        projectedConstantPrice,
+        projectedGrowthRate,
+        history,
+        forecastLine: [...history, ...future],
+      };
+    }
+    return null;
+  }, [predictions, byYearTotals, selectedYear, viewMode]);
 
   if (isLoading) {
     return (
@@ -205,7 +343,44 @@ const GVAPage = () => {
   }
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
+    <div className={`min-h-screen p-6 space-y-6 ${viewMode === "predictions" ? "bg-gradient-to-br from-orange-950/20 via-background to-orange-900/10" : ""}`}>
+      {/* Toggle in top-right header area */}
+      {selectedIndustry && (
+        <div className="fixed top-4 right-6 z-50 flex items-center justify-end">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-2 rounded-lg border border-border/30 bg-card/90 backdrop-blur-sm shadow-lg p-1"
+          >
+            <motion.button
+              onClick={() => setViewMode("history")}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={cn(
+                "px-4 py-2 text-xs font-medium rounded-md transition-all duration-200",
+                viewMode === "history"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              Past History
+            </motion.button>
+            <motion.button
+              onClick={() => setViewMode("predictions")}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={cn(
+                "px-4 py-2 text-xs font-medium rounded-md transition-all duration-200",
+                viewMode === "predictions"
+                  ? "bg-orange-500 text-white font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              Predictions
+            </motion.button>
+          </motion.div>
+        </div>
+      )}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">GVA</h1>
@@ -228,8 +403,88 @@ const GVAPage = () => {
         <span className="font-medium text-foreground">{selectedIndustry}</span>
       </nav>
 
-      {/* GVA Intelligence — skeleton when loading so layout is not blocking */}
-      {impactLoading && (
+      {/* GVA Intelligence - Only in predictions mode with Know More button - FIRST */}
+      {viewMode === "predictions" && selectedIndustry && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="rounded-xl border border-orange-500/30 bg-gradient-to-br from-orange-950/20 via-orange-900/10 to-orange-950/20 p-6 mb-6 shadow-lg backdrop-blur-sm"
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-foreground">GVA Intelligence</h3>
+                <p className="text-xs text-muted-foreground">AI-powered insights and forecasts</p>
+              </div>
+            </div>
+            <motion.button
+              onClick={() => setShowAIDetailsModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 transition-all duration-200 font-medium text-sm"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Know More
+              <ChevronRight className="h-4 w-4" />
+            </motion.button>
+          </div>
+          <div className="text-sm text-muted-foreground leading-relaxed space-y-3">
+            {predictionsLoading ? (
+              <p>Generating AI predictions...</p>
+            ) : predictionsError ? (
+              <p className="text-red-400">Error: {predictionsError}</p>
+            ) : predictions ? (
+              <>
+                <p className="text-foreground">
+                  {predictions.narrative || 'Forecast data will appear here once available.'}
+                </p>
+                {predictions.riskFactors && predictions.riskFactors.length > 0 && (
+                  <ul className="list-none space-y-1.5 pl-0">
+                    {predictions.riskFactors.slice(0, 5).map((item, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-foreground">
+                        <span className="text-orange-400 mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-orange-400" aria-hidden />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {predictions.recommendations && predictions.recommendations.length > 0 && (
+                  <ul className="list-none space-y-1.5 pl-0">
+                    {predictions.recommendations.slice(0, 5).map((item, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-foreground">
+                        <span className="text-orange-400 mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-orange-400" aria-hidden />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <p>Forecast data will appear here once available.</p>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Filters - AFTER Intelligence in prediction mode */}
+      {viewMode === "predictions" && (
+        <FilterBar
+          filters={[
+            { label: "Year", value: pendingYear, onChange: setPendingYear, options: yearsOptions.map((y) => ({ value: y, label: y === "ALL" ? "All years" : y })) },
+            { label: "Subindustry", value: pendingSubindustry, onChange: setPendingSubindustry, options: subindustryOptions.map((s) => ({ value: s, label: s === "ALL" ? "All subindustries" : s })) },
+            { label: "Institution", value: pendingInstitution, onChange: setPendingInstitution, options: institutionOptions.map((s) => ({ value: s || "ALL", label: s === "ALL" || !s ? "All sectors" : s })) },
+          ]}
+          onApply={handleApply}
+          onReset={handleReset}
+          applyButtonClassName="bg-orange-500/70 hover:bg-orange-500 text-white"
+        />
+      )}
+
+      {/* GVA Intelligence — Only in history mode */}
+      {viewMode === "history" && impactLoading && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -266,7 +521,7 @@ const GVAPage = () => {
         </motion.div>
       )}
 
-      {!impactLoading && !impactError && impactContent && (
+      {viewMode === "history" && !impactLoading && !impactError && impactContent && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -357,7 +612,8 @@ const GVAPage = () => {
         </motion.div>
       )}
 
-      {/* Sectors affected — click opens popup; show skeleton when loading */}
+      {/* Sectors affected — Only in history mode */}
+      {viewMode === "history" && (
       <motion.section
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -387,7 +643,7 @@ const GVAPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03 }}
                 onClick={() => setSectorForModal(sector)}
-                className="w-full flex items-center gap-3 p-4 text-left rounded-xl border border-border/60 bg-card/50 hover:bg-muted/30 hover:border-primary/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+                className="w-full flex items-center gap-3 p-4 text-left rounded-xl border border-border/60 bg-card/50 hover:bg-muted/30 hover:border-border/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-border/50 focus:ring-offset-2 focus:ring-offset-background"
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
                   <Building2 className="h-4 w-4" />
@@ -398,6 +654,7 @@ const GVAPage = () => {
           ) : null}
         </div>
       </motion.section>
+      )}
 
       <Dialog open={!!sectorForModal} onOpenChange={(open) => !open && setSectorForModal(null)}>
         <DialogContent className="sm:max-w-md rounded-xl border border-border/60 bg-card shadow-xl" aria-describedby={undefined}>
@@ -473,24 +730,491 @@ const GVAPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Sector Modal for Predictions Mode */}
+      <Dialog open={!!gvaSectorForModal} onOpenChange={(open) => !open && setGvaSectorForModal(null)}>
+        <DialogContent className="sm:max-w-md rounded-xl border border-orange-500/30 bg-orange-950/10 shadow-xl" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="text-left flex items-center gap-2">
+              {gvaSectorForModal && (
+                <>
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                    gvaSectorForModal.impact === "positive" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30" :
+                    gvaSectorForModal.impact === "negative" ? "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30" :
+                    "bg-muted text-muted-foreground border border-border"
+                  }`}>
+                    <Building2 className="h-4 w-4" />
+                  </div>
+                  {gvaSectorForModal.sector}
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {gvaSectorForModal && selectedIndustry && (
+            <div className="space-y-4 pt-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Based on AI forecast analysis for {selectedIndustry}
+              </p>
+              <p className="text-sm text-foreground">
+                <strong>Affected:</strong> Yes — this sector is impacted by {selectedIndustry} GVA trends.
+              </p>
+              <p className="text-sm text-foreground">
+                <strong>Impact:</strong> {gvaSectorForModal.impact === "positive" ? "Positive" : gvaSectorForModal.impact === "negative" ? "Negative" : "Neutral"}
+              </p>
+              {gvaSectorForModal.reason && (
+                <div>
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Reason
+                  </span>
+                  <p className="text-sm text-foreground mt-0.5 leading-relaxed">
+                    {gvaSectorForModal.reason}
+                  </p>
+                </div>
+              )}
+              {aiForecastData && (
+                <div className="pt-2 border-t border-orange-500/20">
+                  <p className="text-xs text-muted-foreground">
+                    Projected GVA growth: {aiForecastData.projectedGrowthRate != null ? `${aiForecastData.projectedGrowthRate >= 0 ? "+" : ""}${aiForecastData.projectedGrowthRate.toFixed(2)}%` : "—"}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="flex items-center gap-2">
         <Link to="/gva" className="text-xs text-muted-foreground hover:text-foreground underline">
           View all industries
         </Link>
       </div>
 
-      <FilterBar
-        filters={[
-          { label: "Year", value: pendingYear, onChange: setPendingYear, options: yearsOptions.map((y) => ({ value: y, label: y === "ALL" ? "All years" : y })) },
-          { label: "Subindustry", value: pendingSubindustry, onChange: setPendingSubindustry, options: subindustryOptions.map((s) => ({ value: s, label: s === "ALL" ? "All subindustries" : s })) },
-          { label: "Institution", value: pendingInstitution, onChange: setPendingInstitution, options: institutionOptions.map((s) => ({ value: s || "ALL", label: s === "ALL" || !s ? "All sectors" : s })) },
-        ]}
-        onApply={handleApply}
-        onReset={handleReset}
-      />
+      {/* Filters - Only in history mode (predictions mode filters are above) */}
+      {viewMode === "history" && (
+        <FilterBar
+          filters={[
+            { label: "Year", value: pendingYear, onChange: setPendingYear, options: yearsOptions.map((y) => ({ value: y, label: y === "ALL" ? "All years" : y })) },
+            { label: "Subindustry", value: pendingSubindustry, onChange: setPendingSubindustry, options: subindustryOptions.map((s) => ({ value: s, label: s === "ALL" ? "All subindustries" : s })) },
+            { label: "Institution", value: pendingInstitution, onChange: setPendingInstitution, options: institutionOptions.map((s) => ({ value: s || "ALL", label: s === "ALL" || !s ? "All sectors" : s })) },
+          ]}
+          onApply={handleApply}
+          onReset={handleReset}
+        />
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-5">
+      {/* Prediction KPIs - Only in predictions mode */}
+      {viewMode === "predictions" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Current Price {selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : aiForecastData?.nextYear ? `(${aiForecastData.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {aiForecastData?.projectedCurrentPrice != null && Number.isFinite(aiForecastData.projectedCurrentPrice)
+                ? aiForecastData.projectedCurrentPrice.toLocaleString("en-IN")
+                : latest?.totalCurrent != null
+                  ? latest.totalCurrent.toLocaleString("en-IN")
+                  : "—"}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Constant Price {selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : aiForecastData?.nextYear ? `(${aiForecastData.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {aiForecastData?.projectedConstantPrice != null && Number.isFinite(aiForecastData.projectedConstantPrice)
+                ? aiForecastData.projectedConstantPrice.toLocaleString("en-IN")
+                : latest?.totalConstant != null
+                  ? latest.totalConstant.toLocaleString("en-IN")
+                  : "—"}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Growth Rate {selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : aiForecastData?.nextYear ? `(${aiForecastData.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {aiForecastData?.projectedGrowthRate != null && Number.isFinite(aiForecastData.projectedGrowthRate)
+                ? `${aiForecastData.projectedGrowthRate >= 0 ? "+" : ""}${aiForecastData.projectedGrowthRate.toFixed(2)}%`
+                : latest?.growthRate != null
+                  ? `${latest.growthRate >= 0 ? "+" : ""}${latest.growthRate.toFixed(2)}%`
+                  : "—"}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Industry
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {selectedIndustry || "—"}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Prediction Charts - Only in predictions mode */}
+      {viewMode === "predictions" && aiForecastData && aiForecastData.forecastLine && aiForecastData.forecastLine.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="glass-card p-5 border-orange-500/30 bg-orange-950/10"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground">
+              GVA Forecast — {selectedIndustry}{selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : ""}
+            </h3>
+            <div className="flex gap-4 text-xs">
+              <div>
+                <div className="text-muted-foreground">Year</div>
+                <div className="font-mono font-bold text-foreground">
+                  {selectedYear && selectedYear !== "ALL" ? selectedYear : aiForecastData?.nextYear || "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Projected Current Price</div>
+                <div className="font-mono font-bold text-orange-400">
+                  {aiForecastData?.projectedCurrentPrice != null ? aiForecastData.projectedCurrentPrice.toLocaleString("en-IN") : "—"}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="h-48">
+            {(() => {
+              if (!aiForecastData || !aiForecastData.forecastLine) return null;
+              
+              // Show loading state if predictions are being generated
+              if (predictionsLoading) {
+                return (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-400 mx-auto mb-2"></div>
+                      <p className="text-sm">Generating AI predictions...</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Show error if predictions failed
+              if (predictionsError) {
+                return (
+                  <div className="flex items-center justify-center h-full text-red-400">
+                    <div className="text-center">
+                      <p className="text-sm">Failed to generate predictions</p>
+                      <p className="text-xs text-muted-foreground mt-1">{predictionsError}</p>
+                    </div>
+                  </div>
+                );
+              }
+              
+              // Filter to show only future forecast data (no historical data in predictions mode)
+              const historyLength = aiForecastData.history?.length ?? 0;
+              let forecastOnlyData = (aiForecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
+              
+              // If a specific year is selected, filter to show up to that year (and a bit beyond for context)
+              if (selectedYear && selectedYear !== "ALL") {
+                const yearMatch = selectedYear.match(/^(\d{4})/);
+                if (yearMatch) {
+                  const targetYear = parseInt(yearMatch[1], 10);
+                  // Show forecasts from the start up to the selected year + 2 years for context
+                  // This ensures the graph extends to show the selected year
+                  forecastOnlyData = forecastOnlyData.filter((d) => {
+                    let year: number;
+                    if (typeof d.x === 'number') {
+                      year = d.x;
+                    } else if (typeof d.x === 'string') {
+                      // Handle fiscal year format like "2024-25"
+                      const yearMatch = d.x.match(/^(\d{4})/);
+                      year = yearMatch ? parseInt(yearMatch[1], 10) : parseInt(d.x, 10);
+                    } else {
+                      year = parseInt(String(d.x), 10);
+                    }
+                    // Show all data from start up to targetYear + 2 for context
+                    return !isNaN(year) && year <= targetYear + 2;
+                  });
+                  
+                  // Ensure the selected year is included even if it's not in the data
+                  // Add a data point for the selected year if it's missing
+                  const hasSelectedYear = forecastOnlyData.some((d) => {
+                    let year: number;
+                    if (typeof d.x === 'number') {
+                      year = d.x;
+                    } else if (typeof d.x === 'string') {
+                      const yearMatch = d.x.match(/^(\d{4})/);
+                      year = yearMatch ? parseInt(yearMatch[1], 10) : parseInt(d.x, 10);
+                    } else {
+                      year = parseInt(String(d.x), 10);
+                    }
+                    return year === targetYear;
+                  });
+                  
+                  if (!hasSelectedYear && aiForecastData) {
+                    // Add the selected year data point using the projected values
+                    const selectedYearData = {
+                      x: targetYear,
+                      currentPrice: aiForecastData.projectedCurrentPrice,
+                      constantPrice: aiForecastData.projectedConstantPrice,
+                      growthRate: aiForecastData.projectedGrowthRate,
+                    };
+                    forecastOnlyData.push(selectedYearData);
+                    // Sort by year to maintain order
+                    forecastOnlyData.sort((a, b) => {
+                      const yearA = typeof a.x === 'number' ? a.x : parseInt(String(a.x).match(/^(\d{4})/)?.[1] || '0', 10);
+                      const yearB = typeof b.x === 'number' ? b.x : parseInt(String(b.x).match(/^(\d{4})/)?.[1] || '0', 10);
+                      return yearA - yearB;
+                    });
+                  }
+                }
+              }
+              
+              // If filtering removed all data, show all available data instead
+              if (forecastOnlyData.length === 0 && (aiForecastData.forecastLine as Record<string, unknown>[]).length > historyLength) {
+                forecastOnlyData = (aiForecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
+              }
+              
+              return forecastOnlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%" key={`gva-forecast-chart-${selectedYear || 'all'}-${selectedIndustry}`}>
+                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                    <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
+                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" tickFormatter={(v) => v.toLocaleString()} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [v.toLocaleString("en-IN"), "GVA"]} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="currentPrice"
+                      name="GVA (Current Price, projected)"
+                      stroke="hsl(38 92% 50%)"
+                      strokeWidth={3}
+                      dot={{ fill: "hsl(38 92% 50%)", r: 5 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="constantPrice"
+                      name="GVA (Constant Price, projected)"
+                      stroke="hsl(160 84% 45%)"
+                      strokeWidth={3}
+                      dot={{ fill: "hsl(160 84% 45%)", r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <p className="text-sm">No forecast data available</p>
+                    {predictionsLoading && (
+                      <p className="text-xs mt-1">Generating predictions...</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Sectors affected — Only in predictions mode */}
+      {viewMode === "predictions" && predictions && predictions.sectorImpact && predictions.sectorImpact.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="space-y-4 rounded-xl border border-orange-500/30 bg-orange-950/10 p-6"
+        >
+          <h3 className="text-lg font-semibold text-foreground">Sectors affected</h3>
+          <p className="text-sm text-muted-foreground">
+            Industries most impacted by {selectedIndustry}. Click a card for impact and solutions.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {predictions.sectorImpact.map((sector, index) => (
+              <motion.button
+                key={`sector-${index}`}
+                type="button"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 * index }}
+                onClick={() => setGvaSectorForModal(sector)}
+                className="w-full flex items-center gap-3 p-4 text-left rounded-xl border border-border/60 bg-card/50 hover:bg-muted/30 hover:border-border/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-border/50 focus:ring-offset-2 focus:ring-offset-background"
+              >
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                  sector.impact === "positive" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30" :
+                  sector.impact === "negative" ? "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30" :
+                  "bg-muted text-muted-foreground border border-border"
+                }`}>
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <span className="font-medium text-foreground truncate">{sector.sector}</span>
+                  <span className={cn(
+                    "text-xs font-medium w-fit rounded-full px-2 py-0.5",
+                    sector.impact === "positive" && "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
+                    sector.impact === "negative" && "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30",
+                    sector.impact === "neutral" && "bg-muted text-muted-foreground border border-border"
+                  )}>
+                    {sector.impact === "positive" ? "Positive" : sector.impact === "negative" ? "Negative" : "Neutral"}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Projected status: {sector.impact}
+                  </span>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </motion.section>
+      )}
+
+      {/* AI-Powered Forecast Card - Only in predictions mode */}
+      {viewMode === "predictions" && aiForecastData && aiForecastData.forecastLine && aiForecastData.forecastLine.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <div className="glass-card p-5 border-orange-500/30 bg-orange-950/10">
+            <h3 className="text-sm font-semibold text-foreground mb-4">
+              AI-Powered Forecast for GVA{selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : aiForecastData?.nextYear ? ` (${aiForecastData.nextYear})` : ""}
+            </h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Projected Current Price</div>
+                <div className="font-mono font-bold text-orange-400">
+                  {aiForecastData?.projectedCurrentPrice != null ? aiForecastData.projectedCurrentPrice.toLocaleString("en-IN") : "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Projected Constant Price</div>
+                <div className="font-mono font-bold text-orange-400">
+                  {aiForecastData?.projectedConstantPrice != null ? aiForecastData.projectedConstantPrice.toLocaleString("en-IN") : "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Projected Growth Rate</div>
+                <div className="font-mono font-bold text-orange-400">
+                  {aiForecastData?.projectedGrowthRate != null ? `${aiForecastData.projectedGrowthRate >= 0 ? "+" : ""}${aiForecastData.projectedGrowthRate.toFixed(2)}%` : "—"}
+                </div>
+              </div>
+            </div>
+            <div className="h-48">
+              {(() => {
+                if (!aiForecastData || !aiForecastData.forecastLine) return null;
+                
+                const historyLength = aiForecastData.history?.length ?? 0;
+                let forecastOnlyData = (aiForecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
+                
+                if (selectedYear && selectedYear !== "ALL") {
+                  const yearMatch = selectedYear.match(/^(\d{4})/);
+                  if (yearMatch) {
+                    const targetYear = parseInt(yearMatch[1], 10);
+                    // Show forecasts from the start up to the selected year + 2 years for context
+                    forecastOnlyData = forecastOnlyData.filter((d) => {
+                      let year: number;
+                      if (typeof d.x === 'number') {
+                        year = d.x;
+                      } else if (typeof d.x === 'string') {
+                        const yearMatch = d.x.match(/^(\d{4})/);
+                        year = yearMatch ? parseInt(yearMatch[1], 10) : parseInt(d.x, 10);
+                      } else {
+                        year = parseInt(String(d.x), 10);
+                      }
+                      return !isNaN(year) && year <= targetYear + 2;
+                    });
+                    
+                    // Ensure the selected year is included even if it's not in the data
+                    const hasSelectedYear = forecastOnlyData.some((d) => {
+                      let year: number;
+                      if (typeof d.x === 'number') {
+                        year = d.x;
+                      } else if (typeof d.x === 'string') {
+                        const yearMatch = d.x.match(/^(\d{4})/);
+                        year = yearMatch ? parseInt(yearMatch[1], 10) : parseInt(d.x, 10);
+                      } else {
+                        year = parseInt(String(d.x), 10);
+                      }
+                      return year === targetYear;
+                    });
+                    
+                    if (!hasSelectedYear && aiForecastData) {
+                      // Add the selected year data point using the projected values
+                      const selectedYearData = {
+                        x: targetYear,
+                        currentPrice: aiForecastData.projectedCurrentPrice,
+                        constantPrice: aiForecastData.projectedConstantPrice,
+                        growthRate: aiForecastData.projectedGrowthRate,
+                      };
+                      forecastOnlyData.push(selectedYearData);
+                      // Sort by year to maintain order
+                      forecastOnlyData.sort((a, b) => {
+                        const yearA = typeof a.x === 'number' ? a.x : parseInt(String(a.x).match(/^(\d{4})/)?.[1] || '0', 10);
+                        const yearB = typeof b.x === 'number' ? b.x : parseInt(String(b.x).match(/^(\d{4})/)?.[1] || '0', 10);
+                        return yearA - yearB;
+                      });
+                    }
+                  }
+                }
+                
+                if (forecastOnlyData.length === 0 && (aiForecastData.forecastLine as Record<string, unknown>[]).length > historyLength) {
+                  forecastOnlyData = (aiForecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
+                }
+                
+                return forecastOnlyData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%" key={`gva-ai-forecast-chart-${selectedYear || 'all'}-${selectedIndustry}`}>
+                    <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                      <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
+                      <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" tickFormatter={(v) => v.toLocaleString()} />
+                      <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [v.toLocaleString("en-IN"), "GVA"]} />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="currentPrice"
+                        name="Current Price (projected)"
+                        stroke="hsl(38 92% 50%)"
+                        strokeWidth={3}
+                        dot={{ fill: "hsl(38 92% 50%)", r: 5 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="constantPrice"
+                        name="Constant Price (projected)"
+                        stroke="hsl(160 84% 45%)"
+                        strokeWidth={3}
+                        dot={{ fill: "hsl(160 84% 45%)", r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    No forecast data available
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Historical Charts - Only in history mode */}
+      {viewMode === "history" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`glass-card p-5 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}>
           <h3 className="text-sm font-medium text-foreground mb-4">Total GVA by Year (Current Prices) — {selectedIndustry}</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -537,7 +1261,116 @@ const GVAPage = () => {
             </div>
           </div>
         </motion.div>
-      </div>
+        </div>
+      )}
+
+      {/* Know More Modal for AI Details */}
+      <Dialog open={showAIDetailsModal} onOpenChange={setShowAIDetailsModal}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden rounded-xl border border-border/50 bg-background shadow-xl p-0">
+          {/* Simple Header */}
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold text-foreground">
+                  GVA Forecast Intelligence
+                </DialogTitle>
+                <div className="text-sm text-muted-foreground mt-0.5">{selectedIndustry}</div>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto max-h-[calc(90vh-100px)] px-6 py-5 space-y-4">
+            {/* AI Forecast Analysis - Simple Card */}
+            {predictions?.narrative && (
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="h-4 w-4 text-orange-500" />
+                  <h3 className="text-base font-semibold text-foreground">Forecast Analysis</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                  {predictions.narrative}
+                </p>
+              </div>
+            )}
+
+            {/* Key Risk Factors - Simple Card */}
+            {predictions?.riskFactors && predictions.riskFactors.length > 0 && (
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                  <h3 className="text-base font-semibold text-foreground">Key Risk Factors</h3>
+                </div>
+                <div className="space-y-2">
+                  {predictions.riskFactors.map((risk, index) => (
+                    <div key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <span className="text-orange-500 mt-1 shrink-0">•</span>
+                      <span className="flex-1">{risk}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actionable Recommendations - Simple Card */}
+            {predictions?.recommendations && predictions.recommendations.length > 0 && (
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lightbulb className="h-4 w-4 text-orange-500" />
+                  <h3 className="text-base font-semibold text-foreground">Actionable Recommendations</h3>
+                </div>
+                <div className="space-y-2">
+                  {predictions.recommendations.map((recommendation, index) => (
+                    <div key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <span className="text-orange-500 mt-1 shrink-0">→</span>
+                      <span className="flex-1">{recommendation}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Forecast Summary - Simple Stats Grid */}
+            {aiForecastData && (
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Info className="h-4 w-4 text-orange-500" />
+                  <h3 className="text-base font-semibold text-foreground">Forecast Summary</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                    <div className="text-xs text-muted-foreground mb-1">Projected Year</div>
+                    <div className="font-mono font-bold text-orange-500">
+                      {selectedYear && selectedYear !== "ALL" ? selectedYear : aiForecastData?.nextYear || "—"}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                    <div className="text-xs text-muted-foreground mb-1">Projected Current Price</div>
+                    <div className="font-mono font-bold text-orange-500">
+                      {aiForecastData?.projectedCurrentPrice != null ? aiForecastData.projectedCurrentPrice.toLocaleString("en-IN") : "—"}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                    <div className="text-xs text-muted-foreground mb-1">Projected Constant Price</div>
+                    <div className="font-mono font-bold text-foreground">
+                      {aiForecastData?.projectedConstantPrice != null ? aiForecastData.projectedConstantPrice.toLocaleString("en-IN") : "—"}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                    <div className="text-xs text-muted-foreground mb-1">Projected Growth Rate</div>
+                    <div className="font-mono font-bold text-foreground">
+                      {aiForecastData?.projectedGrowthRate != null ? `${aiForecastData.projectedGrowthRate >= 0 ? "+" : ""}${aiForecastData.projectedGrowthRate.toFixed(2)}%` : "—"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="glass-card p-4">
         <p className="text-xs text-muted-foreground font-mono">

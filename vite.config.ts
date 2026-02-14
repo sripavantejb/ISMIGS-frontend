@@ -7,6 +7,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const openaiKey = env.OPENAI_API_KEY || env.VITE_OPENAI_API_KEY;
+  const openaiAdminKey = env.OPENAI_API_KEY_admin || env.VITE_OPENAI_API_KEY_admin;
 
   if (mode === "development") {
     const redact = (k: string) =>
@@ -14,7 +15,10 @@ export default defineConfig(({ mode }) => {
     console.log("[vite] API keys (local dev):", {
       OPENAI_API_KEY: env.OPENAI_API_KEY ? redact(env.OPENAI_API_KEY) : "(not set)",
       VITE_OPENAI_API_KEY: env.VITE_OPENAI_API_KEY ? redact(env.VITE_OPENAI_API_KEY) : "(not set)",
+      OPENAI_API_KEY_admin: env.OPENAI_API_KEY_admin ? redact(env.OPENAI_API_KEY_admin) : "(not set)",
+      VITE_OPENAI_API_KEY_admin: env.VITE_OPENAI_API_KEY_admin ? redact(env.VITE_OPENAI_API_KEY_admin) : "(not set)",
       usedForOpenAIProxy: openaiKey ? redact(openaiKey) : "(none – set OPENAI_API_KEY or VITE_OPENAI_API_KEY in .env)",
+      usedForPredictions: openaiAdminKey ? redact(openaiAdminKey) : "(none – set OPENAI_API_KEY_admin or VITE_OPENAI_API_KEY_admin in .env)",
     });
   }
 
@@ -33,10 +37,16 @@ export default defineConfig(({ mode }) => {
           secure: true,
           rewrite: (path) => path.replace(/^\/api\/openai/, ""),
           configure: (proxy) => {
-            proxy.on("proxyReq", (proxyReq) => {
-              if (openaiKey) {
-                proxyReq.setHeader("Authorization", `Bearer ${openaiKey}`);
+            proxy.on("proxyReq", (proxyReq, req) => {
+              // Check if request has X-Use-Admin-Key header (for predictions)
+              const useAdminKey = req.headers["x-use-admin-key"] === "true";
+              const keyToUse = useAdminKey ? (openaiAdminKey || openaiKey) : openaiKey;
+              
+              if (keyToUse) {
+                proxyReq.setHeader("Authorization", `Bearer ${keyToUse}`);
               }
+              // Remove the custom header before forwarding to OpenAI
+              proxyReq.removeHeader("x-use-admin-key");
             });
           },
         },

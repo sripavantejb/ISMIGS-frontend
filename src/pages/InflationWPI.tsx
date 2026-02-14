@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { TrendingUp, TrendingDown, Flame, Wheat, Factory, Building2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Flame, Wheat, Factory, Building2, ChevronRight, Info, AlertTriangle, Lightbulb } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   LineChart,
@@ -34,6 +34,7 @@ import {
 } from "@/utils/wpiSlug";
 import { WpiIntelligenceBriefing } from "@/components/WpiIntelligenceBriefing";
 import { useForecast } from "@/hooks/useForecast";
+import { useWPIPredictions } from "@/hooks/useWPIPredictions";
 import { PredictionCard } from "@/components/PredictionCard";
 import { ForecastChart } from "@/components/ForecastChart";
 import { getWPIMajorGroupImpact } from "@/data/wpiMajorGroupImpact";
@@ -62,7 +63,8 @@ const InflationWPI = () => {
   const { majorGroupSlug } = useParams<{ majorGroupSlug?: string }>();
   const navigate = useNavigate();
   const { data: wpiRaw, isLoading } = useWPIData();
-  const { wpi: wpiForecast } = useForecast();
+  const { wpi: wpiForecast, loading: forecastLoading } = useForecast();
+  const { loading: predictionsLoading, error: predictionsError, predictions, generatePredictions } = useWPIPredictions();
 
   const [selectedYear, setSelectedYear] = useState("ALL");
   const [selectedGroup, setSelectedGroup] = useState("ALL");
@@ -75,6 +77,8 @@ const InflationWPI = () => {
   const [pendingSubSubgroup, setPendingSubSubgroup] = useState("ALL");
   const [pendingItem, setPendingItem] = useState("ALL");
   const [wpiSectorForModal, setWpiSectorForModal] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"history" | "predictions">("history");
+  const [showAIDetailsModal, setShowAIDetailsModal] = useState(false);
 
   const allRows = useMemo(
     () => (wpiRaw ? normalizeWpiRows(wpiRaw as Record<string, unknown>[]) : []),
@@ -120,10 +124,21 @@ const InflationWPI = () => {
   }, [allRows, apiMajorGroupValue]);
 
   const yearsOptions = useMemo(() => {
-    const set = new Set<number>();
-    baseRows.forEach((r) => set.add(r.year));
-    return ["ALL", ...Array.from(set).sort((a, b) => a - b).map(String)];
-  }, [baseRows]);
+    if (viewMode === "predictions") {
+      // For predictions mode, show future years (next 10 years)
+      const currentYear = new Date().getFullYear();
+      const futureYears: string[] = [];
+      for (let i = 1; i <= 10; i++) {
+        futureYears.push(String(currentYear + i));
+      }
+      return ["ALL", ...futureYears];
+    } else {
+      // For history mode, show historical years
+      const set = new Set<number>();
+      baseRows.forEach((r) => set.add(r.year));
+      return ["ALL", ...Array.from(set).sort((a, b) => a - b).map(String)];
+    }
+  }, [baseRows, viewMode]);
 
   const groupOptions = useMemo(() => {
     const set = new Set<string>();
@@ -273,6 +288,132 @@ const InflationWPI = () => {
     setSelectedItem("ALL");
   };
 
+  // Prepare AI forecast data for charts
+  const aiForecastData = useMemo(() => {
+    if (viewMode === "predictions" && predictions && predictions.forecasts && predictions.forecasts.years && predictions.forecasts.years.length > 0) {
+      const history = annualInflation && annualInflation.length > 0 ? annualInflation.slice(-5).map((d) => ({
+        x: d.year,
+        avgInflationPct: (d as any).avgInflationPct,
+        index: d.avgIndex,
+      })) : [];
+
+      // Filter future data based on selected year
+      let filteredFuture = predictions.forecasts.years.map((year, idx) => ({
+        x: year,
+        avgInflationPct: predictions.forecasts.inflation[idx] != null ? predictions.forecasts.inflation[idx] : 0,
+        index: predictions.forecasts.index[idx] != null ? predictions.forecasts.index[idx] : 0,
+      }));
+
+      // If a specific year is selected, filter to show up to that year (and a bit beyond for context)
+      if (selectedYear && selectedYear !== "ALL") {
+        const yearMatch = selectedYear.match(/^(\d{4})/);
+        if (yearMatch) {
+          const targetYear = parseInt(yearMatch[1], 10);
+          // Show forecasts up to the selected year + 2 years for context
+          filteredFuture = filteredFuture.filter((d) => {
+            const year = typeof d.x === 'number' ? d.x : parseInt(String(d.x).split('-')[0], 10);
+            return year <= targetYear + 2;
+          });
+        }
+      }
+
+      const future = filteredFuture;
+
+      // Find data for selected year if a specific year is selected
+      let targetYearIndex = 0;
+      let targetYear: number | null = null;
+      
+      if (selectedYear && selectedYear !== "ALL") {
+        const yearMatch = selectedYear.match(/^(\d{4})/);
+        if (yearMatch) {
+          targetYear = parseInt(yearMatch[1], 10);
+          // Find the index in the original predictions array, not the filtered one
+          const foundIndex = predictions.forecasts.years.findIndex(y => y === targetYear);
+          if (foundIndex >= 0) {
+            targetYearIndex = foundIndex;
+          } else {
+            // Find closest year in predictions
+            const closestIndex = predictions.forecasts.years.reduce((closest, year, idx) => {
+              const currentDiff = Math.abs(year - targetYear!);
+              const closestDiff = Math.abs(predictions.forecasts.years[closest] - targetYear!);
+              return currentDiff < closestDiff ? idx : closest;
+            }, 0);
+            targetYearIndex = closestIndex;
+            targetYear = predictions.forecasts.years[closestIndex];
+          }
+        }
+      }
+
+      const nextYear = targetYear || predictions.forecasts.years[0] || null;
+      const projectedInflation = predictions.forecasts.inflation[targetYearIndex] != null ? predictions.forecasts.inflation[targetYearIndex] : 0;
+      const projectedIndex = predictions.forecasts.index[targetYearIndex] != null ? predictions.forecasts.index[targetYearIndex] : 0;
+
+      let status: "pressure" | "stable" = "stable";
+      if (projectedInflation > 6) {
+        status = "pressure";
+      }
+
+      return {
+        nextYear,
+        projectedInflation,
+        projectedIndex,
+        status,
+        history,
+        forecastLine: [...history, ...future],
+      };
+    }
+    return null;
+  }, [predictions, annualInflation, selectedYear, viewMode]);
+
+  // Calculate latestMajor for use in hooks (must be before hooks that use it)
+  const latestMajor = majorGroupTrend[majorGroupTrend.length - 1] as Record<string, number> | undefined;
+
+  // Prepare historical data for AI predictions (must be after latestMajor is calculated, but before early returns)
+  const historicalDataForAI = useMemo(() => {
+    if (!selectedMajorGroupDisplay || !annualInflation || annualInflation.length === 0) return null;
+    
+    const historicalData = annualInflation.map((r) => ({
+      year: r.year,
+      index: r.avgIndex,
+      inflation: (r as any).avgInflationPct,
+      primaryArticles: latestMajor?.["Primary articles"] as number | undefined,
+      fuelPower: latestMajor?.["Fuel & power"] as number | undefined,
+    }));
+
+    return {
+      majorGroup: selectedMajorGroupDisplay,
+      historicalData,
+      latestIndex: latestMonth?.index,
+      latestInflation: latestMonth?.inflationPct,
+      latestPrimaryArticles: latestMajor?.["Primary articles"] as number | undefined,
+      latestFuelPower: latestMajor?.["Fuel & power"] as number | undefined,
+      selectedYear: viewMode === "predictions" ? (selectedYear !== "ALL" ? selectedYear : undefined) : undefined,
+      trendDirection: wpiOutlookContext.trendDirection,
+    };
+  }, [selectedMajorGroupDisplay, annualInflation, latestMonth, latestMajor, selectedYear, viewMode, wpiOutlookContext]);
+
+  // Generate predictions when switching to predictions mode or when filters change
+  useEffect(() => {
+    if (viewMode === "predictions" && historicalDataForAI) {
+      const dataKey = JSON.stringify({
+        year: selectedYear,
+        majorGroup: selectedMajorGroupDisplay,
+      });
+      const lastDataKey = sessionStorage.getItem('last-wpi-prediction-data-key');
+      
+      // Always regenerate if the year or major group changed
+      // This ensures predictions are regenerated with the correct year using OpenAI API
+      if (lastDataKey !== dataKey) {
+        sessionStorage.setItem('last-wpi-prediction-data-key', dataKey);
+        // Generate new predictions with updated year - this will call OpenAI API
+        generatePredictions(historicalDataForAI);
+      }
+    } else if (viewMode === "history") {
+      sessionStorage.removeItem('last-wpi-prediction-data-key');
+    }
+  }, [viewMode, selectedYear, selectedMajorGroupDisplay, historicalDataForAI, generatePredictions]);
+
+  // Early returns AFTER all hooks
   if (isLoading) {
     return (
       <div className="min-h-screen p-6 space-y-6">
@@ -293,11 +434,11 @@ const InflationWPI = () => {
     );
   }
 
+  // Calculate derived values (after early returns, these are not hooks)
   const latestWPI = overallWPIChart[overallWPIChart.length - 1];
   const prevWPI = overallWPIChart.length > 1 ? overallWPIChart[overallWPIChart.length - 2] : null;
   const wpiChange =
     latestWPI && prevWPI ? ((latestWPI.index - prevWPI.index) / prevWPI.index) * 100 : null;
-  const latestMajor = majorGroupTrend[majorGroupTrend.length - 1] as Record<string, number> | undefined;
 
   if (!selectedMajorGroupDisplay) {
     return (
@@ -331,7 +472,44 @@ const InflationWPI = () => {
   }
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
+    <div className={`min-h-screen p-6 space-y-6 ${viewMode === "predictions" ? "bg-gradient-to-br from-orange-950/20 via-background to-orange-900/10" : ""}`}>
+      {/* Toggle in top-right header area */}
+      {selectedMajorGroupDisplay && (
+        <div className="fixed top-4 right-6 z-50 flex items-center justify-end">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-2 rounded-lg border border-border/30 bg-card/90 backdrop-blur-sm shadow-lg p-1"
+          >
+            <motion.button
+              onClick={() => setViewMode("history")}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={cn(
+                "px-4 py-2 text-xs font-medium rounded-md transition-all duration-200",
+                viewMode === "history"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              Past History
+            </motion.button>
+            <motion.button
+              onClick={() => setViewMode("predictions")}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={cn(
+                "px-4 py-2 text-xs font-medium rounded-md transition-all duration-200",
+                viewMode === "predictions"
+                  ? "bg-orange-500 text-white font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              Predictions
+            </motion.button>
+          </motion.div>
+        </div>
+      )}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Inflation (WPI)</h1>
@@ -347,21 +525,92 @@ const InflationWPI = () => {
         <span className="font-medium text-foreground">{selectedMajorGroupDisplay}</span>
       </nav>
 
-      {selectedMajorGroupDisplay && (
+      {/* WPI Intelligence - Only in predictions mode with Know More button - FIRST */}
+      {viewMode === "predictions" && selectedMajorGroupDisplay && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="rounded-xl border border-border/60 bg-card/30 p-5"
+          className="rounded-xl border border-orange-500/30 bg-gradient-to-br from-orange-950/20 via-orange-900/10 to-orange-950/20 p-6 mb-6 shadow-lg backdrop-blur-sm"
         >
-          <WpiIntelligenceBriefing
-            sectorName={selectedMajorGroupDisplay}
-            context={wpiOutlookContext}
-          />
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">WPI Intelligence</h3>
+                <p className="text-xs text-muted-foreground">AI-powered insights and forecasts</p>
+              </div>
+            </div>
+            <motion.button
+              onClick={() => setShowAIDetailsModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 transition-all duration-200 font-medium text-sm"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Know More
+              <ChevronRight className="h-4 w-4" />
+            </motion.button>
+          </div>
+          <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
+            {predictionsLoading ? (
+              <p>Generating AI predictions...</p>
+            ) : predictionsError ? (
+              <p className="text-destructive">Error: {predictionsError}</p>
+            ) : predictions ? (
+              <>
+                <p className="line-clamp-2">
+                  {predictions.narrative.split('\n')[0]}
+                </p>
+                <div className="flex items-center gap-4 text-xs mt-2">
+                  {predictions.riskFactors && predictions.riskFactors.length > 0 && (
+                    <span>
+                      <span className="font-semibold text-orange-400">Risks:</span> {predictions.riskFactors.length}
+                    </span>
+                  )}
+                  {predictions.recommendations && predictions.recommendations.length > 0 && (
+                    <span>
+                      <span className="font-semibold text-orange-400">Recommendations:</span> {predictions.recommendations.length}
+                    </span>
+                  )}
+                </div>
+              </>
+            ) : wpiForecast ? (
+              <>
+                <p className="line-clamp-2">
+                  Projected average WPI inflation ({wpiForecast.nextYear}): {wpiForecast.projectedInflation != null ? `${wpiForecast.projectedInflation.toFixed(2)}%` : "—"}
+                </p>
+                {wpiOutlookContext && (
+                  <p className="line-clamp-1 text-xs">
+                    <span className="font-semibold text-orange-400">Trend:</span> {wpiOutlookContext.trendDirection || "stable"}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p>Forecast data will appear here once available.</p>
+            )}
+          </div>
         </motion.div>
       )}
 
-      {selectedMajorGroupDisplay && majorGroupImpact.sectorsAffected.length > 0 && (
+      {/* Filters - AFTER Intelligence in prediction mode */}
+      {viewMode === "predictions" && (
+        <FilterBar
+          filters={[
+            { label: "Year", value: pendingYear, onChange: setPendingYear, options: yearsOptions.map((y) => ({ value: y, label: y === "ALL" ? "All years" : y })) },
+            { label: "Group", value: pendingGroup, onChange: setPendingGroup, options: groupOptions.map((g) => ({ value: g, label: g === "ALL" ? "All groups" : g })) },
+            { label: "Subgroup", value: pendingSubgroup, onChange: setPendingSubgroup, options: subgroupOptions.map((s) => ({ value: s, label: s === "ALL" ? "All subgroups" : s })) },
+            { label: "Sub-subgroup", value: pendingSubSubgroup, onChange: setPendingSubSubgroup, options: subSubgroupOptions.map((s) => ({ value: s, label: s === "ALL" ? "All sub-subgroups" : s })) },
+            { label: "Item", value: pendingItem, onChange: setPendingItem, options: itemOptions.map((i) => ({ value: i, label: i === "ALL" ? "All items" : i })) },
+          ]}
+          onApply={handleApply}
+          onReset={handleReset}
+          applyButtonClassName="bg-orange-500/70 hover:bg-orange-500 text-white"
+        />
+      )}
+
+      {viewMode === "history" && selectedMajorGroupDisplay && majorGroupImpact.sectorsAffected.length > 0 && (
         <motion.section
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -443,30 +692,37 @@ const InflationWPI = () => {
         </DialogContent>
       </Dialog>
 
-      <FilterBar
-        filters={[
-          { label: "Year", value: pendingYear, onChange: setPendingYear, options: yearsOptions.map((y) => ({ value: y, label: y === "ALL" ? "All years" : y })) },
-          { label: "Group", value: pendingGroup, onChange: setPendingGroup, options: groupOptions.map((g) => ({ value: g, label: g === "ALL" ? "All groups" : g })) },
-          { label: "Subgroup", value: pendingSubgroup, onChange: setPendingSubgroup, options: subgroupOptions.map((s) => ({ value: s, label: s === "ALL" ? "All subgroups" : s })) },
-          { label: "Sub-subgroup", value: pendingSubSubgroup, onChange: setPendingSubSubgroup, options: subSubgroupOptions.map((s) => ({ value: s, label: s === "ALL" ? "All sub-subgroups" : s })) },
-          { label: "Item", value: pendingItem, onChange: setPendingItem, options: itemOptions.map((i) => ({ value: i, label: i === "ALL" ? "All items" : i })) },
-        ]}
-        onApply={handleApply}
-        onReset={handleReset}
-      />
+      {/* Filters - For history mode */}
+      {viewMode === "history" && (
+        <FilterBar
+          filters={[
+            { label: "Year", value: pendingYear, onChange: setPendingYear, options: yearsOptions.map((y) => ({ value: y, label: y === "ALL" ? "All years" : y })) },
+            { label: "Group", value: pendingGroup, onChange: setPendingGroup, options: groupOptions.map((g) => ({ value: g, label: g === "ALL" ? "All groups" : g })) },
+            { label: "Subgroup", value: pendingSubgroup, onChange: setPendingSubgroup, options: subgroupOptions.map((s) => ({ value: s, label: s === "ALL" ? "All subgroups" : s })) },
+            { label: "Sub-subgroup", value: pendingSubSubgroup, onChange: setPendingSubSubgroup, options: subSubgroupOptions.map((s) => ({ value: s, label: s === "ALL" ? "All sub-subgroups" : s })) },
+            { label: "Item", value: pendingItem, onChange: setPendingItem, options: itemOptions.map((i) => ({ value: i, label: i === "ALL" ? "All items" : i })) },
+          ]}
+          onApply={handleApply}
+          onReset={handleReset}
+        />
+      )}
 
-      {wpiRisk && <AlertBanner level={wpiRisk.type} title={wpiRisk.title} message={wpiRisk.message} />}
+      {viewMode === "history" && wpiRisk && <AlertBanner level={wpiRisk.type} title={wpiRisk.title} message={wpiRisk.message} />}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {viewMode === "history" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPIBox icon={<TrendingUp className="w-4 h-4" />} label="WPI Index" value={latestWPI?.index} change={wpiChange} />
         <KPIBox icon={<Wheat className="w-4 h-4" />} label="Primary Articles" value={latestMajor?.["Primary articles"]} />
         <KPIBox icon={<Flame className="w-4 h-4" />} label="Fuel & Power" value={latestMajor?.["Fuel & power"]} />
         <KPIBox icon={<Factory className="w-4 h-4" />} label="Manufactured" value={latestMajor?.["Manufactured products"]} />
-      </div>
+        </div>
+      )}
 
-      <div className="flex flex-col gap-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-5">
-          <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-4">Monthly WPI Index</h3>
+      {/* Historical charts - only in history mode */}
+      {viewMode === "history" && (
+        <div className="flex flex-col gap-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`glass-card p-5 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}>
+          <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-4">{viewMode === "predictions" ? "WPI Index Forecast" : "Monthly WPI Index"}</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={filteredRows}>
@@ -480,8 +736,8 @@ const InflationWPI = () => {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card p-5">
-          <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-4">Monthly Inflation (MoM %)</h3>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className={`glass-card p-5 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}>
+          <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-4">{viewMode === "predictions" ? "Inflation Forecast (MoM %)" : "Monthly Inflation (MoM %)"}</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthlyInflation}>
@@ -494,10 +750,12 @@ const InflationWPI = () => {
             </ResponsiveContainer>
           </div>
         </motion.div>
+        </div>
+      )}
 
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Additional charts - only in history mode */}
+      {viewMode === "history" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-5">
           <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-4">Average Annual Inflation</h3>
           <div className="h-64">
@@ -569,48 +827,430 @@ const InflationWPI = () => {
             </ResponsiveContainer>
           </div>
         </motion.div>
-      </div>
+        </div>
+      )}
 
-      {wpiForecast && wpiForecast.forecastLine && wpiForecast.forecastLine.length > 0 && (
+      {/* AI Forecast Details Modal */}
+      <Dialog open={showAIDetailsModal} onOpenChange={setShowAIDetailsModal}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden rounded-xl border border-border/50 bg-background shadow-xl p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold text-foreground">
+                  WPI Forecast Intelligence
+                </DialogTitle>
+                <div className="text-sm text-muted-foreground mt-0.5">{selectedMajorGroupDisplay}</div>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="overflow-y-auto max-h-[calc(90vh-100px)] px-6 py-5 space-y-4">
+            {/* AI Forecast Analysis */}
+            {predictions?.narrative && (
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="h-4 w-4 text-orange-500" />
+                  <h3 className="text-base font-semibold text-foreground">Forecast Analysis</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                  {predictions.narrative}
+                </p>
+              </div>
+            )}
+
+            {/* Key Risk Factors */}
+            {predictions?.riskFactors && predictions.riskFactors.length > 0 && (
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                  <h3 className="text-base font-semibold text-foreground">Key Risk Factors</h3>
+                </div>
+                <div className="space-y-2">
+                  {predictions.riskFactors.map((risk, index) => (
+                    <div key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <span className="text-orange-500 mt-1 shrink-0">•</span>
+                      <span className="flex-1">{risk}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actionable Recommendations */}
+            {predictions?.recommendations && predictions.recommendations.length > 0 && (
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lightbulb className="h-4 w-4 text-orange-500" />
+                  <h3 className="text-base font-semibold text-foreground">Actionable Recommendations</h3>
+                </div>
+                <div className="space-y-2">
+                  {predictions.recommendations.map((recommendation, index) => (
+                    <div key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <span className="text-orange-500 mt-1 shrink-0">→</span>
+                      <span className="flex-1">{recommendation}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Forecast Summary */}
+            {(aiForecastData || wpiForecast) && (
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Info className="h-4 w-4 text-orange-500" />
+                  <h3 className="text-base font-semibold text-foreground">Forecast Summary</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                    <div className="text-xs text-muted-foreground mb-1">Projected Year</div>
+                    <div className="font-mono font-bold text-orange-500">
+                      {selectedYear && selectedYear !== "ALL" ? selectedYear : aiForecastData?.nextYear || wpiForecast?.nextYear || "—"}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                    <div className="text-xs text-muted-foreground mb-1">Projected Inflation</div>
+                    <div className="font-mono font-bold text-orange-500">
+                      {aiForecastData?.projectedInflation != null ? `${aiForecastData.projectedInflation.toFixed(2)}%` : wpiForecast?.projectedInflation != null ? `${wpiForecast.projectedInflation.toFixed(2)}%` : "—"}
+                    </div>
+                  </div>
+                  {predictions?.kpis && (
+                    <>
+                      <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                        <div className="text-xs text-muted-foreground mb-1">Projected Index</div>
+                        <div className="font-mono font-bold text-foreground">
+                          {aiForecastData?.projectedIndex != null ? aiForecastData.projectedIndex.toFixed(1) : "—"}
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                        <div className="text-xs text-muted-foreground mb-1">Primary Articles</div>
+                        <div className="font-mono font-bold text-foreground">
+                          {predictions.kpis.primaryArticles != null ? predictions.kpis.primaryArticles.toFixed(1) : "—"}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Prediction KPIs - Only in predictions mode */}
+      {viewMode === "predictions" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              WPI Index {selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : wpiForecast?.nextYear ? `(${wpiForecast.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {aiForecastData?.projectedIndex != null && Number.isFinite(aiForecastData.projectedIndex)
+                ? aiForecastData.projectedIndex.toFixed(1)
+                : wpiForecast?.projectedIndex != null && Number.isFinite(wpiForecast.projectedIndex)
+                  ? wpiForecast.projectedIndex.toFixed(1)
+                  : latestWPI?.index != null
+                    ? latestWPI.index.toFixed(1)
+                    : "—"}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Inflation {selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : aiForecastData?.nextYear ? `(${aiForecastData.nextYear})` : wpiForecast?.nextYear ? `(${wpiForecast.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {aiForecastData?.projectedInflation != null && Number.isFinite(aiForecastData.projectedInflation)
+                ? `${aiForecastData.projectedInflation.toFixed(2)}%`
+                : wpiForecast?.projectedInflation != null && Number.isFinite(wpiForecast.projectedInflation)
+                  ? `${wpiForecast.projectedInflation.toFixed(2)}%`
+                  : "—"}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Primary Articles {selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : aiForecastData?.nextYear ? `(${aiForecastData.nextYear})` : wpiForecast?.nextYear ? `(${wpiForecast.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {predictions?.kpis?.primaryArticles != null && Number.isFinite(predictions.kpis.primaryArticles)
+                ? predictions.kpis.primaryArticles.toFixed(1)
+                : latestMajor?.["Primary articles"] != null
+                  ? latestMajor["Primary articles"].toFixed(1)
+                  : "—"}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Fuel & Power {selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : aiForecastData?.nextYear ? `(${aiForecastData.nextYear})` : wpiForecast?.nextYear ? `(${wpiForecast.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {predictions?.kpis?.fuelPower != null && Number.isFinite(predictions.kpis.fuelPower)
+                ? predictions.kpis.fuelPower.toFixed(1)
+                : latestMajor?.["Fuel & power"] != null
+                  ? latestMajor["Fuel & power"].toFixed(1)
+                  : "—"}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Prediction Charts - Only in predictions mode */}
+      {viewMode === "predictions" && (aiForecastData || wpiForecast) && (aiForecastData?.forecastLine || wpiForecast?.forecastLine) && (aiForecastData?.forecastLine?.length ?? wpiForecast?.forecastLine?.length ?? 0) > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="glass-card p-5 border-orange-500/30 bg-orange-950/10"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground">
+              WPI Inflation Forecast — {selectedMajorGroupDisplay}
+            </h3>
+            <div className="flex gap-4 text-xs">
+              <div>
+                <div className="text-muted-foreground">Year</div>
+                <div className="font-mono font-bold text-foreground">
+                  {selectedYear && selectedYear !== "ALL" ? selectedYear : aiForecastData?.nextYear || wpiForecast?.nextYear || "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Projected</div>
+                <div className="font-mono font-bold text-orange-400">
+                  {aiForecastData?.projectedInflation != null ? `${aiForecastData.projectedInflation.toFixed(2)}%` : wpiForecast?.projectedInflation != null ? `${wpiForecast.projectedInflation.toFixed(2)}%` : "—"}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="h-48">
+            {(() => {
+              const forecastData = aiForecastData || wpiForecast;
+              if (!forecastData || !forecastData.forecastLine) return null;
+              
+              // Filter to show only future forecast data (no historical data in predictions mode)
+              const historyLength = forecastData.history?.length ?? 0;
+              let forecastOnlyData = (forecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
+              
+              // If a specific year is selected, filter to show up to that year (and a bit beyond for context)
+              if (selectedYear && selectedYear !== "ALL") {
+                const yearMatch = selectedYear.match(/^(\d{4})/);
+                if (yearMatch) {
+                  const targetYear = parseInt(yearMatch[1], 10);
+                  // Show forecasts up to the selected year + 2 years for context
+                  forecastOnlyData = forecastOnlyData.filter((d) => {
+                    const year = typeof d.x === 'number' ? d.x : parseInt(String(d.x).split('-')[0], 10);
+                    return year <= targetYear + 2;
+                  });
+                }
+              }
+              
+              const tooltipStyle = {
+                backgroundColor: "hsl(222 44% 9%)",
+                border: "1px solid hsl(222 30% 22%)",
+                borderRadius: "8px",
+                fontFamily: "JetBrains Mono",
+                fontSize: "12px",
+              };
+              
+              return forecastOnlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%" key={selectedYear}>
+                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                    <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
+                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="avgInflationPct"
+                      name="Projected inflation"
+                      stroke="hsl(38 92% 50%)"
+                      strokeWidth={3}
+                      dot={{ fill: "hsl(38 92% 50%)", r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No forecast data available
+                </div>
+              );
+            })()}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Sectors affected — Only in predictions mode */}
+      {viewMode === "predictions" && selectedMajorGroupDisplay && majorGroupImpact.sectorsAffected.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
+          className="space-y-4 rounded-xl border border-orange-500/30 bg-orange-950/10 p-6"
+        >
+          <h3 className="text-lg font-semibold text-foreground">Sectors affected</h3>
+          <p className="text-sm text-muted-foreground">
+            Industries most impacted by {selectedMajorGroupDisplay}. Click a card for impact and solutions.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {majorGroupImpact.sectorsAffected.map((sectorName, index) => (
+              <motion.button
+                key={sectorName}
+                type="button"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 * index }}
+                onClick={() => setWpiSectorForModal(sectorName)}
+                className="w-full flex items-center gap-3 p-4 text-left rounded-xl border border-border/60 bg-card/50 hover:bg-muted/30 hover:border-border/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-border/50 focus:ring-offset-2 focus:ring-offset-background"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <span className="font-medium text-foreground truncate">{sectorName}</span>
+                  <span
+                    className={cn(
+                      "text-xs font-medium w-fit rounded-full px-2 py-0.5",
+                      wpiImpactStatus.variant === "negative" &&
+                        "bg-destructive/15 text-destructive border border-destructive/30",
+                      wpiImpactStatus.variant === "positive" &&
+                        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
+                      wpiImpactStatus.variant === "neutral" &&
+                        "bg-muted text-muted-foreground border border-border"
+                    )}
+                  >
+                    {wpiImpactStatus.label}
+                  </span>
+                  {wpiForecast && (
+                    <span className="text-xs text-muted-foreground">
+                      Projected status: {wpiForecast.status === "pressure" ? "pressure" : "stable"}
+                    </span>
+                  )}
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </motion.section>
+      )}
+
+      {/* AI-Powered Forecast Card - Only in predictions mode */}
+      {viewMode === "predictions" && (aiForecastData || wpiForecast) && (aiForecastData?.forecastLine || wpiForecast?.forecastLine) && (aiForecastData?.forecastLine?.length ?? wpiForecast?.forecastLine?.length ?? 0) > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
         >
           <PredictionCard
-            title="Inflation (WPI) outlook"
-            status={wpiForecast.status === "pressure" ? "pressure" : "stable"}
+            title={`AI-Powered Forecast for WPI Inflation${selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : aiForecastData?.nextYear ? ` (${aiForecastData.nextYear})` : wpiForecast?.nextYear ? ` (${wpiForecast.nextYear})` : ""}`}
+            status={(aiForecastData || wpiForecast)?.status === "pressure" ? "pressure" : "stable"}
+            className="border-orange-500/30 bg-orange-950/10"
             metrics={[
               {
-                label: `Projected average WPI inflation (${wpiForecast.nextYear})`,
+                label: `Projected average WPI inflation${selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : aiForecastData?.nextYear ? ` (${aiForecastData.nextYear})` : wpiForecast?.nextYear ? ` (${wpiForecast.nextYear})` : ""}`,
                 value:
-                  wpiForecast.projectedInflation != null && Number.isFinite(wpiForecast.projectedInflation)
-                    ? `${wpiForecast.projectedInflation.toFixed(2)} %`
-                    : "—",
+                  aiForecastData?.projectedInflation != null && Number.isFinite(aiForecastData.projectedInflation)
+                    ? `${aiForecastData.projectedInflation.toFixed(2)}%`
+                    : wpiForecast?.projectedInflation != null && Number.isFinite(wpiForecast.projectedInflation)
+                      ? `${wpiForecast.projectedInflation.toFixed(2)}%`
+                      : "—",
+              },
+              {
+                label: `Projected WPI index${selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : aiForecastData?.nextYear ? ` (${aiForecastData.nextYear})` : wpiForecast?.nextYear ? ` (${wpiForecast.nextYear})` : ""}`,
+                value:
+                  aiForecastData?.projectedIndex != null && Number.isFinite(aiForecastData.projectedIndex)
+                    ? aiForecastData.projectedIndex.toFixed(1)
+                    : wpiForecast?.projectedIndex != null && Number.isFinite(wpiForecast.projectedIndex)
+                      ? wpiForecast.projectedIndex.toFixed(1)
+                      : latestWPI?.index != null
+                        ? latestWPI.index.toFixed(1)
+                        : "—",
               },
             ]}
           >
-            <ForecastChart
-              data={wpiForecast.forecastLine as Record<string, unknown>[]}
-              xKey="x"
-              actualKey="avgInflationPct"
-              forecastKey="avgInflationPct"
-              actualName="Average annual inflation"
-              forecastName="Projected inflation"
-              historyLength={wpiForecast.history?.length ?? 0}
-              height={224}
-              historyColor="hsl(217 91% 60%)"
-              forecastColor="hsl(38 92% 50%)"
-            />
+            {(() => {
+              const forecastData = aiForecastData || wpiForecast;
+              if (!forecastData || !forecastData.forecastLine) return null;
+              
+              // Filter to show only future forecast data (no historical data in predictions mode)
+              const historyLength = forecastData.history?.length ?? 0;
+              let forecastOnlyData = (forecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
+              
+              // If a specific year is selected, filter to show up to that year (and a bit beyond for context)
+              if (selectedYear && selectedYear !== "ALL") {
+                const yearMatch = selectedYear.match(/^(\d{4})/);
+                if (yearMatch) {
+                  const targetYear = parseInt(yearMatch[1], 10);
+                  // Show forecasts up to the selected year + 2 years for context
+                  forecastOnlyData = forecastOnlyData.filter((d) => {
+                    const year = typeof d.x === 'number' ? d.x : parseInt(String(d.x).split('-')[0], 10);
+                    return year <= targetYear + 2;
+                  });
+                }
+              }
+              
+              const tooltipStyle = {
+                backgroundColor: "hsl(222 44% 9%)",
+                border: "1px solid hsl(222 30% 22%)",
+                borderRadius: "8px",
+                fontFamily: "JetBrains Mono",
+                fontSize: "12px",
+              };
+              
+              return forecastOnlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%" key={selectedYear}>
+                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                    <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
+                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="avgInflationPct"
+                      name="Projected inflation"
+                      stroke="hsl(38 92% 50%)"
+                      strokeWidth={3}
+                      dot={{ fill: "hsl(38 92% 50%)", r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No forecast data available
+                </div>
+              );
+            })()}
           </PredictionCard>
         </motion.div>
       )}
 
-      <div className="glass-card p-4">
-        <p className="text-xs text-muted-foreground font-mono">
-          WPI records loaded: {wpiRaw?.length ?? "loading…"} · Filtered: {filteredRows.length}
-        </p>
-      </div>
+      {viewMode === "history" && (
+        <div className="glass-card p-4">
+          <p className="text-xs text-muted-foreground font-mono">
+            WPI records loaded: {wpiRaw?.length ?? "loading…"} · Filtered: {filteredRows.length}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

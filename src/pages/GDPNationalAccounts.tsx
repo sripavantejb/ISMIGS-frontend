@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, IndianRupee, Landmark, Building2, BarChart3 } from "lucide-react";
+import { TrendingUp, TrendingDown, IndianRupee, Landmark, Building2, BarChart3, ChevronRight, Info, AlertTriangle, Lightbulb } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -57,13 +57,17 @@ const GDPNationalAccounts = () => {
   const [selectedRevision, setSelectedRevision] = useState("Latest per year");
   const [pendingRevision, setPendingRevision] = useState("Latest per year");
   const [gdpComponentForModal, setGdpComponentForModal] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"history" | "predictions">("history");
+  const [showAIDetailsModal, setShowAIDetailsModal] = useState(false);
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>("ALL");
+  const [pendingFiscalYear, setPendingFiscalYear] = useState<string>("ALL");
 
   // indicator_code: 1=GVA, 2=Net Taxes, 5=GDP, 22=GDP Growth
   const { data: gvaRaw, isLoading: l1 } = useNASData(1);
   const { data: gdpRaw, isLoading: l2 } = useNASData(5);
   const { data: taxRaw, isLoading: l3 } = useNASData(2);
   const { data: growthRaw, isLoading: l4 } = useNASData(22);
-  const { gdp: gdpForecast } = useForecast();
+  const { gdp: gdpForecast, loading: forecastLoading } = useForecast();
 
   const isLoading = l1 || l2 || l3 || l4;
 
@@ -248,14 +252,82 @@ const GDPNationalAccounts = () => {
     [gdpImpactInputs]
   );
 
-  const handleApply = () => setSelectedRevision(pendingRevision);
+  // Fiscal year options based on view mode
+  const fiscalYearOptions = useMemo(() => {
+    if (viewMode === "predictions") {
+      // Future years for predictions
+      const currentYear = new Date().getFullYear();
+      const years = ["ALL"];
+      for (let i = 0; i < 10; i++) {
+        const year = currentYear + i + 1;
+        years.push(`${year}-${String(year + 1).slice(-2)}`);
+      }
+      return years;
+    } else {
+      // Historical years for history mode
+      const years = ["ALL"];
+      const uniqueYears = new Set<string>();
+      allGdpRows.forEach((row) => {
+        if (row.fiscalYear) {
+          uniqueYears.add(row.fiscalYear);
+        }
+      });
+      return [...years, ...Array.from(uniqueYears).sort().reverse()];
+    }
+  }, [viewMode, allGdpRows]);
+
+  const handleApply = () => {
+    setSelectedRevision(pendingRevision);
+    if (viewMode === "predictions") {
+      setSelectedFiscalYear(pendingFiscalYear);
+    }
+  };
   const handleReset = () => {
     setPendingRevision("Latest per year");
     setSelectedRevision("Latest per year");
+    if (viewMode === "predictions") {
+      setPendingFiscalYear("ALL");
+      setSelectedFiscalYear("ALL");
+    }
   };
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
+    <div className={`min-h-screen p-6 space-y-6 ${viewMode === "predictions" ? "bg-gradient-to-br from-orange-950/20 via-background to-orange-900/10" : ""}`}>
+      {/* Toggle in top-right header area */}
+      <div className="fixed top-4 right-6 z-50 flex items-center justify-end">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex items-center gap-2 rounded-lg border border-border/30 bg-card/90 backdrop-blur-sm shadow-lg p-1"
+        >
+          <motion.button
+            onClick={() => setViewMode("history")}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={cn(
+              "px-4 py-2 text-xs font-medium rounded-md transition-all duration-200",
+              viewMode === "history"
+                ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            Past History
+          </motion.button>
+          <motion.button
+            onClick={() => setViewMode("predictions")}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={cn(
+              "px-4 py-2 text-xs font-medium rounded-md transition-all duration-200",
+              viewMode === "predictions"
+                ? "bg-orange-500 text-white font-semibold shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            Predictions
+          </motion.button>
+        </motion.div>
+      </div>
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Gross Domestic Product (GDP)</h1>
@@ -264,17 +336,73 @@ const GDPNationalAccounts = () => {
         {isLoading && <Skeleton className="h-5 w-5 rounded" />}
       </div>
 
-      {/* Insights — GDP intelligence briefing */}
-      {gdpInsightContext.gdpGrowth && (
+      {/* GDP Intelligence - Only in predictions mode with Know More button - FIRST */}
+      {viewMode === "predictions" && gdpInsightContext.gdpGrowth && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border border-border/60 bg-card/30 p-5"
+          className="rounded-xl border border-orange-500/30 bg-gradient-to-br from-orange-950/20 via-orange-900/10 to-orange-950/20 p-6 mb-6 shadow-lg backdrop-blur-sm"
         >
-          <GdpIntelligenceBriefing context={gdpInsightContext} />
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">GDP Intelligence</h3>
+                <p className="text-xs text-muted-foreground">AI-powered insights and forecasts</p>
+              </div>
+            </div>
+            <motion.button
+              onClick={() => setShowAIDetailsModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 transition-all duration-200 font-medium text-sm"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Know More
+              <ChevronRight className="h-4 w-4" />
+            </motion.button>
+          </div>
+          <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
+            {forecastLoading ? (
+              <p>Loading forecast data...</p>
+            ) : gdpForecast ? (
+              <>
+                <p className="line-clamp-2">
+                  Latest Growth: {gdpForecast.latestGrowth != null ? `${gdpForecast.latestGrowth >= 0 ? "+" : ""}${gdpForecast.latestGrowth.toFixed(1)}%` : "—"} · 
+                  Projected GDP ({selectedFiscalYear && selectedFiscalYear !== "ALL" ? selectedFiscalYear : gdpForecast.nextYear ? `${gdpForecast.nextYear}-${String((gdpForecast.nextYear + 1) % 100).padStart(2, "0")}` : "—"}): {gdpForecast.projectedConstant != null ? `₹ ${toTrillions(gdpForecast.projectedConstant).toFixed(1)} L Cr` : "—"}
+                </p>
+                {gdpInsightContext.trendDirection && (
+                  <p className="line-clamp-1 text-xs">
+                    <span className="font-semibold text-orange-400">Trend:</span> {gdpInsightContext.trendDirection}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p>Forecast data will appear here once available.</p>
+            )}
+          </div>
         </motion.div>
       )}
 
+      {/* Filters - AFTER Intelligence in prediction mode */}
+      {viewMode === "predictions" && (
+        <FilterBar
+          filters={[
+            {
+              label: "Fiscal Year",
+              value: pendingFiscalYear,
+              onChange: setPendingFiscalYear,
+              options: fiscalYearOptions.map((y) => ({ value: y, label: y === "ALL" ? "All years" : y })),
+            },
+          ]}
+          onApply={handleApply}
+          onReset={handleReset}
+          applyButtonClassName="bg-orange-500/70 hover:bg-orange-500 text-white"
+        />
+      )}
+
+      {viewMode === "history" && (
       <motion.section
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -321,6 +449,7 @@ const GDPNationalAccounts = () => {
           ))}
         </div>
       </motion.section>
+      )}
 
       <Dialog open={!!gdpComponentForModal} onOpenChange={(open) => !open && setGdpComponentForModal(null)}>
         <DialogContent className="sm:max-w-md rounded-xl border border-border/60 bg-card shadow-xl" aria-describedby={undefined}>
@@ -362,6 +491,8 @@ const GDPNationalAccounts = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Filters - For history mode */}
+      {viewMode === "history" && (
       <FilterBar
         filters={[
           {
@@ -374,20 +505,25 @@ const GDPNationalAccounts = () => {
         onApply={handleApply}
         onReset={handleReset}
       />
+      )}
 
-      {gdpRisk && <AlertBanner level={gdpRisk.type} title={gdpRisk.title} message={gdpRisk.message} />}
+      {viewMode === "history" && gdpRisk && <AlertBanner level={gdpRisk.type} title={gdpRisk.title} message={gdpRisk.message} />}
 
-      {/* KPI Cards */}
+      {/* KPI Cards - only in history mode */}
+      {viewMode === "history" && (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPIBox icon={<IndianRupee className="w-4 h-4" />} label="GDP (Current)" value={latest ? toTrillions(latest.currentPrice) : undefined} suffix="L Cr" year={latest?.fiscalYear} />
         <KPIBox icon={<Landmark className="w-4 h-4" />} label="GVA (Current)" value={latestGVA?.currentPrice} suffix="L Cr" year={latestGVA?.year} />
         <KPIBox icon={<BarChart3 className="w-4 h-4" />} label="Manual YoY Growth" value={latestGrowth?.manualGrowthPct} suffix="%" year={latestGrowth?.fiscalYear} isGrowth />
         <KPIBox icon={<Building2 className="w-4 h-4" />} label="Net Taxes" value={latestTax?.currentPrice} suffix="L Cr" year={latestTax?.year} />
       </div>
+      )}
 
+      {/* Historical charts - only in history mode */}
+      {viewMode === "history" && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* GDP Trend */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-5">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`glass-card p-5 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}>
           <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-4">GDP Trend (₹ Lakh Crore)</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -486,60 +622,376 @@ const GDPNationalAccounts = () => {
           </div>
         </motion.div>
       </div>
+      )}
 
-      {/* Future predictions */}
-      {gdpForecast &&
-        gdpForecast.forecastLine &&
-        gdpForecast.forecastLine.length > 0 &&
-        (gdpForecast.history?.length ?? 0) > 0 && (
+      {/* AI Forecast Details Modal */}
+      <Dialog open={showAIDetailsModal} onOpenChange={setShowAIDetailsModal}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden rounded-xl border border-border/50 bg-background shadow-xl p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold text-foreground">
+                  GDP Forecast Intelligence
+                </DialogTitle>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="overflow-y-auto max-h-[calc(90vh-100px)] px-6 py-5 space-y-4">
+            {gdpForecast && (
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Info className="h-4 w-4 text-orange-500" />
+                  <h3 className="text-base font-semibold text-foreground">Forecast Summary</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                    <div className="text-xs text-muted-foreground mb-1">Latest Growth</div>
+                    <div className="font-mono font-bold text-orange-500">
+                      {gdpForecast.latestGrowth != null ? `${gdpForecast.latestGrowth >= 0 ? "+" : ""}${gdpForecast.latestGrowth.toFixed(1)}%` : "—"}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                    <div className="text-xs text-muted-foreground mb-1">Projected Year</div>
+                    <div className="font-mono font-bold text-orange-500">
+                      {gdpForecast.nextYear || "—"}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                    <div className="text-xs text-muted-foreground mb-1">Projected GDP</div>
+                    <div className="font-mono font-bold text-foreground">
+                      {gdpForecast.projectedConstant != null ? `₹ ${toTrillions(gdpForecast.projectedConstant).toFixed(1)} L Cr` : "—"}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                    <div className="text-xs text-muted-foreground mb-1">Projected Growth</div>
+                    <div className="font-mono font-bold text-foreground">
+                      {gdpForecast.projectedGrowth != null ? `${gdpForecast.projectedGrowth >= 0 ? "+" : ""}${gdpForecast.projectedGrowth.toFixed(1)}%` : "—"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {gdpInsightContext && (
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="h-4 w-4 text-orange-500" />
+                  <h3 className="text-base font-semibold text-foreground">Intelligence Briefing</h3>
+                </div>
+                <GdpIntelligenceBriefing context={gdpInsightContext} />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Prediction KPIs - Only in predictions mode */}
+      {viewMode === "predictions" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="space-y-2"
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
           >
-            <h3 className="text-sm font-medium text-foreground px-1">Future predictions</h3>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              GDP (Current) {selectedFiscalYear && selectedFiscalYear !== "ALL" ? `(${selectedFiscalYear})` : gdpForecast?.nextYear ? `(${gdpForecast.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {gdpForecast?.projectedConstant != null && Number.isFinite(gdpForecast.projectedConstant)
+                ? `₹ ${toTrillions(gdpForecast.projectedConstant).toFixed(1)} L Cr`
+                : latest ? `₹ ${toTrillions(latest.currentPrice).toFixed(1)} L Cr`
+                  : "—"}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Growth {selectedFiscalYear && selectedFiscalYear !== "ALL" ? `(${selectedFiscalYear})` : gdpForecast?.nextYear ? `(${gdpForecast.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {gdpForecast?.projectedGrowth != null && Number.isFinite(gdpForecast.projectedGrowth)
+                ? `${gdpForecast.projectedGrowth >= 0 ? "+" : ""}${gdpForecast.projectedGrowth.toFixed(1)}%`
+                : gdpForecast?.latestGrowth != null
+                  ? `${gdpForecast.latestGrowth >= 0 ? "+" : ""}${gdpForecast.latestGrowth.toFixed(1)}%`
+                  : "—"}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              GVA (Current) {selectedFiscalYear && selectedFiscalYear !== "ALL" ? `(${selectedFiscalYear})` : gdpForecast?.nextYear ? `(${gdpForecast.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {latestGVA?.currentPrice != null ? `${latestGVA.currentPrice.toFixed(1)} L Cr` : "—"}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y:20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Net Taxes {selectedFiscalYear && selectedFiscalYear !== "ALL" ? `(${selectedFiscalYear})` : gdpForecast?.nextYear ? `(${gdpForecast.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {latestTax?.currentPrice != null ? `${latestTax.currentPrice.toFixed(1)} L Cr` : "—"}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Prediction Charts - Only in predictions mode */}
+      {viewMode === "predictions" && gdpForecast && gdpForecast.forecastLine && gdpForecast.forecastLine.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="glass-card p-5 border-orange-500/30 bg-orange-950/10"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground">
+              GDP Forecast
+            </h3>
+            <div className="flex gap-4 text-xs">
+              <div>
+                <div className="text-muted-foreground">Year</div>
+                <div className="font-mono font-bold text-foreground">
+                  {selectedFiscalYear && selectedFiscalYear !== "ALL" ? selectedFiscalYear : gdpForecast.nextYear ? `${gdpForecast.nextYear}-${String((gdpForecast.nextYear + 1) % 100).padStart(2, "0")}` : "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Projected</div>
+                <div className="font-mono font-bold text-orange-400">
+                  {gdpForecast.projectedConstant != null ? `₹ ${toTrillions(gdpForecast.projectedConstant).toFixed(1)} L Cr` : "—"}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="h-48">
+            {(() => {
+              // Filter to show only future forecast data (no historical data in predictions mode)
+              const historyLength = gdpForecast.history?.length ?? 0;
+              let forecastOnlyData = (gdpForecast.forecastLine as Record<string, unknown>[]).slice(historyLength);
+              
+              // Filter by selected fiscal year if a specific year is selected
+              if (selectedFiscalYear && selectedFiscalYear !== "ALL") {
+                // Extract year from fiscal year string (e.g., "2025-26" -> 2025)
+                const targetYear = parseInt(selectedFiscalYear.split('-')[0]);
+                // Filter to show data up to the selected year + 2 years for context
+                // Also ensure we include the selected year itself
+                forecastOnlyData = forecastOnlyData.filter((item) => {
+                  if (typeof item.x === 'string') {
+                    const itemYear = parseInt(item.x.split('-')[0]);
+                    return itemYear <= targetYear + 2;
+                  } else if (typeof item.x === 'number') {
+                    return item.x <= targetYear + 2;
+                  }
+                  return false;
+                });
+              }
+              
+              const tooltipStyle = {
+                backgroundColor: "hsl(222 44% 9%)",
+                border: "1px solid hsl(222 30% 22%)",
+                borderRadius: "8px",
+                fontFamily: "JetBrains Mono",
+                fontSize: "12px",
+              };
+              
+              return forecastOnlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%" key={selectedFiscalYear}>
+                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                    <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
+                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="constantPrice"
+                      name="GDP (₹ L Cr, projected)"
+                      stroke="hsl(187 92% 50%)"
+                      strokeWidth={3}
+                      dot={{ fill: "hsl(187 92% 50%)", r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No forecast data available
+                </div>
+              );
+            })()}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Sectors affected — Only in predictions mode */}
+      {viewMode === "predictions" && gdpComponentImpacts.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="space-y-4 rounded-xl border border-orange-500/30 bg-orange-950/10 p-6"
+        >
+          <h3 className="text-lg font-semibold text-foreground">Sectors affected</h3>
+          <p className="text-sm text-muted-foreground">
+            Click a card for impact and solutions.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {gdpComponentImpacts.map(({ name, impact }, index) => (
+              <motion.button
+                key={name}
+                type="button"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 * index }}
+                onClick={() => setGdpComponentForModal(name)}
+                className="w-full flex items-center gap-3 p-4 text-left rounded-xl border border-border/60 bg-card/50 hover:bg-muted/30 hover:border-border/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-border/50 focus:ring-offset-2 focus:ring-offset-background"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <span className="font-medium text-foreground truncate">{name}</span>
+                  <span
+                    className={cn(
+                      "text-xs font-medium w-fit rounded-full px-2 py-0.5",
+                      impact.direction === "negative" &&
+                        "bg-destructive/15 text-destructive border border-destructive/30",
+                      impact.direction === "positive" &&
+                        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
+                      impact.direction === "neutral" &&
+                        "bg-muted text-muted-foreground border border-border"
+                    )}
+                  >
+                    {impact.direction === "positive" ? "Positive" : impact.direction === "negative" ? "Negative" : "Neutral"}
+                  </span>
+                  {gdpForecast && (
+                    <span className="text-xs text-muted-foreground">
+                      Projected status: {gdpForecast.status === "pressure" ? "pressure" : "stable"}
+                    </span>
+                  )}
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </motion.section>
+      )}
+
+      {/* AI-Powered Forecast Card - Only in predictions mode */}
+      {viewMode === "predictions" && gdpForecast && gdpForecast.forecastLine && gdpForecast.forecastLine.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
             <PredictionCard
-              title="GDP outlook"
+            title={`AI-Powered Forecast for GDP${selectedFiscalYear && selectedFiscalYear !== "ALL" ? ` (${selectedFiscalYear})` : gdpForecast.nextYear ? ` (${gdpForecast.nextYear}-${String((gdpForecast.nextYear + 1) % 100).padStart(2, "0")})` : ""}`}
               status={gdpForecast.status === "pressure" ? "pressure" : "stable"}
+            className="border-orange-500/30 bg-orange-950/10"
               metrics={[
                 {
-                  label: "Latest growth (YoY %)",
+                label: `Latest growth (YoY %)`,
                   value:
-                    gdpForecast.latestGrowth != null
+                  gdpForecast.latestGrowth != null && Number.isFinite(gdpForecast.latestGrowth)
                       ? `${gdpForecast.latestGrowth >= 0 ? "+" : ""}${gdpForecast.latestGrowth.toFixed(1)}%`
                       : "—",
                 },
-                {
-                  label: `Projected GDP (${gdpForecast.nextYear})`,
-                  value:
-                    gdpForecast.projectedConstant != null
-                      ? `₹ ${toTrillions(gdpForecast.projectedConstant).toFixed(1)} L Cr`
+              {
+                label: `Projected GDP${selectedFiscalYear && selectedFiscalYear !== "ALL" ? ` (${selectedFiscalYear})` : gdpForecast.nextYear ? ` (${gdpForecast.nextYear}-${String((gdpForecast.nextYear + 1) % 100).padStart(2, "0")})` : ""}`,
+                value:
+                  gdpForecast.projectedConstant != null && Number.isFinite(gdpForecast.projectedConstant)
+                    ? `₹ ${toTrillions(gdpForecast.projectedConstant).toFixed(1)} L Cr`
+                    : latest ? `₹ ${toTrillions(latest.currentPrice).toFixed(1)} L Cr`
                       : "—",
-                },
+              },
+              {
+                label: `Projected growth${selectedFiscalYear && selectedFiscalYear !== "ALL" ? ` (${selectedFiscalYear})` : gdpForecast.nextYear ? ` (${gdpForecast.nextYear}-${String((gdpForecast.nextYear + 1) % 100).padStart(2, "0")})` : ""}`,
+                value:
+                  gdpForecast.projectedGrowth != null && Number.isFinite(gdpForecast.projectedGrowth)
+                    ? `${gdpForecast.projectedGrowth >= 0 ? "+" : ""}${gdpForecast.projectedGrowth.toFixed(1)}%`
+                    : "—",
+              },
               ]}
             >
-              <ForecastChart
-                data={gdpForecast.forecastLine as Record<string, unknown>[]}
-                xKey="x"
-                actualKey="constantPrice"
-                forecastKey="constantPrice"
-                actualName="GDP (₹ L Cr, actual)"
-                forecastName="GDP (₹ L Cr, projected)"
-                historyLength={gdpForecast.history?.length ?? 0}
-                height={280}
-                historyColor="hsl(217 91% 60%)"
-                forecastColor="hsl(187 92% 50%)"
-              />
+            {(() => {
+              // Filter to show only future forecast data (no historical data in predictions mode)
+              const historyLength = gdpForecast.history?.length ?? 0;
+              let forecastOnlyData = (gdpForecast.forecastLine as Record<string, unknown>[]).slice(historyLength);
+              
+              // Filter by selected fiscal year if a specific year is selected
+              if (selectedFiscalYear && selectedFiscalYear !== "ALL") {
+                // Extract year from fiscal year string (e.g., "2025-26" -> 2025)
+                const targetYear = parseInt(selectedFiscalYear.split('-')[0]);
+                // Filter to show data up to the selected year + 2 years for context
+                // Also ensure we include the selected year itself
+                forecastOnlyData = forecastOnlyData.filter((item) => {
+                  if (typeof item.x === 'string') {
+                    const itemYear = parseInt(item.x.split('-')[0]);
+                    return itemYear <= targetYear + 2;
+                  } else if (typeof item.x === 'number') {
+                    return item.x <= targetYear + 2;
+                  }
+                  return false;
+                });
+              }
+              
+              const tooltipStyle = {
+                backgroundColor: "hsl(222 44% 9%)",
+                border: "1px solid hsl(222 30% 22%)",
+                borderRadius: "8px",
+                fontFamily: "JetBrains Mono",
+                fontSize: "12px",
+              };
+              
+              return forecastOnlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%" key={selectedFiscalYear}>
+                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                    <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
+                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="constantPrice"
+                      name="GDP (₹ L Cr, projected)"
+                      stroke="hsl(187 92% 50%)"
+                      strokeWidth={3}
+                      dot={{ fill: "hsl(187 92% 50%)", r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No forecast data available
+                </div>
+              );
+            })()}
             </PredictionCard>
           </motion.div>
         )}
 
+      {viewMode === "history" && (
       <div className="glass-card p-4">
         <p className="text-xs text-muted-foreground font-mono">
           GDP records: {(gdpRaw as any[])?.length ?? "loading…"} · GVA records: {(gvaRaw as any[])?.length ?? "loading…"} · Tax records: {(taxRaw as any[])?.length ?? "loading…"}
         </p>
       </div>
+      )}
     </div>
   );
 };

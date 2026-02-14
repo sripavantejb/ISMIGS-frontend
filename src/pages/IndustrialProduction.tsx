@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Factory, Zap, Pickaxe, TrendingUp, TrendingDown, Building2 } from "lucide-react";
+import { Factory, Zap, Pickaxe, TrendingUp, TrendingDown, Building2, ChevronRight, Info, AlertTriangle, Lightbulb } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -19,6 +19,7 @@ import {
 } from "recharts";
 import { useIIPAnnual, useIIPMonthly } from "@/hooks/useMacroData";
 import { useForecast } from "@/hooks/useForecast";
+import { useIIPPredictions } from "@/hooks/useIIPPredictions";
 import { normalizeIipMonthly, detectThreeNegativeGrowth } from "@/utils/iipLogic";
 import { FilterBar } from "@/components/FilterBar";
 import { AlertBanner } from "@/components/AlertBanner";
@@ -70,13 +71,16 @@ const IndustrialProduction = () => {
   const navigate = useNavigate();
   const { data: annualRaw, isLoading: l1 } = useIIPAnnual();
   const { data: monthlyRaw, isLoading: l2 } = useIIPMonthly();
-  const { iip: iipForecast } = useForecast();
+  const { iip: iipForecast, loading: forecastLoading } = useForecast();
+  const { loading: predictionsLoading, error: predictionsError, predictions, generatePredictions } = useIIPPredictions();
 
   const [selectedYear, setSelectedYear] = useState("ALL");
   const [selectedSubCategory, setSelectedSubCategory] = useState("ALL");
   const [pendingYear, setPendingYear] = useState("ALL");
   const [pendingSubCategory, setPendingSubCategory] = useState("ALL");
   const [iipSectorForModal, setIipSectorForModal] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"history" | "predictions">("history");
+  const [showAIDetailsModal, setShowAIDetailsModal] = useState(false);
 
   const isLoading = l1 || l2;
 
@@ -117,10 +121,21 @@ const IndustrialProduction = () => {
   }, [allRows, categoryConfig]);
 
   const yearsOptions = useMemo(() => {
-    const set = new Set<string>();
-    baseRows.forEach((r) => set.add(String(r.year)));
-    return ["ALL", ...Array.from(set).sort()];
-  }, [baseRows]);
+    if (viewMode === "predictions") {
+      // For predictions mode, show future years (next 10 years)
+      const currentYear = new Date().getFullYear();
+      const futureYears: string[] = [];
+      for (let i = 1; i <= 10; i++) {
+        futureYears.push(String(currentYear + i));
+      }
+      return ["ALL", ...futureYears];
+    } else {
+      // For history mode, show historical years
+      const set = new Set<string>();
+      baseRows.forEach((r) => set.add(String(r.year)));
+      return ["ALL", ...Array.from(set).sort()];
+    }
+  }, [baseRows, viewMode]);
 
   const subCategoryOptions = useMemo(() => {
     const set = new Set<string>();
@@ -309,6 +324,111 @@ const IndustrialProduction = () => {
       .slice(0, 12);
   }, [annualRaw]);
 
+  // Prepare historical data for AI predictions
+  const historicalDataForAI = useMemo(() => {
+    if (!categoryConfig || !annualGeneral || annualGeneral.length === 0) return null;
+    
+    const historicalData = annualGeneral.map((r) => ({
+      year: parseInt(String(r.year), 10),
+      index: r.index,
+      growthRate: r.growth,
+    }));
+
+    return {
+      category: categoryConfig.displayName,
+      historicalData,
+      latestIndex: latest?.index,
+      latestGrowthRate: latest?.growthRate,
+      selectedYear: viewMode === "predictions" ? (selectedYear !== "ALL" ? selectedYear : undefined) : undefined,
+      trendDirection: iipOutlookContext?.trendDirection,
+    };
+  }, [categoryConfig, annualGeneral, latest, selectedYear, viewMode, iipOutlookContext]);
+
+  // Generate predictions when switching to predictions mode or when filters change
+  useEffect(() => {
+    if (viewMode === "predictions" && historicalDataForAI) {
+      const dataKey = JSON.stringify({
+        year: selectedYear,
+        category: categoryConfig?.displayName,
+      });
+      const lastDataKey = sessionStorage.getItem('last-iip-prediction-data-key');
+      
+      // Always regenerate if the year or category changed
+      if (lastDataKey !== dataKey) {
+        sessionStorage.setItem('last-iip-prediction-data-key', dataKey);
+        // Generate new predictions with updated year - this will call OpenAI API
+        generatePredictions(historicalDataForAI);
+      }
+    } else if (viewMode === "history") {
+      sessionStorage.removeItem('last-iip-prediction-data-key');
+    }
+  }, [viewMode, selectedYear, categoryConfig, historicalDataForAI, generatePredictions]);
+
+  // Prepare AI forecast data for charts
+  const aiForecastData = useMemo(() => {
+    if (viewMode === "predictions" && predictions && predictions.forecasts && predictions.forecasts.years && predictions.forecasts.years.length > 0) {
+      const history = annualGeneral && annualGeneral.length > 0 ? annualGeneral.slice(-5).map((d) => ({
+        x: parseInt(String(d.year), 10),
+        index: d.index,
+        growthRate: d.growth,
+      })) : [];
+
+      // Create future data from predictions - include ALL years from predictions
+      const future = predictions.forecasts.years.map((year, idx) => ({
+        x: year,
+        index: predictions.forecasts.index[idx] != null ? predictions.forecasts.index[idx] : 0,
+        growthRate: predictions.forecasts.growthRate[idx] != null ? predictions.forecasts.growthRate[idx] : 0,
+      }));
+
+      // Find data for selected year if a specific year is selected
+      let targetYearIndex = 0;
+      let targetYear: number | null = null;
+      
+      if (selectedYear && selectedYear !== "ALL") {
+        const yearMatch = selectedYear.match(/^(\d{4})/);
+        if (yearMatch) {
+          targetYear = parseInt(yearMatch[1], 10);
+          const foundIndex = predictions.forecasts.years.findIndex(y => y === targetYear);
+          if (foundIndex >= 0) {
+            targetYearIndex = foundIndex;
+          } else {
+            // Find closest year in predictions
+            const closestIndex = predictions.forecasts.years.reduce((closest, year, idx) => {
+              const currentDiff = Math.abs(year - targetYear!);
+              const closestDiff = Math.abs(predictions.forecasts.years[closest] - targetYear!);
+              return currentDiff < closestDiff ? idx : closest;
+            }, 0);
+            targetYearIndex = closestIndex;
+            targetYear = predictions.forecasts.years[closestIndex];
+          }
+        }
+      }
+
+      const nextYear = targetYear || predictions.forecasts.years[0] || null;
+      const projectedIndex = predictions.forecasts.index[targetYearIndex] != null ? predictions.forecasts.index[targetYearIndex] : 0;
+      const projectedGrowthRate = predictions.forecasts.growthRate[targetYearIndex] != null ? predictions.forecasts.growthRate[targetYearIndex] : 0;
+
+      let status: "pressure" | "stable" = "stable";
+      if (projectedGrowthRate < -5) {
+        status = "pressure";
+      }
+
+      // Don't filter here - let the chart component filter based on selected year
+      // This ensures all prediction data is available
+      const filteredFuture = future;
+
+      return {
+        nextYear,
+        projectedIndex,
+        projectedGrowthRate,
+        status,
+        history,
+        forecastLine: [...history, ...filteredFuture],
+      };
+    }
+    return null;
+  }, [predictions, annualGeneral, selectedYear, viewMode]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen p-6 space-y-6">
@@ -366,7 +486,44 @@ const IndustrialProduction = () => {
   }
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
+    <div className={`min-h-screen p-6 space-y-6 ${viewMode === "predictions" ? "bg-gradient-to-br from-orange-950/20 via-background to-orange-900/10" : ""}`}>
+      {/* Toggle in top-right header area */}
+      {categoryConfig && (
+        <div className="fixed top-4 right-6 z-50 flex items-center justify-end">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-2 rounded-lg border border-border/30 bg-card/90 backdrop-blur-sm shadow-lg p-1"
+          >
+            <motion.button
+              onClick={() => setViewMode("history")}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={cn(
+                "px-4 py-2 text-xs font-medium rounded-md transition-all duration-200",
+                viewMode === "history"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              Past History
+            </motion.button>
+            <motion.button
+              onClick={() => setViewMode("predictions")}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={cn(
+                "px-4 py-2 text-xs font-medium rounded-md transition-all duration-200",
+                viewMode === "predictions"
+                  ? "bg-orange-500 text-white font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              Predictions
+            </motion.button>
+          </motion.div>
+        </div>
+      )}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Industrial (IIP)</h1>
@@ -382,18 +539,100 @@ const IndustrialProduction = () => {
         <span className="font-medium text-foreground">{categoryConfig.displayName}</span>
       </nav>
 
-      {categoryConfig && iipOutlookContext && (
+      {/* IIP Intelligence - Only in predictions mode with Know More button - FIRST */}
+      {viewMode === "predictions" && categoryConfig && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="rounded-xl border border-border/60 bg-card/30 p-5"
+          className="rounded-xl border border-orange-500/30 bg-gradient-to-br from-orange-950/20 via-orange-900/10 to-orange-950/20 p-6 mb-6 shadow-lg backdrop-blur-sm"
         >
-          <IipIntelligenceBriefing sectorName={categoryConfig.displayName} context={iipOutlookContext} />
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">IIP Intelligence</h3>
+                <p className="text-xs text-muted-foreground">AI-powered insights and forecasts</p>
+              </div>
+            </div>
+            <motion.button
+              onClick={() => setShowAIDetailsModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 transition-all duration-200 font-medium text-sm"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Know More
+              <ChevronRight className="h-4 w-4" />
+            </motion.button>
+          </div>
+          <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
+            {predictionsLoading ? (
+              <p>Generating AI predictions...</p>
+            ) : predictionsError ? (
+              <p className="text-red-400">Error: {predictionsError}</p>
+            ) : predictions ? (
+              <>
+                <p className="line-clamp-2">
+                  {predictions.narrative.split('.').slice(0, 2).join('.')}...
+                </p>
+                <div className="flex items-center gap-4 text-xs mt-2">
+                  <span>
+                    <span className="font-semibold text-orange-400">Risks:</span> {predictions.riskFactors.length}
+                  </span>
+                  <span>
+                    <span className="font-semibold text-orange-400">Recommendations:</span> {predictions.recommendations.length}
+                  </span>
+                </div>
+              </>
+            ) : iipForecast ? (
+              <>
+                <p className="line-clamp-2">
+                  Current IIP Index: {iipForecast.currentIndex != null ? iipForecast.currentIndex.toFixed(1) : "—"} · 
+                  Projected Index: {iipForecast.projectedIndex != null ? iipForecast.projectedIndex.toFixed(1) : "—"} · 
+                  Projected Growth: {iipForecast.projectedGrowth != null ? `${iipForecast.projectedGrowth >= 0 ? "+" : ""}${iipForecast.projectedGrowth.toFixed(2)}%` : "—"}
+                </p>
+                {iipOutlookContext && (
+                  <p className="line-clamp-1 text-xs">
+                    <span className="font-semibold text-orange-400">Trend:</span> {iipOutlookContext.trendDirection || "stable"}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p>Forecast data will appear here once available.</p>
+            )}
+          </div>
         </motion.div>
       )}
 
-      {categoryConfig && categoryImpact.sectorsAffected.length > 0 && (
+      {/* Filters - AFTER Intelligence in prediction mode */}
+      {viewMode === "predictions" && (
+        <FilterBar
+          filters={[
+            {
+              label: "Year",
+              value: pendingYear,
+              onChange: setPendingYear,
+              options: yearsOptions.map((y) => ({ value: y, label: y === "ALL" ? "All years" : y })),
+            },
+            {
+              label: "Sub-category",
+              value: pendingSubCategory,
+              onChange: setPendingSubCategory,
+              options: subCategoryOptions.map((s) => ({
+                value: s,
+                label: s === "ALL" ? "All sub-categories" : s,
+              })),
+            },
+          ]}
+          onApply={handleApply}
+          onReset={handleReset}
+          applyButtonClassName="bg-orange-500/70 hover:bg-orange-500 text-white"
+        />
+      )}
+
+      {viewMode === "history" && categoryConfig && categoryImpact.sectorsAffected.length > 0 && (
         <motion.section
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -475,27 +714,30 @@ const IndustrialProduction = () => {
         </DialogContent>
       </Dialog>
 
-      <FilterBar
-        filters={[
-          {
-            label: "Year",
-            value: pendingYear,
-            onChange: setPendingYear,
-            options: yearsOptions.map((y) => ({ value: y, label: y === "ALL" ? "All years" : y })),
-          },
-          {
-            label: "Sub-category",
-            value: pendingSubCategory,
-            onChange: setPendingSubCategory,
-            options: subCategoryOptions.map((s) => ({
-              value: s,
-              label: s === "ALL" ? "All sub-categories" : s,
-            })),
-          },
-        ]}
-        onApply={handleApply}
-        onReset={handleReset}
-      />
+      {/* Filters - For history mode */}
+      {viewMode === "history" && (
+        <FilterBar
+          filters={[
+            {
+              label: "Year",
+              value: pendingYear,
+              onChange: setPendingYear,
+              options: yearsOptions.map((y) => ({ value: y, label: y === "ALL" ? "All years" : y })),
+            },
+            {
+              label: "Sub-category",
+              value: pendingSubCategory,
+              onChange: setPendingSubCategory,
+              options: subCategoryOptions.map((s) => ({
+                value: s,
+                label: s === "ALL" ? "All sub-categories" : s,
+              })),
+            },
+          ]}
+          onApply={handleApply}
+          onReset={handleReset}
+        />
+      )}
 
       <div className="flex items-center gap-2">
         <Link to="/iip" className="text-xs text-muted-foreground hover:text-foreground underline">
@@ -503,11 +745,12 @@ const IndustrialProduction = () => {
         </Link>
       </div>
 
-      {iipRisk && (
+      {viewMode === "history" && iipRisk && (
         <AlertBanner level={iipRisk.type} title={iipRisk.title} message={iipRisk.message} />
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {viewMode === "history" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPIBox
           icon={<Factory className="w-4 h-4" />}
           label={categoryConfig.displayName}
@@ -536,14 +779,16 @@ const IndustrialProduction = () => {
           growth={latestSectoral?.Electricity_growth as number}
           period={latestSectoral?.year as string}
         />
-      </div>
+        </div>
+      )}
 
-      {/* IIP Index and Growth Rate — full width, stacked down by down for clarity */}
-      <div className="space-y-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-5">
-          <h3 className="text-sm font-medium text-foreground mb-4">
-            IIP Index by Month — {categoryConfig.displayName}
-          </h3>
+      {/* IIP Index and Growth Rate — only show in history mode */}
+      {viewMode === "history" && (
+        <div className="space-y-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-5">
+            <h3 className="text-sm font-medium text-foreground mb-4">
+              IIP Index by Month — {categoryConfig.displayName}
+            </h3>
           <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={indexByPeriod} margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
@@ -605,9 +850,12 @@ const IndustrialProduction = () => {
             </ResponsiveContainer>
           </div>
         </motion.div>
-      </div>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Additional charts - only in history mode */}
+      {viewMode === "history" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -799,73 +1047,377 @@ const IndustrialProduction = () => {
             </ResponsiveContainer>
           </div>
         </motion.div>
-      </div>
+        </div>
+      )}
 
-      {/* Future predictions — General IIP outlook (shown on all pages for context) */}
-      {iipForecast &&
-        iipForecast.forecastLine &&
-        iipForecast.forecastLine.length > 0 &&
-        (iipForecast.history?.length ?? 0) > 0 && (
+      {/* Prediction KPIs - Only in predictions mode */}
+      {viewMode === "predictions" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="space-y-2"
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
           >
-            <h3 className="text-sm font-medium text-foreground px-1">Future predictions</h3>
-            <PredictionCard
-              title={categoryConfig.slug === "general" ? "General IIP outlook" : "Overall IIP outlook (General)"}
-              status={
-                iipForecast.projectedGrowth != null && iipForecast.projectedGrowth < 0
-                  ? "pressure"
-                  : "stable"
-              }
-              metrics={[
-                {
-                  label: "Current index (latest month)",
-                  value:
-                    iipForecast.currentIndex != null
-                      ? iipForecast.currentIndex.toFixed(1)
-                      : "—",
-                },
-                {
-                  label: "Projected index (6 months ahead)",
-                  value:
-                    iipForecast.projectedIndex != null
-                      ? iipForecast.projectedIndex.toFixed(1)
-                      : "—",
-                },
-                {
-                  label: "Projected growth (6M)",
-                  value:
-                    iipForecast.projectedGrowth != null
-                      ? `${iipForecast.projectedGrowth >= 0 ? "+" : ""}${iipForecast.projectedGrowth.toFixed(2)}%`
-                      : "—",
-                },
-              ]}
-            >
-              <ForecastChart
-                  data={iipForecast.forecastLine as Record<string, unknown>[]}
-                  xKey="periodLabel"
-                  actualKey="index"
-                  forecastKey="index"
-                  actualName="IIP index (actual)"
-                  forecastName="IIP index (projected)"
-                  historyLength={iipForecast.history?.length ?? 0}
-                  height={280}
-                  historyColor="hsl(217 91% 60%)"
-                  forecastColor="hsl(187 92% 50%)"
-                />
-            </PredictionCard>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              {categoryConfig?.displayName} {selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : aiForecastData?.nextYear || iipForecast?.nextYear ? `(${aiForecastData?.nextYear || iipForecast?.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {aiForecastData?.projectedIndex != null && Number.isFinite(aiForecastData.projectedIndex)
+                ? aiForecastData.projectedIndex.toFixed(1)
+                : iipForecast?.projectedIndex != null && Number.isFinite(iipForecast.projectedIndex)
+                  ? iipForecast.projectedIndex.toFixed(1)
+                  : latest?.index != null
+                    ? latest.index.toFixed(1)
+                    : "—"}
+            </div>
           </motion.div>
-        )}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Growth {selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : aiForecastData?.nextYear || iipForecast?.nextYear ? `(${aiForecastData?.nextYear || iipForecast?.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {aiForecastData?.projectedGrowthRate != null && Number.isFinite(aiForecastData.projectedGrowthRate)
+                ? `${aiForecastData.projectedGrowthRate >= 0 ? "+" : ""}${aiForecastData.projectedGrowthRate.toFixed(2)}%`
+                : iipForecast?.projectedGrowth != null && Number.isFinite(iipForecast.projectedGrowth)
+                  ? `${iipForecast.projectedGrowth >= 0 ? "+" : ""}${iipForecast.projectedGrowth.toFixed(2)}%`
+                  : latest?.growthRate != null
+                    ? `${latest.growthRate >= 0 ? "+" : ""}${latest.growthRate.toFixed(2)}%`
+                    : "—"}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Mining {selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : iipForecast?.nextYear ? `(${iipForecast.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {latestSectoral?.Mining != null ? (latestSectoral.Mining as number).toFixed(1) : "—"}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="glass-card p-4 border-orange-500/30 bg-orange-950/10"
+          >
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Manufacturing {selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : iipForecast?.nextYear ? `(${iipForecast.nextYear})` : "(Projected)"}
+            </div>
+            <div className="font-mono font-bold mt-1 text-orange-400">
+              {latestSectoral?.Manufacturing != null ? (latestSectoral.Manufacturing as number).toFixed(1) : "—"}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
-      <div className="glass-card p-4">
-        <p className="text-xs text-muted-foreground font-mono">
-          Annual records: {annualRaw?.length ?? "—"} · Monthly records: {monthlyRaw?.length ?? "—"} · Filtered:{" "}
-          {filteredRows.length} · Base Year: 2011-12
-        </p>
-      </div>
+      {/* Prediction Charts - Only in predictions mode */}
+      {viewMode === "predictions" && (aiForecastData || iipForecast) && (aiForecastData?.forecastLine || iipForecast?.forecastLine) && (aiForecastData?.forecastLine?.length ?? iipForecast?.forecastLine?.length ?? 0) > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="glass-card p-5 border-orange-500/30 bg-orange-950/10"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground">
+              IIP Index Forecast — {categoryConfig?.displayName}
+            </h3>
+            <div className="flex gap-4 text-xs">
+              <div>
+                <div className="text-muted-foreground">Year</div>
+                <div className="font-mono font-bold text-foreground">
+                  {selectedYear && selectedYear !== "ALL" ? selectedYear : aiForecastData?.nextYear || iipForecast?.nextYear || "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Projected</div>
+                <div className="font-mono font-bold text-orange-400">
+                  {aiForecastData?.projectedIndex != null ? aiForecastData.projectedIndex.toFixed(1) : iipForecast?.projectedIndex != null ? iipForecast.projectedIndex.toFixed(1) : "—"}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="h-48">
+            {(() => {
+              const forecastData = aiForecastData || iipForecast;
+              if (!forecastData || !forecastData.forecastLine) return null;
+              
+              // Filter to show only future forecast data (no historical data in predictions mode)
+              const historyLength = forecastData.history?.length ?? 0;
+              let forecastOnlyData = (forecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
+              
+              // If a specific year is selected, filter to show up to that year (and a bit beyond for context)
+              if (selectedYear && selectedYear !== "ALL") {
+                const yearMatch = selectedYear.match(/^(\d{4})/);
+                if (yearMatch) {
+                  const targetYear = parseInt(yearMatch[1], 10);
+                  // Show forecasts up to the selected year + 2 years for context
+                  // This ensures the selected year is always visible in the chart
+                  forecastOnlyData = forecastOnlyData.filter((d) => {
+                    let year: number;
+                    if (typeof d.x === 'number') {
+                      year = d.x;
+                    } else if (typeof d.x === 'string') {
+                      // Handle fiscal year format like "2024-25"
+                      const yearMatch = d.x.match(/^(\d{4})/);
+                      year = yearMatch ? parseInt(yearMatch[1], 10) : parseInt(d.x, 10);
+                    } else {
+                      year = parseInt(String(d.x), 10);
+                    }
+                    return !isNaN(year) && year <= targetYear + 2;
+                  });
+                }
+              }
+              
+              const tooltipStyle = {
+                backgroundColor: "hsl(222 44% 9%)",
+                border: "1px solid hsl(222 30% 22%)",
+                borderRadius: "8px",
+                fontFamily: "JetBrains Mono",
+                fontSize: "12px",
+              };
+              
+              return forecastOnlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%" key={selectedYear}>
+                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                    <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
+                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="index"
+                      name="IIP index (projected)"
+                      stroke="hsl(38 92% 50%)"
+                      strokeWidth={3}
+                      dot={{ fill: "hsl(38 92% 50%)", r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No forecast data available
+                </div>
+              );
+            })()}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Sectors affected — Only in predictions mode */}
+      {viewMode === "predictions" && categoryConfig && categoryImpact.sectorsAffected.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="space-y-4 rounded-xl border border-orange-500/30 bg-orange-950/10 p-6"
+        >
+          <h3 className="text-lg font-semibold text-foreground">Sectors affected</h3>
+          <p className="text-sm text-muted-foreground">
+            Industries most impacted by {categoryConfig.displayName}. Click a card for impact and solutions.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {categoryImpact.sectorsAffected.map((sectorName, index) => (
+              <motion.button
+                key={sectorName}
+                type="button"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 * index }}
+                onClick={() => setIipSectorForModal(sectorName)}
+                className="w-full flex items-center gap-3 p-4 text-left rounded-xl border border-border/60 bg-card/50 hover:bg-muted/30 hover:border-border/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-border/50 focus:ring-offset-2 focus:ring-offset-background"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <span className="font-medium text-foreground truncate">{sectorName}</span>
+                  <span
+                    className={cn(
+                      "text-xs font-medium w-fit rounded-full px-2 py-0.5",
+                      iipImpactStatus.variant === "negative" &&
+                        "bg-destructive/15 text-destructive border border-destructive/30",
+                      iipImpactStatus.variant === "positive" &&
+                        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
+                      iipImpactStatus.variant === "neutral" &&
+                        "bg-muted text-muted-foreground border border-border"
+                    )}
+                  >
+                    {iipImpactStatus.label}
+                  </span>
+                  {iipForecast && (
+                    <span className="text-xs text-muted-foreground">
+                      Projected status: {iipForecast.projectedGrowth != null && iipForecast.projectedGrowth < 0 ? "pressure" : "stable"}
+                    </span>
+                  )}
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </motion.section>
+      )}
+
+      {/* AI-Powered Forecast Card - Only in predictions mode */}
+      {viewMode === "predictions" && iipForecast && iipForecast.forecastLine && iipForecast.forecastLine.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <PredictionCard
+            title={`AI-Powered Forecast for ${categoryConfig?.displayName || "IIP"}${selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : iipForecast.nextYear ? ` (${iipForecast.nextYear})` : ""}`}
+            status={
+              iipForecast.projectedGrowth != null && iipForecast.projectedGrowth < 0
+                ? "pressure"
+                : "stable"
+            }
+            className="border-orange-500/30 bg-orange-950/10"
+            metrics={[
+              {
+                label: `Projected index${selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : iipForecast.nextYear ? ` (${iipForecast.nextYear})` : ""}`,
+                value:
+                  iipForecast.projectedIndex != null && Number.isFinite(iipForecast.projectedIndex)
+                    ? iipForecast.projectedIndex.toFixed(1)
+                    : latest?.index != null
+                      ? latest.index.toFixed(1)
+                      : "—",
+              },
+              {
+                label: `Projected growth${selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : iipForecast.nextYear ? ` (${iipForecast.nextYear})` : ""}`,
+                value:
+                  iipForecast.projectedGrowth != null && Number.isFinite(iipForecast.projectedGrowth)
+                    ? `${iipForecast.projectedGrowth >= 0 ? "+" : ""}${iipForecast.projectedGrowth.toFixed(2)}%`
+                    : latest?.growthRate != null
+                      ? `${latest.growthRate >= 0 ? "+" : ""}${latest.growthRate.toFixed(2)}%`
+                      : "—",
+              },
+            ]}
+          >
+            {(() => {
+              // Filter to show only future forecast data (no historical data in predictions mode)
+              const historyLength = iipForecast.history?.length ?? 0;
+              const forecastOnlyData = (iipForecast.forecastLine as Record<string, unknown>[]).slice(historyLength);
+              const tooltipStyle = {
+                backgroundColor: "hsl(222 44% 9%)",
+                border: "1px solid hsl(222 30% 22%)",
+                borderRadius: "8px",
+                fontFamily: "JetBrains Mono",
+                fontSize: "12px",
+              };
+              
+              return forecastOnlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%" key={selectedYear}>
+                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                    <XAxis dataKey="periodLabel" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
+                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="index"
+                      name="IIP index (projected)"
+                      stroke="hsl(187 92% 50%)"
+                      strokeWidth={3}
+                      dot={{ fill: "hsl(187 92% 50%)", r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No forecast data available
+                </div>
+              );
+            })()}
+          </PredictionCard>
+        </motion.div>
+      )}
+
+      {/* AI Forecast Details Modal */}
+      <Dialog open={showAIDetailsModal} onOpenChange={setShowAIDetailsModal}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden rounded-xl border border-border/50 bg-background shadow-xl p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold text-foreground">
+                  IIP Forecast Intelligence
+                </DialogTitle>
+                <div className="text-sm text-muted-foreground mt-0.5">{categoryConfig?.displayName}</div>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="overflow-y-auto max-h-[calc(90vh-100px)] px-6 py-5 space-y-4">
+            {iipForecast && (
+              <>
+                <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Info className="h-4 w-4 text-orange-500" />
+                    <h3 className="text-base font-semibold text-foreground">Forecast Summary</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                      <div className="text-xs text-muted-foreground mb-1">Current Index</div>
+                      <div className="font-mono font-bold text-orange-500">
+                        {iipForecast.currentIndex != null ? iipForecast.currentIndex.toFixed(1) : "—"}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                      <div className="text-xs text-muted-foreground mb-1">Projected Index</div>
+                      <div className="font-mono font-bold text-orange-500">
+                        {iipForecast.projectedIndex != null ? iipForecast.projectedIndex.toFixed(1) : "—"}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                      <div className="text-xs text-muted-foreground mb-1">Projected Growth</div>
+                      <div className="font-mono font-bold text-foreground">
+                        {iipForecast.projectedGrowth != null ? `${iipForecast.projectedGrowth >= 0 ? "+" : ""}${iipForecast.projectedGrowth.toFixed(2)}%` : "—"}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                      <div className="text-xs text-muted-foreground mb-1">Avg Monthly Growth</div>
+                      <div className="font-mono font-bold text-foreground">
+                        {iipForecast.avgMonthlyGrowth != null ? `${iipForecast.avgMonthlyGrowth >= 0 ? "+" : ""}${iipForecast.avgMonthlyGrowth.toFixed(2)}%` : "—"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            {iipOutlookContext && (
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="h-4 w-4 text-orange-500" />
+                  <h3 className="text-base font-semibold text-foreground">Intelligence Briefing</h3>
+                </div>
+                <IipIntelligenceBriefing sectorName={categoryConfig?.displayName || ""} context={iipOutlookContext} />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {viewMode === "history" && (
+        <div className="glass-card p-4">
+          <p className="text-xs text-muted-foreground font-mono">
+            Annual records: {annualRaw?.length ?? "—"} · Monthly records: {monthlyRaw?.length ?? "—"} · Filtered:{" "}
+            {filteredRows.length} · Base Year: 2011-12
+          </p>
+        </div>
+      )}
     </div>
   );
 };

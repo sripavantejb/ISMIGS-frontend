@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, useParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Building2 } from "lucide-react";
+import { Building2, Loader2, AlertCircle, Info, TrendingUp, AlertTriangle, Lightbulb, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { commodityNameToSlug, resolveCommodityFromSlug } from "@/utils/energySlug";
 import { EnergyCommodityHero } from "@/components/EnergyCommodityHero";
@@ -38,7 +38,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { useEnergyPredictions } from "@/hooks/useEnergyPredictions";
 
 const tooltipStyle = {
   backgroundColor: "hsl(222 44% 9%)",
@@ -67,6 +69,10 @@ const EnergyAnalytics = () => {
   const [pendingYear, setPendingYear] = useState("ALL");
   const [pendingSector, setPendingSector] = useState("ALL");
   const [energySectorForModal, setEnergySectorForModal] = useState<string | null>(null);
+  const [showAIDetailsModal, setShowAIDetailsModal] = useState(false);
+  const [viewMode, setViewMode] = useState<"history" | "predictions">("history");
+  
+  const { loading: predictionsLoading, error: predictionsError, predictions, generatePredictions } = useEnergyPredictions();
 
   const { data: supplyKToe, isLoading: loadingSupply } = useSupplyKToE();
   const { data: consumptionKToe, isLoading: loadingCons } = useConsumptionKToE();
@@ -271,11 +277,22 @@ const EnergyAnalytics = () => {
   }, [filteredSupplyPj]);
 
   const yearsOptions = useMemo(() => {
-    const set = new Set<string>();
-    supplyRows.forEach((r) => r.year && set.add(r.year));
-    consRows.forEach((r) => r.year && set.add(r.year));
-    return ["ALL", ...Array.from(set).sort()];
-  }, [supplyRows, consRows]);
+    if (viewMode === "predictions") {
+      // For predictions mode, show future years (next 10 years)
+      const currentYear = new Date().getFullYear();
+      const futureYears: string[] = [];
+      for (let i = 1; i <= 10; i++) {
+        futureYears.push(`${currentYear + i}-${String((currentYear + i + 1) % 100).padStart(2, "0")}`);
+      }
+      return ["ALL", ...futureYears];
+    } else {
+      // For history mode, show historical years
+      const set = new Set<string>();
+      supplyRows.forEach((r) => r.year && set.add(r.year));
+      consRows.forEach((r) => r.year && set.add(r.year));
+      return ["ALL", ...Array.from(set).sort()];
+    }
+  }, [supplyRows, consRows, viewMode]);
 
   const sectorOptions = useMemo(() => {
     const set = new Set<string>();
@@ -295,6 +312,143 @@ const EnergyAnalytics = () => {
     setSelectedSector("ALL");
   };
 
+  // Prepare historical data for AI predictions
+  const historicalDataForAI = useMemo(() => {
+    if (!selectedCommodity || !analysis.byYear || analysis.byYear.length === 0) return null;
+    
+    const supplyData = analysis.byYear.map((d) => ({
+      year: parseInt(d.fiscalYear.split("-")[0]) || 0,
+      value: d.supply,
+    }));
+    const consumptionData = analysis.byYear.map((d) => ({
+      year: parseInt(d.fiscalYear.split("-")[0]) || 0,
+      value: d.consumption,
+    }));
+
+    return {
+      commodityName: selectedCommodity,
+      historicalSupply: supplyData,
+      historicalConsumption: consumptionData,
+      currentRatio: analysis.latest?.ratio,
+      supplyTrend,
+      consumptionLevel: consumptionTotal > 0 ? `${Math.round(consumptionTotal).toLocaleString("en-IN")} KToE` : undefined,
+      // Always pass selectedYear in predictions mode, even if "ALL" (AI will generate for next year)
+      // In history mode, this won't be used anyway
+      selectedYear: viewMode === "predictions" ? (selectedYear !== "ALL" ? selectedYear : undefined) : undefined,
+      selectedSector: selectedSector !== "ALL" ? selectedSector : undefined,
+      productionTotal,
+      importsTotal,
+      exportsTotal,
+      consumptionTotal,
+      sectorTotals,
+    };
+  }, [selectedCommodity, analysis, supplyTrend, consumptionTotal, selectedYear, selectedSector, productionTotal, importsTotal, exportsTotal, sectorTotals, viewMode]);
+
+  // Generate predictions when switching to predictions mode or when filters change
+  useEffect(() => {
+    if (viewMode === "predictions" && historicalDataForAI && !predictionsLoading) {
+      // Generate predictions if we don't have any, or if historical data changed (filters changed)
+      const dataKey = JSON.stringify({
+        year: selectedYear,
+        sector: selectedSector,
+        commodity: selectedCommodity,
+      });
+      const lastDataKey = sessionStorage.getItem('last-prediction-data-key');
+      
+      // Only regenerate if the data key actually changed
+      if (lastDataKey !== dataKey) {
+        sessionStorage.setItem('last-prediction-data-key', dataKey);
+        generatePredictions(historicalDataForAI);
+      }
+    } else if (viewMode === "history") {
+      // Clear prediction cache when switching back to history
+      sessionStorage.removeItem('last-prediction-data-key');
+    }
+  }, [viewMode, selectedYear, selectedSector, selectedCommodity, historicalDataForAI, predictionsLoading, generatePredictions]);
+
+  // Prepare AI forecast data for charts
+  const aiForecastData = useMemo(() => {
+    // In predictions mode, try to use predictions, but fallback to commodityForecast if needed
+    if (viewMode === "predictions") {
+      // If we have predictions, use them
+      if (predictions && predictions.forecasts && predictions.forecasts.years && predictions.forecasts.years.length > 0) {
+        const history = analysis.byYear && analysis.byYear.length > 0 ? analysis.byYear.map((d) => ({
+          x: d.fiscalYear,
+          supply: d.supply,
+          consumption: d.consumption,
+        })) : [];
+
+        const future = predictions.forecasts.years.map((year, idx) => ({
+          x: `${year}-${String((year + 1) % 100).padStart(2, "0")}`,
+          supply: predictions.forecasts.supply[idx] != null ? predictions.forecasts.supply[idx] : 0,
+          consumption: predictions.forecasts.consumption[idx] != null ? predictions.forecasts.consumption[idx] : 0,
+        }));
+
+        // Find data for selected year if a specific year is selected
+        let targetYearIndex = 0;
+        let targetYear: number | null = null;
+        
+        if (selectedYear && selectedYear !== "ALL") {
+          const yearMatch = selectedYear.match(/^(\d{4})/);
+          if (yearMatch) {
+            targetYear = parseInt(yearMatch[1], 10);
+            const foundIndex = predictions.forecasts.years.findIndex(y => y === targetYear);
+            if (foundIndex >= 0) {
+              targetYearIndex = foundIndex;
+            } else {
+              const closestIndex = predictions.forecasts.years.reduce((closest, year, idx) => {
+                const currentDiff = Math.abs(year - targetYear!);
+                const closestDiff = Math.abs(predictions.forecasts.years[closest] - targetYear!);
+                return currentDiff < closestDiff ? idx : closest;
+              }, 0);
+              targetYearIndex = closestIndex;
+              targetYear = predictions.forecasts.years[closestIndex];
+            }
+          }
+        }
+
+        const nextYear = targetYear || predictions.forecasts.years[0] || null;
+        const projectedSupply = predictions.forecasts.supply[targetYearIndex] != null ? predictions.forecasts.supply[targetYearIndex] : 0;
+        const projectedConsumption = predictions.forecasts.consumption[targetYearIndex] != null ? predictions.forecasts.consumption[targetYearIndex] : 0;
+        const projectedRatio = projectedConsumption > 0 ? projectedSupply / projectedConsumption : null;
+
+        let status: "pressure" | "surplus" | "stable" = "stable";
+        if (projectedRatio != null) {
+          if (projectedRatio < 0.95) {
+            status = "pressure";
+          } else if (projectedRatio > 1.05) {
+            status = "surplus";
+          }
+        }
+
+        return {
+          history,
+          forecastLine: [...history, ...future],
+          nextYear,
+          projectedSupply,
+          projectedConsumption,
+          projectedRatio,
+          status,
+        };
+      }
+      
+      // Fallback to commodityForecast if predictions not available
+      if (commodityForecast && commodityForecast.forecastLine && commodityForecast.forecastLine.length > 0) {
+        return {
+          history: commodityForecast.history || [],
+          forecastLine: commodityForecast.forecastLine,
+          nextYear: commodityForecast.nextYear,
+          projectedSupply: commodityForecast.projectedSupply,
+          projectedConsumption: commodityForecast.projectedConsumption,
+          projectedRatio: commodityForecast.projectedRatio,
+          status: commodityForecast.status,
+        };
+      }
+    }
+    
+    return null;
+  }, [predictions, analysis.byYear, viewMode, selectedYear, commodityForecast]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen p-6 space-y-6">
@@ -313,7 +467,45 @@ const EnergyAnalytics = () => {
   }
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
+    <div className={`min-h-screen p-6 space-y-6 ${viewMode === "predictions" ? "bg-gradient-to-br from-orange-950/20 via-background to-orange-900/10" : ""}`}>
+      {/* Toggle in top-right header area (fixed position, aligned with header) */}
+      {selectedCommodity && (
+        <div className="fixed top-4 right-6 z-50 flex items-center justify-end">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-2 rounded-lg border border-border/30 bg-card/90 backdrop-blur-sm shadow-lg p-1"
+          >
+            <motion.button
+              onClick={() => setViewMode("history")}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={cn(
+                "px-4 py-2 text-xs font-medium rounded-md transition-all duration-200",
+                viewMode === "history"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              Past History
+            </motion.button>
+            <motion.button
+              onClick={() => setViewMode("predictions")}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={cn(
+                "px-4 py-2 text-xs font-medium rounded-md transition-all duration-200",
+                viewMode === "predictions"
+                  ? "bg-orange-500 text-white font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              Predictions
+            </motion.button>
+          </motion.div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Energy Analytics</h1>
@@ -363,15 +555,64 @@ const EnergyAnalytics = () => {
             <span className="font-medium text-foreground">{selectedCommodity}</span>
           </nav>
 
-          {/* Energy Intelligence Briefing: auto-generated, no button; shown first */}
-          {selectedCommodity && outlookContext && (
+
+          {/* Energy Intelligence Briefing: shown above filters in predictions mode */}
+          {viewMode === "predictions" && selectedCommodity && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className="rounded-xl border border-border/60 bg-card/30 p-5"
+              className="rounded-xl border border-orange-500/30 bg-gradient-to-br from-orange-950/20 via-orange-900/10 to-orange-950/20 p-6 mb-6 shadow-lg backdrop-blur-sm"
             >
-              <EnergyIntelligenceBriefing sectorName={selectedCommodity} context={outlookContext} />
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Energy Intelligence</h3>
+                    <p className="text-xs text-muted-foreground">AI-powered insights and forecasts</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAIDetailsModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 transition-all duration-200 hover:scale-105 font-medium text-sm"
+                >
+                  Know More
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+                {predictionsLoading ? (
+                  <p>Generating AI insights...</p>
+                ) : predictions ? (
+                  <>
+                    {predictions.narrative && (
+                      <div>
+                        <p className="font-medium text-foreground mb-1">Forecast Summary:</p>
+                        <p className="line-clamp-2">{predictions.narrative}</p>
+                      </div>
+                    )}
+                    {predictions.riskFactors && predictions.riskFactors.length > 0 && (
+                      <div>
+                        <p className="font-medium text-foreground mb-1">Key Risks ({predictions.riskFactors.length}):</p>
+                        <p className="line-clamp-1">{predictions.riskFactors.slice(0, 2).join(" • ")}</p>
+                      </div>
+                    )}
+                    {predictions.recommendations && predictions.recommendations.length > 0 && (
+                      <div>
+                        <p className="font-medium text-foreground mb-1">Recommendations ({predictions.recommendations.length}):</p>
+                        <p className="line-clamp-1">{predictions.recommendations.slice(0, 2).join(" • ")}</p>
+                      </div>
+                    )}
+                    {!predictions.narrative && !predictions.riskFactors && !predictions.recommendations && (
+                      <p>AI-powered insights and forecasts for {selectedCommodity}. Click "Know More" for detailed analysis.</p>
+                    )}
+                  </>
+                ) : (
+                  <p>AI-powered insights and forecasts for {selectedCommodity}. Click "Know More" for detailed analysis.</p>
+                )}
+              </div>
             </motion.div>
           )}
 
@@ -396,7 +637,30 @@ const EnergyAnalytics = () => {
             ]}
             onApply={handleApply}
             onReset={handleReset}
+            applyButtonClassName={viewMode === "predictions" ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-500/30" : ""}
           />
+
+          {/* Predictions Loading Indicator */}
+          {viewMode === "predictions" && predictionsLoading && (
+            <Alert>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <AlertDescription className="text-sm">
+                Generating AI predictions for all metrics...
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Predictions Error Alert */}
+          {viewMode === "predictions" && predictionsError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                {predictionsError.startsWith("OpenAI API key") || predictionsError.startsWith("Energy predictions are not configured")
+                  ? predictionsError
+                  : `Failed to generate predictions: ${predictionsError}`}
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Back to list */}
           <div className="flex items-center gap-2">
@@ -426,6 +690,7 @@ const EnergyAnalytics = () => {
           )}
 
           {/* Production & Consumption KPIs */}
+          {viewMode === "history" ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -471,13 +736,93 @@ const EnergyAnalytics = () => {
               </div>
             </motion.div>
           </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`glass-card p-4 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
+              >
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Production {aiForecastData?.nextYear ? `(${aiForecastData.nextYear})` : selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : commodityForecast?.nextYear ? `(${commodityForecast.nextYear})` : "(Projected)"}
+                </div>
+                <div className={`font-mono font-bold mt-1 ${viewMode === "predictions" ? "text-orange-400" : "text-foreground"}`}>
+                  {predictions?.kpis?.production != null && Number.isFinite(predictions.kpis.production)
+                    ? Math.round(predictions.kpis.production).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                    : aiForecastData?.projectedSupply != null && Number.isFinite(aiForecastData.projectedSupply)
+                      ? Math.round(aiForecastData.projectedSupply).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                      : commodityForecast?.projectedSupply != null && Number.isFinite(commodityForecast.projectedSupply)
+                        ? Math.round(commodityForecast.projectedSupply).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                        : productionTotal != null && Number.isFinite(productionTotal)
+                          ? Math.round(productionTotal).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                          : "—"} KToE
+                </div>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className={`glass-card p-4 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
+              >
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Imports {aiForecastData?.nextYear ? `(${aiForecastData.nextYear})` : selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : commodityForecast?.nextYear ? `(${commodityForecast.nextYear})` : "(Projected)"}
+                </div>
+                <div className={`font-mono font-bold mt-1 ${viewMode === "predictions" ? "text-orange-400" : "text-foreground"}`}>
+                  {predictions?.kpis?.imports != null && Number.isFinite(predictions.kpis.imports)
+                    ? Math.round(predictions.kpis.imports).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                    : importsTotal != null && Number.isFinite(importsTotal)
+                      ? Math.round(importsTotal).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                      : "—"} KToE
+                </div>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className={`glass-card p-4 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
+              >
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Exports {aiForecastData?.nextYear ? `(${aiForecastData.nextYear})` : selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : commodityForecast?.nextYear ? `(${commodityForecast.nextYear})` : "(Projected)"}
+                </div>
+                <div className={`font-mono font-bold mt-1 ${viewMode === "predictions" ? "text-orange-400" : "text-foreground"}`}>
+                  {predictions?.kpis?.exports != null && Number.isFinite(predictions.kpis.exports)
+                    ? Math.round(predictions.kpis.exports).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                    : exportsTotal != null && Number.isFinite(exportsTotal)
+                      ? Math.round(exportsTotal).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                      : "—"} KToE
+                </div>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className={`glass-card p-4 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
+              >
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Consumption {aiForecastData?.nextYear ? `(${aiForecastData.nextYear})` : selectedYear && selectedYear !== "ALL" ? `(${selectedYear})` : commodityForecast?.nextYear ? `(${commodityForecast.nextYear})` : "(Projected)"}
+                </div>
+                <div className={`font-mono font-bold mt-1 ${viewMode === "predictions" ? "text-orange-400" : "text-foreground"}`}>
+                  {predictions?.kpis?.consumption != null && Number.isFinite(predictions.kpis.consumption)
+                    ? Math.round(predictions.kpis.consumption).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                    : aiForecastData?.projectedConsumption != null && Number.isFinite(aiForecastData.projectedConsumption)
+                      ? Math.round(aiForecastData.projectedConsumption).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                      : commodityForecast?.projectedConsumption != null && Number.isFinite(commodityForecast.projectedConsumption)
+                        ? Math.round(commodityForecast.projectedConsumption).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                        : consumptionTotal != null && Number.isFinite(consumptionTotal)
+                          ? Math.round(consumptionTotal).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+                          : "—"} KToE
+                </div>
+              </motion.div>
+            </div>
+          )}
 
           {/* Analytics: Supply vs Consumption by year */}
+          {viewMode === "history" ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass-card p-5"
+            className={`glass-card p-5 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
           >
             <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-4">
               Supply vs Consumption (KToE) — {selectedCommodity}
@@ -525,14 +870,115 @@ const EnergyAnalytics = () => {
               </ResponsiveContainer>
             </div>
           </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className={`glass-card p-5 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Supply vs Consumption Forecast — {selectedCommodity}
+                </h3>
+                <div className="flex gap-4 text-xs">
+                  <div>
+                    <div className="text-muted-foreground">Year</div>
+                    <div className="font-mono font-bold text-foreground">
+                      {selectedYear && selectedYear !== "ALL" 
+                        ? selectedYear 
+                        : aiForecastData?.nextYear 
+                          ? `${aiForecastData.nextYear}-${String((aiForecastData.nextYear + 1) % 100).padStart(2, "0")}` 
+                          : "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Ratio</div>
+                    <div className="font-mono font-bold text-orange-400">
+                      {aiForecastData?.projectedRatio != null ? aiForecastData.projectedRatio.toFixed(2) : "—"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="h-48">
+                {aiForecastData && aiForecastData.forecastLine && aiForecastData.forecastLine.length > 0 ? (() => {
+                  // Filter forecast data by selected year if a specific year is selected
+                  // In predictions mode, we should only show future data (no historical data)
+                  const historyLength = aiForecastData.history?.length ?? 0;
+                  let forecastOnlyData = (aiForecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
+                  
+                  // Filter by selected year if a specific year is selected
+                  if (selectedYear && selectedYear !== "ALL") {
+                    const yearMatch = selectedYear.match(/^(\d{4})/);
+                    if (yearMatch) {
+                      const targetYear = parseInt(yearMatch[1], 10);
+                      // Filter to show data up to the selected year + 2 years for context
+                      forecastOnlyData = forecastOnlyData.filter((item) => {
+                        if (typeof item.x === 'string') {
+                          const itemYear = parseInt(item.x.split('-')[0]);
+                          return itemYear <= targetYear + 2;
+                        } else if (typeof item.x === 'number') {
+                          return item.x <= targetYear + 2;
+                        }
+                        return false;
+                      });
+                    }
+                  }
+                  
+                  return forecastOnlyData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%" key={selectedYear}>
+                      <LineChart data={forecastOnlyData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                        <XAxis
+                          dataKey="x"
+                          stroke="hsl(215 20% 55%)"
+                          fontSize={10}
+                          fontFamily="JetBrains Mono"
+                          hide={true}
+                        />
+                        <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
+                        <Tooltip contentStyle={tooltipStyle} />
+                        <Legend />
+                        {/* Show future forecast data (prominent, orange theme) */}
+                        <Line
+                          type="monotone"
+                          dataKey="supply"
+                          stroke="hsl(25 95% 53%)"
+                          strokeWidth={3}
+                          name="Supply (Forecast)"
+                          dot={{ fill: "hsl(25 95% 53%)", r: 5 }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="consumption"
+                          stroke="hsl(38 92% 55%)"
+                          strokeWidth={3}
+                          name="Consumption (Forecast)"
+                          dot={{ fill: "hsl(38 92% 55%)", r: 5 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      No forecast data available for selected year
+                    </div>
+                  );
+                })() : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    {predictionsLoading ? "Generating forecast..." : "No forecast data available"}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
 
           {/* Consumption by sector */}
-          {sectorTotals.length > 0 && (
+          {viewMode === "history" && sectorTotals.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
-              className="glass-card p-5"
+              className={`glass-card p-5 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
             >
               <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-4">
                 Consumption by End-use Sector (KToE) — {selectedCommodity}
@@ -565,19 +1011,19 @@ const EnergyAnalytics = () => {
           )}
 
           {/* Sectors affected — cards + popup (data-driven sectors, status from forecast) */}
-          {sectorsAffected.length > 0 && (
+          {((viewMode === "history" && sectorsAffected.length > 0) || (viewMode === "predictions" && predictions?.sectorConsumption && predictions.sectorConsumption.length > 0)) && (
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="space-y-4"
+              className={`space-y-4 ${viewMode === "predictions" ? "rounded-xl border border-orange-500/30 bg-orange-950/10 p-6" : ""}`}
             >
               <h3 className="text-lg font-semibold text-foreground">Sectors affected</h3>
               <p className="text-sm text-muted-foreground">
                 Industries most impacted by {selectedCommodity}. Click a card for impact and solutions.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sectorsAffected.map((sectorName, index) => (
+                {(viewMode === "history" ? sectorsAffected : predictions?.sectorConsumption?.map(s => s.sector) || []).map((sectorName, index) => (
                   <motion.button
                     key={sectorName}
                     type="button"
@@ -585,7 +1031,7 @@ const EnergyAnalytics = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.05 * index }}
                     onClick={() => setEnergySectorForModal(sectorName)}
-                    className="w-full flex items-center gap-3 p-4 text-left rounded-xl border border-border/60 bg-card/50 hover:bg-muted/30 hover:border-primary/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+                    className="w-full flex items-center gap-3 p-4 text-left rounded-xl border border-border/60 bg-card/50 hover:bg-muted/30 hover:border-border/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-border/50 focus:ring-offset-2 focus:ring-offset-background"
                   >
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
                       <Building2 className="h-4 w-4" />
@@ -595,19 +1041,26 @@ const EnergyAnalytics = () => {
                       <span
                         className={cn(
                           "text-xs font-medium w-fit rounded-full px-2 py-0.5",
-                          energyImpactStatus.variant === "negative" &&
+                          (viewMode === "predictions" ? aiForecastData?.status : commodityForecast?.status) === "pressure" &&
                             "bg-destructive/15 text-destructive border border-destructive/30",
-                          energyImpactStatus.variant === "positive" &&
+                          (viewMode === "predictions" ? aiForecastData?.status : commodityForecast?.status) === "surplus" &&
                             "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
-                          energyImpactStatus.variant === "neutral" &&
+                          (viewMode === "predictions" ? aiForecastData?.status : commodityForecast?.status) === "stable" &&
                             "bg-muted text-muted-foreground border border-border"
                         )}
                       >
-                        {energyImpactStatus.label}
+                        {viewMode === "predictions" 
+                          ? (aiForecastData?.status === "pressure" ? "Negative" : aiForecastData?.status === "surplus" ? "Positive" : "Neutral")
+                          : energyImpactStatus.label}
                       </span>
-                      {commodityForecast && (
+                      {viewMode === "history" && commodityForecast && (
                         <span className="text-xs text-muted-foreground">
                           Supply/consumption: {commodityForecast.status}
+                        </span>
+                      )}
+                      {viewMode === "predictions" && aiForecastData && (
+                        <span className="text-xs text-muted-foreground">
+                          Projected status: {aiForecastData.status}
                         </span>
                       )}
                     </div>
@@ -618,7 +1071,7 @@ const EnergyAnalytics = () => {
           )}
 
           <Dialog open={!!energySectorForModal} onOpenChange={(open) => !open && setEnergySectorForModal(null)}>
-            <DialogContent className="sm:max-w-md rounded-xl border border-border/60 bg-card shadow-xl" aria-describedby={undefined}>
+            <DialogContent className={`sm:max-w-md rounded-xl border shadow-xl ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : "border-border/60 bg-card"}`} aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle className="text-left flex items-center gap-2">
                   {energySectorForModal && (
@@ -637,9 +1090,11 @@ const EnergyAnalytics = () => {
                     <strong>Affected:</strong> Yes — this sector consumes {selectedCommodity}.
                   </p>
                   <p className="text-sm text-foreground">
-                    <strong>Impact:</strong> {energyImpactStatus.label}.
+                    <strong>Impact:</strong> {viewMode === "predictions" 
+                      ? (aiForecastData?.status === "pressure" ? "Negative" : aiForecastData?.status === "surplus" ? "Positive" : "Neutral")
+                      : energyImpactStatus.label}.
                   </p>
-                  {commodityForecast ? (
+                  {viewMode === "history" && commodityForecast ? (
                     <>
                       <p className="text-sm text-foreground">
                         Current outlook: {commodityForecast.status === "pressure" ? "Pressure" : commodityForecast.status === "surplus" ? "Surplus" : "Stable"}.
@@ -651,18 +1106,148 @@ const EnergyAnalytics = () => {
                         )}
                       </p>
                     </>
+                  ) : viewMode === "predictions" && aiForecastData ? (
+                    <>
+                      <p className="text-sm text-foreground">
+                        Projected outlook: {aiForecastData.status === "pressure" ? "Pressure" : aiForecastData.status === "surplus" ? "Surplus" : "Stable"}.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Projected ratio: {aiForecastData.projectedRatio != null ? aiForecastData.projectedRatio.toFixed(2) : "—"}
+                      </p>
+                    </>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Insufficient data for impact direction.
-                    </p>
+                    <>
+                      <p className="text-sm text-foreground">
+                        {viewMode === "predictions" 
+                          ? "Projected outlook: Based on historical trends and AI analysis."
+                          : "Current status: Historical data analysis."}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {viewMode === "predictions" && aiForecastData?.projectedRatio != null
+                          ? `Projected ratio: ${aiForecastData.projectedRatio.toFixed(2)}`
+                          : viewMode === "predictions" && commodityForecast?.projectedRatio != null
+                            ? `Projected ratio: ${commodityForecast.projectedRatio.toFixed(2)}`
+                            : analysis.latest?.ratio != null
+                              ? `Latest ratio: ${analysis.latest.ratio.toFixed(2)}`
+                              : "Data analysis in progress."}
+                      </p>
+                    </>
                   )}
                 </div>
               )}
             </DialogContent>
           </Dialog>
 
-          {/* Prediction */}
-          {commodityForecast && (
+          {/* AI Forecast Details Modal - Simple & Cool Design */}
+          <Dialog open={showAIDetailsModal} onOpenChange={setShowAIDetailsModal}>
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden rounded-xl border border-border/50 bg-background shadow-xl p-0">
+              {/* Simple Header */}
+              <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl font-semibold text-foreground">
+                      AI Forecast Intelligence
+                    </DialogTitle>
+                    <div className="text-sm text-muted-foreground mt-0.5">{selectedCommodity}</div>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              {/* Scrollable Content */}
+              <div className="overflow-y-auto max-h-[calc(90vh-100px)] px-6 py-5 space-y-4">
+                {/* AI Forecast Analysis - Simple Card */}
+                {predictions?.narrative && (
+                  <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingUp className="h-4 w-4 text-orange-500" />
+                      <h3 className="text-base font-semibold text-foreground">Forecast Analysis</h3>
+                    </div>
+                    <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                      {predictions.narrative}
+                    </p>
+                  </div>
+                )}
+
+                {/* Key Risk Factors - Simple Card */}
+                {predictions?.riskFactors && predictions.riskFactors.length > 0 && (
+                  <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                      <h3 className="text-base font-semibold text-foreground">Key Risk Factors</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {predictions.riskFactors.map((risk, index) => (
+                        <div key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
+                          <span className="text-orange-500 mt-1 shrink-0">•</span>
+                          <span className="flex-1">{risk}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actionable Recommendations - Simple Card */}
+                {predictions?.recommendations && predictions.recommendations.length > 0 && (
+                  <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Lightbulb className="h-4 w-4 text-orange-500" />
+                      <h3 className="text-base font-semibold text-foreground">Actionable Recommendations</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {predictions.recommendations.map((recommendation, index) => (
+                        <div key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
+                          <span className="text-orange-500 mt-1 shrink-0">→</span>
+                          <span className="flex-1">{recommendation}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Forecast Summary - Simple Stats Grid */}
+                {aiForecastData && (
+                  <div className="rounded-lg border border-border/50 bg-card/50 p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Info className="h-4 w-4 text-orange-500" />
+                      <h3 className="text-base font-semibold text-foreground">Forecast Summary</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                        <div className="text-xs text-muted-foreground mb-1">Projected Year</div>
+                        <div className="font-mono font-bold text-orange-500">
+                          {aiForecastData.nextYear ? `${aiForecastData.nextYear}-${String((aiForecastData.nextYear + 1) % 100).padStart(2, "0")}` : "—"}
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                        <div className="text-xs text-muted-foreground mb-1">Projected Ratio</div>
+                        <div className="font-mono font-bold text-orange-500">
+                          {aiForecastData.projectedRatio != null ? aiForecastData.projectedRatio.toFixed(2) : "—"}
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                        <div className="text-xs text-muted-foreground mb-1">Projected Supply</div>
+                        <div className="font-mono font-bold text-foreground">
+                          {aiForecastData.projectedSupply != null ? `${Math.round(aiForecastData.projectedSupply).toLocaleString("en-IN")} KToE` : "—"}
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                        <div className="text-xs text-muted-foreground mb-1">Projected Consumption</div>
+                        <div className="font-mono font-bold text-foreground">
+                          {aiForecastData.projectedConsumption != null ? `${Math.round(aiForecastData.projectedConsumption).toLocaleString("en-IN")} KToE` : "—"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Prediction / Forecast */}
+          {viewMode === "history" && commodityForecast && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -679,32 +1264,32 @@ const EnergyAnalytics = () => {
                 }
                 metrics={[
                   {
-                    label: `Projected supply (${commodityForecast.nextYear})`,
+                    label: analysis.latest ? `Latest supply (${analysis.latest.fiscalYear})` : "Latest supply",
                     value:
-                      commodityForecast.projectedSupply != null &&
-                      Number.isFinite(commodityForecast.projectedSupply)
-                        ? Math.round(commodityForecast.projectedSupply).toLocaleString("en-IN")
+                      analysis.latest?.supply != null &&
+                      Number.isFinite(analysis.latest.supply)
+                        ? Math.round(analysis.latest.supply).toLocaleString("en-IN")
                         : "—",
                   },
                   {
-                    label: `Projected consumption (${commodityForecast.nextYear})`,
+                    label: analysis.latest ? `Latest consumption (${analysis.latest.fiscalYear})` : "Latest consumption",
                     value:
-                      commodityForecast.projectedConsumption != null &&
-                      Number.isFinite(commodityForecast.projectedConsumption)
-                        ? Math.round(commodityForecast.projectedConsumption).toLocaleString("en-IN")
+                      analysis.latest?.consumption != null &&
+                      Number.isFinite(analysis.latest.consumption)
+                        ? Math.round(analysis.latest.consumption).toLocaleString("en-IN")
                         : "—",
                   },
                   {
-                    label: "Projected balance ratio",
+                    label: analysis.latest ? `Latest balance ratio (${analysis.latest.fiscalYear})` : "Latest balance ratio",
                     value:
-                      commodityForecast.projectedRatio != null
-                        ? commodityForecast.projectedRatio.toFixed(2)
+                      analysis.latest?.ratio != null
+                        ? analysis.latest.ratio.toFixed(2)
                         : "—",
                   },
                 ]}
               >
                 <ForecastChart
-                  data={commodityForecast.forecastLine as Record<string, unknown>[]}
+                  data={commodityForecast.history ? commodityForecast.history.map(h => ({ x: h.x, supply: h.supply, consumption: h.consumption })) as Record<string, unknown>[] : []}
                   xKey="x"
                   actualKey="supply"
                   forecastKey="consumption"
@@ -719,13 +1304,170 @@ const EnergyAnalytics = () => {
             </motion.div>
           )}
 
-          {/* Supply in PetaJoules (if data exists) */}
-          {pjByYear.length > 0 && (
+          {/* Prediction / Forecast Card */}
+          {viewMode === "predictions" && (
+            <>
+
+              {predictionsLoading && !predictions && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`glass-card p-8 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
+                >
+                  <div className="flex flex-col items-center justify-center gap-4">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground">Generating AI-powered predictions...</p>
+                  </div>
+                </motion.div>
+              )}
+
+              {predictions && aiForecastData && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  className="space-y-6"
+                >
+
+                  {/* Prediction Card with AI Forecasts */}
+                  <PredictionCard
+                    title={`AI-Powered Forecast for ${selectedCommodity}${selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : ""}`}
+                    status={
+                      aiForecastData.status === "pressure"
+                        ? "pressure"
+                        : aiForecastData.status === "surplus"
+                          ? "stable"
+                          : "stable"
+                    }
+                    className="border-orange-500/30 bg-orange-950/10"
+                    metrics={[
+                      {
+                        label: `Projected supply${selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : aiForecastData.nextYear ? ` (${aiForecastData.nextYear})` : ""}`,
+                        value:
+                          aiForecastData.projectedSupply != null &&
+                          Number.isFinite(aiForecastData.projectedSupply)
+                            ? Math.round(aiForecastData.projectedSupply).toLocaleString("en-IN")
+                            : "—",
+                      },
+                      {
+                        label: `Projected consumption${selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : aiForecastData.nextYear ? ` (${aiForecastData.nextYear})` : ""}`,
+                        value:
+                          aiForecastData.projectedConsumption != null &&
+                          Number.isFinite(aiForecastData.projectedConsumption)
+                            ? Math.round(aiForecastData.projectedConsumption).toLocaleString("en-IN")
+                            : "—",
+                      },
+                      {
+                        label: "Projected balance ratio",
+                        value:
+                          aiForecastData.projectedRatio != null
+                            ? aiForecastData.projectedRatio.toFixed(2)
+                            : "—",
+                      },
+                    ]}
+                  >
+                    <ForecastChart
+                      data={aiForecastData.forecastLine as Record<string, unknown>[]}
+                      xKey="x"
+                      actualKey="supply"
+                      forecastKey="consumption"
+                      actualName="Supply (KToE)"
+                      forecastName="Consumption (KToE)"
+                      historyLength={aiForecastData.history?.length ?? 0}
+                      height={224}
+                      historyColor="hsl(217 91% 60%)"
+                      forecastColor="hsl(38 92% 50%)"
+                    />
+                  </PredictionCard>
+
+                </motion.div>
+              )}
+
+              {!predictionsLoading && !predictions && !predictionsError && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`glass-card p-8 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
+                >
+                  <p className="text-sm text-muted-foreground text-center">
+                    Generating AI-powered forecasts based on historical data...
+                  </p>
+                </motion.div>
+              )}
+
+              {/* Fallback to regression-based forecast if AI fails */}
+              {predictionsError && commodityForecast && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                >
+                  <Alert variant="default" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-sm">
+                      Using regression-based forecast as fallback. AI predictions unavailable.
+                    </AlertDescription>
+                  </Alert>
+                  <PredictionCard
+                    title={`What's happening with ${selectedCommodity} (Regression Forecast)`}
+                    status={
+                      commodityForecast.status === "pressure"
+                        ? "pressure"
+                        : commodityForecast.status === "surplus"
+                          ? "stable"
+                          : "stable"
+                    }
+                    metrics={[
+                      {
+                        label: `Projected supply (${commodityForecast.nextYear})`,
+                        value:
+                          commodityForecast.projectedSupply != null &&
+                          Number.isFinite(commodityForecast.projectedSupply)
+                            ? Math.round(commodityForecast.projectedSupply).toLocaleString("en-IN")
+                            : "—",
+                      },
+                      {
+                        label: `Projected consumption (${commodityForecast.nextYear})`,
+                        value:
+                          commodityForecast.projectedConsumption != null &&
+                          Number.isFinite(commodityForecast.projectedConsumption)
+                            ? Math.round(commodityForecast.projectedConsumption).toLocaleString("en-IN")
+                            : "—",
+                      },
+                      {
+                        label: "Projected balance ratio",
+                        value:
+                          commodityForecast.projectedRatio != null
+                            ? commodityForecast.projectedRatio.toFixed(2)
+                            : "—",
+                      },
+                    ]}
+                  >
+                    <ForecastChart
+                      data={commodityForecast.forecastLine as Record<string, unknown>[]}
+                      xKey="x"
+                      actualKey="supply"
+                      forecastKey="consumption"
+                      actualName="Supply (KToE)"
+                      forecastName="Consumption (KToE)"
+                      historyLength={commodityForecast.history?.length ?? 0}
+                      height={224}
+                      historyColor="hsl(217 91% 60%)"
+                      forecastColor="hsl(38 92% 50%)"
+                    />
+                  </PredictionCard>
+                </motion.div>
+              )}
+            </>
+          )}
+
+          {/* Supply in PetaJoules (if data exists) - History mode only */}
+          {viewMode === "history" && pjByYear.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="glass-card p-5"
+              className={`glass-card p-5 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
             >
               <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-4">
                 Supply in PetaJoules — {selectedCommodity}
