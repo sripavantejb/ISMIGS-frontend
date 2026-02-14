@@ -10,9 +10,10 @@ interface PredictionCardProps {
   status?: "pressure" | "elevated" | "stable";
   metrics?: Metric[];
   children?: React.ReactNode;
+  className?: string;
 }
 
-export function PredictionCard({ title, status, metrics, children }: PredictionCardProps) {
+export function PredictionCard({ title, status, metrics, children, className = "" }: PredictionCardProps) {
   const statusLabel =
     status === "pressure"
       ? "Moderate pressure"
@@ -28,7 +29,7 @@ export function PredictionCard({ title, status, metrics, children }: PredictionC
       : "default";
 
   return (
-    <div className="glass-card p-5">
+    <div className={`glass-card p-5 ${className}`}>
       <div className="flex justify-between items-baseline mb-4">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {status && (

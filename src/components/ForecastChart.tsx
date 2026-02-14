@@ -106,7 +106,7 @@ export function ForecastChart({
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
-          <XAxis dataKey={xKey} stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
+          <XAxis dataKey={xKey} stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
           <YAxis
             stroke="hsl(215 20% 55%)"
             fontSize={10}
@@ -146,7 +146,6 @@ export function ForecastChart({
               dataKey={forecastKeyFinal}
               name={forecastName}
               stroke={strokeForecast}
-              strokeDasharray="5 5"
               strokeWidth={2}
               dot={false}
               connectNulls={false}

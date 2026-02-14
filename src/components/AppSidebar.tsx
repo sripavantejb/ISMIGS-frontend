@@ -111,7 +111,7 @@ export function AppSidebar() {
                       activeClassName="bg-transparent"
                     >
                       <Zap className="h-4 w-4 shrink-0" />
-                      <span className="truncate flex-1 min-w-0">Energy</span>
+                      <span className="truncate flex-1 min-w-0">Energy Analytics</span>
                       <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-data-[state=open]/menu-item:rotate-180" />
                     </NavLink>
                   </CollapsibleTrigger>
