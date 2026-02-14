@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import Overview from "./pages/Overview";
@@ -37,8 +37,18 @@ import { useState, useEffect } from "react";
 import { getStoredToken, getStoredUser, setStoredUser, fetchMe } from "./services/adminApi";
 import { getStoredSectorToken, setStoredSectorToken } from "./services/sectorApi";
 import ISMIGSChatbot from "@/chatbot/ISMIGSChatbot";
+import { FarmersLayout, FarmersDashboard, FarmProfile, InputCosts, CropProfitability, EnergyImpact, Alerts, Loans, CropRecommendation, GovernmentSchemes, MarketPrices, WaterIrrigation, ExpertConsultation } from "@/farmers";
 
 const queryClient = new QueryClient();
+
+function ChatbotWithContext() {
+  const location = useLocation();
+  const context =
+    location.pathname.startsWith("/farmers")
+      ? "Farmer Dashboard – farming, crops, weather, loans, and agriculture"
+      : undefined;
+  return <ISMIGSChatbot context={context} />;
+}
 
 function AdminGuard() {
   const token = getStoredToken();
@@ -163,12 +173,27 @@ const App = () => (
             <SidebarProvider>
               <div className="min-h-screen flex w-full">
                 <AppSidebar />
-                <main className="flex-1 overflow-auto">
-                  <div className="flex items-center h-12 border-b border-border/30 px-4 bg-background/50 backdrop-blur-sm sticky top-0 z-40">
+                <main className="scroll-area-main flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto">
+                  <div className="flex items-center h-12 border-b border-border/30 px-4 bg-background sticky top-0 z-40 will-change-transform [transform:translateZ(0)]">
                     <SidebarTrigger />
                     <span className="ml-3 text-xs text-muted-foreground font-mono uppercase tracking-widest">ISMIGS — India State Macro Intelligence</span>
                   </div>
                   <Routes>
+                    <Route path="/farmers" element={<FarmersLayout />}>
+                      <Route index element={<FarmersDashboard />} />
+                      <Route path="profile" element={<FarmProfile />} />
+                      <Route path="costs" element={<InputCosts />} />
+                      <Route path="profitability" element={<CropProfitability />} />
+                      <Route path="energy" element={<EnergyImpact />} />
+                      <Route path="alerts" element={<Alerts />} />
+                      <Route path="rural-prices" element={<CPIMap />} />
+                      <Route path="loans" element={<Loans />} />
+                      <Route path="crop-recommendation" element={<CropRecommendation />} />
+                      <Route path="schemes" element={<GovernmentSchemes />} />
+                      <Route path="market-prices" element={<MarketPrices />} />
+                      <Route path="water-irrigation" element={<WaterIrrigation />} />
+                      <Route path="experts" element={<ExpertConsultation />} />
+                    </Route>
                     <Route path="/" element={<Overview />} />
                 {/* <Route path="/energy-map" element={<EnergyMap />} /> */}
                 <Route path="/energy/:commoditySlug?" element={<EnergyAnalytics />} />
@@ -200,7 +225,7 @@ const App = () => (
                   </Routes>
                 </main>
               </div>
-              <ISMIGSChatbot />
+              <ChatbotWithContext />
             </SidebarProvider>
           } />
         </Routes>

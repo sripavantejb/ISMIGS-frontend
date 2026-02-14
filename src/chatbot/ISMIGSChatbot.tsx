@@ -90,6 +90,13 @@ export default function ISMIGSChatbot({ context }: ISMIGSChatbotProps) {
     }
   }, [open]);
 
+  // Open dialog when Farmers page dispatches open event
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("ismigs-open-chatbot", handler);
+    return () => window.removeEventListener("ismigs-open-chatbot", handler);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     

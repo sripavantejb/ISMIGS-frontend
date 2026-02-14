@@ -12,6 +12,7 @@ import {
   Building2,
   LineChart,
   ChevronDown,
+  Sprout,
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
@@ -39,6 +40,7 @@ import { gvaIndustryToSlug, gvaIndustrySidebarLabel } from "@/utils/gvaSlug";
 import { cn } from "@/lib/utils";
 
 const navItemsBeforeEnergy = [
+  { title: "Farmers", url: "/farmers", icon: Sprout },
   { title: "Overview", url: "/", icon: BarChart3 },
   // { title: "Energy Map", url: "/energy-map", icon: Map },
 ];

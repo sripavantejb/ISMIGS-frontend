@@ -84,6 +84,11 @@
 }
 
 @layer components {
+  /* Smooth momentum scrolling for main content (e.g. farmers section) on touch devices */
+  .scroll-area-main {
+    -webkit-overflow-scrolling: touch;
+  }
+
   .glass-card {
     @apply bg-card/80 backdrop-blur-xl border border-glass-border rounded-xl;
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
