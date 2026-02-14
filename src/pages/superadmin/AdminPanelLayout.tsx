@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Outlet, useNavigate, useLocation, NavLink } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Outlet, useNavigate, useLocation, NavLink, useSearchParams } from "react-router-dom";
 import {
   Shield,
   LogOut,
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { clearStoredToken, clearStoredUser } from "@/services/adminApi";
+import { useToast } from "@/hooks/use-toast";
 
 const navItems = [
   { to: "/admin-panel", end: true, label: "Overview", icon: LayoutGrid },
@@ -42,7 +43,28 @@ function NavLinkContent({ item }: { item: (typeof navItems)[number] }) {
 export default function AdminPanelLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { toast } = useToast();
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  useEffect(() => {
+    const result = searchParams.get("result");
+    if (!result) return;
+    if (result === "approved") {
+      toast({ title: "Post approved", description: "The LinkedIn post has been approved and will be shared." });
+    } else if (result === "rejected") {
+      toast({ title: "Post cancelled", description: "No action taken on the LinkedIn post." });
+    } else if (result === "expired") {
+      toast({ variant: "destructive", title: "Link expired", description: "This confirmation link has expired." });
+    } else if (result === "invalid") {
+      toast({ variant: "destructive", title: "Invalid link", description: "This link is invalid or has already been used." });
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("result");
+      return next;
+    }, { replace: true });
+  }, [searchParams, setSearchParams, toast]);
 
   const handleLogout = () => {
     clearStoredToken();
