@@ -59,9 +59,9 @@ export function FarmProfileForm({ initial, onSave, saving }: FarmProfileFormProp
 
   return (
     <form onSubmit={handleSubmit}>
-      <Card className="rounded-xl border-emerald-900/40 bg-card max-w-2xl">
+      <Card className="agri-card w-full max-w-2xl">
         <CardHeader>
-          <CardTitle className="text-lg text-emerald-400">Farm details</CardTitle>
+          <CardTitle className="text-lg agri-icon">Farm details</CardTitle>
           <CardDescription>Location, land, soil and irrigation. Saved locally until you sign in.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -69,7 +69,7 @@ export function FarmProfileForm({ initial, onSave, saving }: FarmProfileFormProp
             <div className="space-y-2">
               <Label>State</Label>
               <Select value={state} onValueChange={setState}>
-                <SelectTrigger className="border-border bg-background/50">
+                <SelectTrigger className="w-full border-border bg-background/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -82,7 +82,7 @@ export function FarmProfileForm({ initial, onSave, saving }: FarmProfileFormProp
             <div className="space-y-2">
               <Label>District</Label>
               <Select value={district} onValueChange={setDistrict}>
-                <SelectTrigger className="border-border bg-background/50">
+                <SelectTrigger className="w-full border-border bg-background/50">
                   <SelectValue placeholder="Select district" />
                 </SelectTrigger>
                 <SelectContent>
@@ -96,12 +96,12 @@ export function FarmProfileForm({ initial, onSave, saving }: FarmProfileFormProp
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Land size (acres)</Label>
-              <Input type="number" min={0.1} step={0.5} value={landSizeAcres} onChange={(e) => setLandSizeAcres(e.target.value)} className="bg-background/50" required />
+              <Input type="number" min={0.1} step={0.5} value={landSizeAcres} onChange={(e) => setLandSizeAcres(e.target.value)} className="w-full bg-background/50" required />
             </div>
             <div className="space-y-2">
               <Label>Soil type</Label>
               <Select value={soilType || SOIL_TYPES[0]} onValueChange={setSoilType}>
-                <SelectTrigger className="border-border bg-background/50">
+                <SelectTrigger className="w-full border-border bg-background/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -115,7 +115,7 @@ export function FarmProfileForm({ initial, onSave, saving }: FarmProfileFormProp
           <div className="space-y-2">
             <Label>Irrigation type</Label>
             <Select value={irrigationType} onValueChange={(v) => setIrrigationType(v as FarmProfile["irrigationType"])}>
-              <SelectTrigger className="border-border bg-background/50">
+              <SelectTrigger className="w-full border-border bg-background/50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

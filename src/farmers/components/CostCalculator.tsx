@@ -42,41 +42,41 @@ export function CostCalculator({
   };
 
   return (
-    <Card className="rounded-xl border-emerald-900/40 bg-card max-w-2xl">
+    <Card className="agri-card w-full max-w-2xl">
       <CardHeader>
-        <CardTitle className="text-lg text-emerald-400">Cultivation cost calculator</CardTitle>
+        <CardTitle className="text-lg agri-icon">Cultivation cost calculator</CardTitle>
         <CardDescription>Enter cost per acre. Total and per-acre breakdown below.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Area (acres)</Label>
-            <Input type="number" min={0.1} step={0.5} value={areaAcres} onChange={(e) => setAreaAcres(e.target.value)} className="bg-background/50" />
+            <Input type="number" min={0.1} step={0.5} value={areaAcres} onChange={(e) => setAreaAcres(e.target.value)} className="w-full bg-background/50" />
           </div>
           <div className="space-y-2">
             <Label>Seed (₹/acre)</Label>
-            <Input type="number" min={0} value={seedCostPerAcre} onChange={(e) => setSeedCostPerAcre(e.target.value)} className="bg-background/50" />
+            <Input type="number" min={0} value={seedCostPerAcre} onChange={(e) => setSeedCostPerAcre(e.target.value)} className="w-full bg-background/50" />
           </div>
           <div className="space-y-2">
             <Label>Fertilizer (₹/acre)</Label>
-            <Input type="number" min={0} value={fertilizerCostPerAcre} onChange={(e) => setFertilizerCostPerAcre(e.target.value)} className="bg-background/50" />
+            <Input type="number" min={0} value={fertilizerCostPerAcre} onChange={(e) => setFertilizerCostPerAcre(e.target.value)} className="w-full bg-background/50" />
           </div>
           <div className="space-y-2">
             <Label>Labour (₹/acre)</Label>
-            <Input type="number" min={0} value={labourCostPerAcre} onChange={(e) => setLabourCostPerAcre(e.target.value)} className="bg-background/50" />
+            <Input type="number" min={0} value={labourCostPerAcre} onChange={(e) => setLabourCostPerAcre(e.target.value)} className="w-full bg-background/50" />
           </div>
           <div className="space-y-2">
             <Label>Irrigation (₹/acre)</Label>
-            <Input type="number" min={0} value={irrigationCostPerAcre} onChange={(e) => setIrrigationCostPerAcre(e.target.value)} className="bg-background/50" />
+            <Input type="number" min={0} value={irrigationCostPerAcre} onChange={(e) => setIrrigationCostPerAcre(e.target.value)} className="w-full bg-background/50" />
           </div>
           <div className="space-y-2">
             <Label>Other (₹/acre)</Label>
-            <Input type="number" min={0} value={otherCostPerAcre} onChange={(e) => setOtherCostPerAcre(e.target.value)} className="bg-background/50" />
+            <Input type="number" min={0} value={otherCostPerAcre} onChange={(e) => setOtherCostPerAcre(e.target.value)} className="w-full bg-background/50" />
           </div>
         </div>
         <div className="pt-4 border-t border-border/50">
           <p className="text-sm text-muted-foreground">Total cultivation cost (approx.)</p>
-          <p className="text-2xl font-mono font-semibold text-emerald-400">₹ {total.toLocaleString("en-IN")}</p>
+          <p className="text-2xl font-mono font-semibold agri-icon">₹ {total.toLocaleString("en-IN")}</p>
           <p className="text-xs text-muted-foreground mt-1">Per acre: ₹ {perAcre.toLocaleString("en-IN")}</p>
         </div>
         {onCalculate && (

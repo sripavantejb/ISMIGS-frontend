@@ -642,12 +642,15 @@ const EnergyAnalytics = () => {
 
           {/* Predictions Loading Indicator */}
           {viewMode === "predictions" && predictionsLoading && (
-            <Alert>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <AlertDescription className="text-sm">
-                Generating AI predictions for all metrics...
-              </AlertDescription>
-            </Alert>
+            <div className="glass-card p-4 space-y-3 border-orange-500/30 bg-orange-950/10">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-32 w-full rounded-lg" />
+              <div className="flex gap-4">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            </div>
           )}
 
           {/* Predictions Error Alert */}
@@ -1312,12 +1315,15 @@ const EnergyAnalytics = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`glass-card p-8 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
+                  className={`glass-card p-6 space-y-4 ${viewMode === "predictions" ? "border-orange-500/30 bg-orange-950/10" : ""}`}
                 >
-                  <div className="flex flex-col items-center justify-center gap-4">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <p className="text-sm text-muted-foreground">Generating AI-powered predictions...</p>
+                  <Skeleton className="h-6 w-64" />
+                  <div className="flex flex-wrap gap-4">
+                    <Skeleton className="h-5 w-28" />
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-5 w-36" />
                   </div>
+                  <Skeleton className="h-[224px] w-full rounded-xl" />
                 </motion.div>
               )}
 

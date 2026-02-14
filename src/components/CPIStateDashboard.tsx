@@ -57,7 +57,7 @@ const CPIStateDashboard = ({ state, records, labourType, onBack }: CPIStateDashb
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen bg-background grid-pattern">
       {/* Header */}
       <div className="border-b border-border/50 bg-card/50 backdrop-blur-lg sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center gap-4">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center gap-3 sm:gap-4">
           <button onClick={onBack} className="glass-card p-2 hover:border-primary/50 transition-colors">
             <ArrowLeft className="w-5 h-5 text-primary" />
           </button>
@@ -72,7 +72,7 @@ const CPIStateDashboard = ({ state, records, labourType, onBack }: CPIStateDashb
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 space-y-6 min-w-0">
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
           <KPI label="CPI Index" value={latestIndex.toFixed(1)} icon={<BarChart3 className="w-4 h-4" />} color="text-warning" />

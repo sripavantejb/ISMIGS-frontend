@@ -142,4 +142,37 @@
     background-size: 100% 4px;
     pointer-events: none;
   }
+
+  /* Agriculture sector: green-black professional theme */
+  [data-sector="agriculture"] {
+    @apply text-left;
+    --agri-accent: 160 84% 45%;
+    --agri-accent-muted: 160 84% 45% / 0.2;
+    --agri-border: 160 50% 15% / 0.4;
+    --agri-surface: 222 47% 5%;
+    --agri-surface-elevated: 222 44% 8%;
+  }
+
+  .agri-card {
+    @apply rounded-xl border bg-card;
+    border-color: hsl(var(--agri-border, 160 50% 15% / 0.4));
+  }
+
+  .agri-section-header {
+    @apply text-base font-semibold mb-2;
+    color: hsl(var(--agri-accent, 160 84% 45%));
+  }
+
+  .agri-icon {
+    color: hsl(var(--agri-accent, 160 84% 45%));
+  }
+
+  .agri-link {
+    @apply font-medium underline underline-offset-2;
+    color: hsl(var(--agri-accent, 160 84% 45%));
+  }
+
+  .agri-link:hover {
+    color: hsl(160 84% 55%);
+  }
 }

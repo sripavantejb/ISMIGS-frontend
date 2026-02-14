@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   adminPanelCardClass,
@@ -85,10 +85,16 @@ export default function Notifications() {
         </CardHeader>
         <CardContent className={adminPanelCardContentClass}>
           {isLoading ? (
-            <div className="flex items-center justify-center py-12 text-zinc-400">
-              <Loader2 className="h-8 w-8 animate-spin mr-2" />
-              Loading…
-            </div>
+            <ul className="space-y-0 min-w-0 divide-y divide-zinc-800">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <li key={i} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 py-3 -mx-2 px-2">
+                  <Skeleton className="h-4 w-40 bg-zinc-800" />
+                  <Skeleton className="h-4 w-24 bg-zinc-800" />
+                  <Skeleton className="h-4 w-64 max-w-full bg-zinc-800" />
+                  <Skeleton className="h-4 w-16 bg-zinc-800 ml-auto" />
+                </li>
+              ))}
+            </ul>
           ) : items.length === 0 ? (
             <p className="text-zinc-500 py-8 text-center text-sm">No activity yet.</p>
           ) : (

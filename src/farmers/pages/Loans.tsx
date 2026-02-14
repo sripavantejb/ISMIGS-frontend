@@ -1,9 +1,17 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Banknote, ExternalLink, Calculator } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ExternalLink, Calculator, Building2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const PER_ACRE_LIMIT_LAKHS = 1.6;
 
@@ -59,18 +67,8 @@ export default function Loans() {
   }, [loanAmount, tenureYears, ratePct]);
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
-          <Banknote className="h-5 w-5 text-emerald-400" />
-          Loan estimator & bank comparison
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Estimate your eligible limit from land area, compare bank schemes, and calculate EMI.
-        </p>
-      </div>
-
-      <Card className="border-emerald-900/40 bg-card">
+    <div className="p-4 sm:p-6 space-y-6 max-w-4xl w-full min-w-0">
+      <Card className="agri-card">
         <CardHeader>
           <CardTitle className="text-base">Eligible limit (indicative)</CardTitle>
           <CardDescription>Based on landholding; actual limit depends on bank norms.</CardDescription>
@@ -85,7 +83,7 @@ export default function Loans() {
             placeholder="e.g. 2"
             value={landAcres}
             onChange={(e) => setLandAcres(e.target.value)}
-            className="max-w-[140px]"
+            className="w-full sm:max-w-[140px]"
           />
           {estLimitLakhs != null && (
             <p className="text-sm font-mono text-emerald-400">
@@ -95,7 +93,7 @@ export default function Loans() {
         </CardContent>
       </Card>
 
-      <Card className="border-emerald-900/40 bg-card">
+      <Card className="agri-card">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Calculator className="h-4 w-4 text-emerald-400" />
@@ -156,45 +154,67 @@ export default function Loans() {
         </CardContent>
       </Card>
 
-      <Card className="border-emerald-900/40 bg-card">
-        <CardHeader>
-          <CardTitle className="text-base">Banks & interest rates (indicative)</CardTitle>
-          <CardDescription>Rates and processing fees may vary. Visit bank website to apply.</CardDescription>
+      <Card className="agri-card">
+        <CardHeader className="space-y-1.5">
+          <CardTitle className="text-lg flex items-center gap-2 font-semibold tracking-tight">
+            <Building2 className="h-5 w-5 text-emerald-400 shrink-0" />
+            Banks & interest rates (indicative)
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Rates and processing fees may vary. Visit the bank website to apply. Not a commitment.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-emerald-900/40">
-                <th className="text-left py-2 pr-4 font-medium text-foreground">Bank</th>
-                <th className="text-left py-2 pr-4 font-medium text-foreground">Scheme</th>
-                <th className="text-right py-2 pr-4 font-medium text-foreground">Rate %</th>
-                <th className="text-left py-2 pr-4 font-medium text-foreground">Processing fee</th>
-                <th className="text-right py-2 font-medium text-foreground">Apply</th>
-              </tr>
-            </thead>
-            <tbody>
-              {LOAN_BANKS_AND_RATES.map((row, i) => (
-                <tr key={i} className="border-b border-border/50">
-                  <td className="py-2 pr-4 text-foreground">{row.bank}</td>
-                  <td className="py-2 pr-4 text-muted-foreground">{row.scheme}</td>
-                  <td className="py-2 pr-4 text-right font-mono">{row.ratePct}%</td>
-                  <td className="py-2 pr-4 text-muted-foreground">{row.processingFee}</td>
-                  <td className="py-2 text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-emerald-400 hover:text-emerald-300"
-                      asChild
-                    >
-                      <a href={row.applicationLink} target="_blank" rel="noopener noreferrer" title="Visit bank website">
-                        Apply Now <ExternalLink className="h-3 w-3 ml-1 inline" />
+        <CardContent className="px-4 pb-6 pt-0 sm:px-6">
+          <div className="overflow-x-auto rounded-lg border border-border/60 bg-card/50">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/60 bg-muted/30 hover:bg-muted/30">
+                  <TableHead className="font-semibold text-foreground">Bank</TableHead>
+                  <TableHead className="font-semibold text-foreground">Scheme</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground w-[88px]">Rate %</TableHead>
+                  <TableHead className="font-semibold text-foreground w-[120px]">Processing fee</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground w-[100px]">Apply</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {LOAN_BANKS_AND_RATES.map((row, i) => (
+                  <TableRow key={i} className="border-border/60">
+                    <TableCell className="font-medium text-foreground">{row.bank}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-muted-foreground">{row.scheme}</span>
+                        {row.notes && (
+                          <span className="text-xs text-muted-foreground/80">{row.notes}</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-foreground">
+                      {row.ratePct}%
+                    </TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {row.processingFee === "—" ? "—" : row.processingFee}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <a
+                        href={row.applicationLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Visit bank website"
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium",
+                          "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10",
+                          "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                        )}
+                      >
+                        Apply Now
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-80" />
                       </a>
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

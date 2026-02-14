@@ -18,9 +18,9 @@ export function CostSimulation({
   estimatedImpact,
 }: CostSimulationProps) {
   return (
-    <Card className="rounded-xl border-emerald-900/40 bg-card">
+    <Card className="agri-card">
       <CardHeader>
-        <CardTitle className="text-lg text-emerald-400">Cost increase simulation</CardTitle>
+        <CardTitle className="text-lg agri-icon">Cost increase simulation</CardTitle>
         <CardDescription>See how fuel and tariff changes affect your costs.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

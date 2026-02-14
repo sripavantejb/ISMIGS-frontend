@@ -365,7 +365,11 @@ const GDPNationalAccounts = () => {
           </div>
           <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
             {forecastLoading ? (
-              <p>Loading forecast data...</p>
+              <>
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </>
             ) : gdpForecast ? (
               <>
                 <p className="line-clamp-2">

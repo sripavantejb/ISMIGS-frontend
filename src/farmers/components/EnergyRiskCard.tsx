@@ -11,9 +11,9 @@ interface EnergyRiskCardProps {
 export function EnergyRiskCard({ score, level, irrigationType }: EnergyRiskCardProps) {
   const color = level === "high" ? "text-destructive" : level === "medium" ? "text-yellow-500" : "text-emerald-400";
   return (
-    <Card className="rounded-xl border-emerald-900/40 bg-card">
+    <Card className="agri-card">
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2 text-emerald-400">
+        <CardTitle className="text-lg flex items-center gap-2 agri-icon">
           <Zap className="h-5 w-5" />
           Energy Risk Score
         </CardTitle>

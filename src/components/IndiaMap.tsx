@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Skeleton } from "@/components/ui/skeleton";
 import { statesData, getMapColor, StateData } from "@/data/statesData";
 
 const INDIA_TOPO_URL = "https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson";
@@ -97,10 +98,7 @@ const IndiaMap = ({ onStateSelect }: IndiaMapProps) => {
   if (!geoData) {
     return (
       <div className="w-full h-full flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-muted-foreground font-mono">Loading Map Data...</span>
-        </div>
+        <Skeleton className="w-full h-full max-w-[600px] max-h-[680px] rounded-xl" />
       </div>
     );
   }

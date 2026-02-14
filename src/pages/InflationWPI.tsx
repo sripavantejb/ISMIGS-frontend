@@ -555,7 +555,14 @@ const InflationWPI = () => {
           </div>
           <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
             {predictionsLoading ? (
-              <p>Generating AI predictions...</p>
+              <>
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+                <div className="flex gap-4 mt-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              </>
             ) : predictionsError ? (
               <p className="text-destructive">Error: {predictionsError}</p>
             ) : predictions ? (

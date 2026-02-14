@@ -904,11 +904,8 @@ const GVAPage = () => {
               // Show loading state if predictions are being generated
               if (predictionsLoading) {
                 return (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-400 mx-auto mb-2"></div>
-                      <p className="text-sm">Generating AI predictions...</p>
-                    </div>
+                  <div className="h-full w-full">
+                    <Skeleton className="h-48 w-full rounded-xl" />
                   </div>
                 );
               }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -53,19 +54,44 @@ export function AlertPreferences() {
     }
   };
 
-  if (loading) return <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />;
+  if (loading) {
+    return (
+      <Card className="agri-card w-full max-w-2xl">
+        <CardHeader>
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-4 w-full max-w-md mt-2" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-border/50 last:border-0">
+              <Skeleton className="h-4 w-36" />
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-5 w-20 rounded" />
+                <Skeleton className="h-6 w-11 rounded-full" />
+                <Skeleton className="h-5 w-12 rounded" />
+                <Skeleton className="h-6 w-11 rounded-full" />
+                <Skeleton className="h-5 w-16 rounded" />
+                <Skeleton className="h-6 w-11 rounded-full" />
+              </div>
+            </div>
+          ))}
+          <Skeleton className="h-10 w-40" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card className="rounded-xl border-emerald-900/40 bg-card max-w-2xl">
+    <Card className="agri-card w-full max-w-2xl">
       <CardHeader>
-        <CardTitle className="text-lg text-emerald-400">Alert preferences</CardTitle>
+        <CardTitle className="text-lg agri-icon">Alert preferences</CardTitle>
         <CardDescription>Choose which alerts you want and how (email, SMS, WhatsApp). Saving stores locally; sign in to sync.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {prefs.map((p) => (
           <div key={p.id} className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-border/50 last:border-0">
             <Label className="font-medium text-foreground">{p.label}</Label>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center flex-wrap gap-2 sm:gap-4">
               <span className="text-xs text-muted-foreground">Email</span>
               <Switch checked={p.email} onCheckedChange={(v) => update(p.id, "email", v)} />
               <span className="text-xs text-muted-foreground">SMS</span>

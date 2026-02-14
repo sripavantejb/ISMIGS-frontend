@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Mic, Camera, Video, Sun, Leaf, Package, RefreshCw, MapPin, Droplets, Wind, CloudSun, CloudRain,
-  Loader2, Upload, ImagePlus, AlertCircle, LayoutDashboard, User, Calculator, TrendingUp, Zap, Bell, Map, ChevronDown, ChevronUp,
+  Camera, Sun, Leaf, Package, RefreshCw, MapPin, Droplets, Wind, CloudSun, CloudRain,
+  Upload, ImagePlus, AlertCircle, User, Calculator, TrendingUp, Zap, Bell, Map, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -84,15 +84,6 @@ async function compressImageForDiseaseDetection(file: File): Promise<string> {
     URL.revokeObjectURL(url);
   }
 }
-
-const quickLinks = [
-  { to: "/farmers/profile", label: "Farm Profile", icon: User },
-  { to: "/farmers/costs", label: "Input Costs", icon: Calculator },
-  { to: "/farmers/profitability", label: "Crop Profitability", icon: TrendingUp },
-  { to: "/farmers/energy", label: "Energy Impact", icon: Zap },
-  { to: "/farmers/alerts", label: "Alerts", icon: Bell },
-  { to: "/farmers/rural-prices", label: "Rural prices map", icon: Map },
-];
 
 export default function FarmersDashboard() {
   const [weather, setWeather] = useState<WeatherForecast | null>(null);
@@ -179,69 +170,13 @@ export default function FarmersDashboard() {
   const loanEstimate = acres !== "" && !Number.isNaN(Number(acres)) && Number(acres) >= 0 ? Number(acres) * PER_ACRE_LIMIT_LAKHS : null;
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 space-y-6 bg-background">
-      <p className="text-sm text-muted-foreground">Your farming dashboard: weather, tools, and quick estimates.</p>
-
-      {/* Jump to shortcuts */}
-      <section className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="text-xs text-muted-foreground mr-1">Jump to:</span>
-        {quickLinks.map(({ to, label }, i) => (
-          <span key={to} className="flex items-center gap-1">
-            {i > 0 && <span className="text-muted-foreground/60">|</span>}
-            <Link to={to} className="text-xs font-medium text-emerald-400 hover:text-emerald-300 underline underline-offset-2">
-              {label}
-            </Link>
-          </span>
-        ))}
-      </section>
-
-      {/* Quick tools */}
-      <section>
-        <h2 className="text-base font-semibold text-foreground mb-1">Quick tools</h2>
-        <p className="text-xs text-muted-foreground mb-3">Ask questions, scan crop diseases, or find expert support.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="rounded-xl border-emerald-900/40 bg-card hover:border-accent/40 transition-colors cursor-pointer" onClick={openVoiceAssistant}>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400"><Mic className="h-5 w-5" /></div>
-              <div>
-                <CardTitle className="text-base font-semibold text-foreground">Voice Assistant</CardTitle>
-                <CardDescription className="text-xs">Ask farming questions</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card className="rounded-xl border-emerald-900/40 bg-card hover:border-accent/40 transition-colors cursor-pointer" onClick={() => setDiseaseModalOpen(true)}>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400"><Camera className="h-5 w-5" /></div>
-              <div>
-                <CardTitle className="text-base font-semibold text-foreground">Disease Detection</CardTitle>
-                <CardDescription className="text-xs">Scan crop diseases</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card className="rounded-xl border-emerald-900/40 bg-card hover:border-accent/40 transition-colors">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400"><Video className="h-5 w-5" /></div>
-              <div>
-                <CardTitle className="text-base font-semibold text-foreground">Expert Call</CardTitle>
-                <CardDescription className="text-xs">Talk to experts. Coming soon — contact your state agriculture department.</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-        </div>
-      </section>
-
+    <div className="min-h-screen p-4 sm:p-6 space-y-6 bg-background min-w-0 overflow-x-hidden">
       {/* Your area at a glance */}
       <section>
-        <h2 className="text-base font-semibold text-foreground mb-1">Your area at a glance</h2>
+        <h2 className="agri-section-header">Your area at a glance</h2>
         <p className="text-xs text-muted-foreground mb-3">Weather and crop stats for your state.</p>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="rounded-xl border-emerald-900/40 bg-card">
+        <Card className="agri-card">
           <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
             <div className="flex items-center gap-2">
               <Sun className="h-5 w-5 text-emerald-400" />
@@ -269,7 +204,7 @@ export default function FarmersDashboard() {
                   <span className="text-3xl font-mono font-semibold text-foreground">{Math.round(weather.current.temp)}°C</span>
                   <span className="text-sm text-muted-foreground">{weatherCodeToLabel(weather.current.weatherCode)}</span>
                 </div>
-                <div className="flex gap-4 text-sm text-muted-foreground">
+                <div className="flex flex-wrap gap-2 sm:gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1"><Droplets className="h-4 w-4" /> Humidity: {weather.current.humidity}%</span>
                   <span className="flex items-center gap-1"><Wind className="h-4 w-4" /> Wind: {weather.current.windSpeed} km/h</span>
                 </div>
@@ -290,7 +225,7 @@ export default function FarmersDashboard() {
                     <CloudRain className="h-3.5 w-3.5 shrink-0" /> Rain expected in the forecast
                   </p>
                 )}
-                <div className="rounded-lg border border-emerald-900/40 bg-background/40 p-2 mt-2">
+                <div className="rounded-lg border agri-card bg-background/40 p-2 mt-2">
                   <p className="text-xs font-medium text-emerald-400 mb-0.5">Crop weather advice</p>
                   <p className="text-xs text-muted-foreground">{getCropWeatherAdvice(weather.current.temp, weather.daily.some((d) => RAIN_WEATHER_CODES.includes(d.weatherCode)))}</p>
                 </div>
@@ -298,7 +233,7 @@ export default function FarmersDashboard() {
             )}
           </CardContent>
         </Card>
-        <Card className="rounded-xl border-emerald-900/40 bg-card">
+        <Card className="agri-card">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <Leaf className="h-5 w-5 text-emerald-400" />
@@ -335,9 +270,9 @@ export default function FarmersDashboard() {
 
       {/* Analytics */}
       <section>
-        <h2 className="text-base font-semibold text-foreground mb-1">Analytics</h2>
+        <h2 className="agri-section-header">Analytics</h2>
         <p className="text-xs text-muted-foreground mb-3">Recommended crop, seasonal income estimate, and price alerts.</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {(() => {
             const landAcresNum = parseFloat(acres) || 2;
             const currentMonth = new Date().getMonth() + 1;
@@ -350,7 +285,7 @@ export default function FarmersDashboard() {
             ];
             return (
               <>
-                <Card className="rounded-xl border-emerald-900/40 bg-card">
+                <Card className="agri-card">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-emerald-400">Recommended crop this season</CardTitle>
                   </CardHeader>
@@ -359,14 +294,14 @@ export default function FarmersDashboard() {
                       <>
                         <p className="font-semibold text-foreground">{bestCrop.name}</p>
                         <p className="text-xs text-muted-foreground mt-1">Est. revenue: ₹ {bestCrop.estimatedRevenue.toLocaleString("en-IN")}</p>
-                        <Link to="/farmers/crop-recommendation" className="text-xs text-emerald-400 hover:underline mt-1 inline-block">View all recommendations</Link>
+                        <Link to="/agriculture/crop-recommendation" className="text-xs agri-link mt-1 inline-block">View all recommendations</Link>
                       </>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No crop match for current month. <Link to="/farmers/crop-recommendation" className="text-emerald-400 hover:underline">Check crop recommendation</Link></p>
+                      <p className="text-sm text-muted-foreground">No crop match for current month. <Link to="/agriculture/crop-recommendation" className="agri-link">Check crop recommendation</Link></p>
                     )}
                   </CardContent>
                 </Card>
-                <Card className="rounded-xl border-emerald-900/40 bg-card">
+                <Card className="agri-card">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-emerald-400">Estimated seasonal income</CardTitle>
                   </CardHeader>
@@ -375,14 +310,14 @@ export default function FarmersDashboard() {
                       <>
                         <p className="font-mono font-semibold text-foreground">₹ {bestCrop.estimatedRevenue.toLocaleString("en-IN")}</p>
                         <p className="text-xs text-muted-foreground mt-1">Based on {bestCrop.name} for {landAcresNum} acres in {FARMER_STATES.find((s) => s.id === selectedStateId)?.name ?? selectedStateId}</p>
-                        <Link to="/farmers/profitability" className="text-xs text-emerald-400 hover:underline mt-1 inline-block">Refine in Profitability</Link>
+                        <Link to="/agriculture/profitability" className="text-xs agri-link mt-1 inline-block">Refine in Profitability</Link>
                       </>
                     ) : (
-                      <p className="text-sm text-muted-foreground">Set state and area above; use <Link to="/farmers/profitability" className="text-emerald-400 hover:underline">Crop Profitability</Link> for details.</p>
+                      <p className="text-sm text-muted-foreground">Set state and area above; use <Link to="/agriculture/profitability" className="agri-link">Crop Profitability</Link> for details.</p>
                     )}
                   </CardContent>
                 </Card>
-                <Card className="rounded-xl border-emerald-900/40 bg-card">
+                <Card className="agri-card">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-emerald-400">Market price alerts</CardTitle>
                   </CardHeader>
@@ -392,7 +327,7 @@ export default function FarmersDashboard() {
                         <li key={i}>{a.text}</li>
                       ))}
                     </ul>
-                    <Link to="/farmers/alerts" className="text-xs text-emerald-400 hover:underline mt-2 inline-block">Manage alerts</Link>
+                    <Link to="/agriculture/alerts" className="text-xs agri-link mt-2 inline-block">Manage alerts</Link>
                   </CardContent>
                 </Card>
               </>
@@ -403,9 +338,9 @@ export default function FarmersDashboard() {
 
       {/* Loan estimate */}
       <section>
-        <h2 className="text-base font-semibold text-foreground mb-1">Loan estimate</h2>
+        <h2 className="agri-section-header">Loan estimate</h2>
         <p className="text-xs text-muted-foreground mb-3">Indicative limit by land area (KCC-style). For full bank list and rates, expand below or contact your bank.</p>
-        <Card className="rounded-xl border-emerald-900/40 bg-card">
+        <Card className="agri-card">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-emerald-400" />
@@ -414,10 +349,10 @@ export default function FarmersDashboard() {
           <CardDescription className="text-xs">Indicative estimate based on land area (KCC-style norms). Not a commitment.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
             <div className="space-y-1">
               <Label htmlFor="acres" className="text-xs">Land Area (acres)</Label>
-              <Input id="acres" type="number" min={0} step={0.5} placeholder="e.g. 2.5" value={acres} onChange={(e) => setAcres(e.target.value)} className="w-40 font-mono bg-background/50 border-border" />
+              <Input id="acres" type="number" min={0} step={0.5} placeholder="e.g. 2.5" value={acres} onChange={(e) => setAcres(e.target.value)} className="w-full sm:w-40 max-w-[140px] sm:max-w-none font-mono bg-background/50 border-border" />
             </div>
             <Button variant="outline" size="sm" className="border-border text-muted-foreground hover:text-foreground" onClick={() => setAcres("")}>Reset</Button>
             {loanEstimate !== null && (
@@ -471,7 +406,7 @@ export default function FarmersDashboard() {
       <section>
         <h2 className="text-base font-semibold text-foreground mb-1">Production data</h2>
         <p className="text-xs text-muted-foreground mb-3">Rice production by state (reference).</p>
-        <Card className="rounded-xl border-emerald-900/40 bg-card">
+        <Card className="agri-card">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             <Leaf className="h-5 w-5 text-emerald-400" />
@@ -480,7 +415,7 @@ export default function FarmersDashboard() {
           <CardDescription className="text-xs">Rice production (million tonnes) by state</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[320px] w-full">
+          <div className="min-h-[240px] sm:min-h-[320px] h-[240px] sm:h-[320px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={statewiseData} margin={{ top: 12, right: 12, bottom: 60, left: 12 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -502,7 +437,7 @@ export default function FarmersDashboard() {
 
       {/* Disease Detection modal */}
       <Dialog open={diseaseModalOpen} onOpenChange={setDiseaseModalOpen}>
-        <DialogContent className="rounded-xl border-emerald-900/40 bg-card text-foreground sm:max-w-md">
+        <DialogContent className="agri-card text-foreground max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Camera className="h-5 w-5 text-emerald-400" />
@@ -529,14 +464,29 @@ export default function FarmersDashboard() {
             </div>
           )}
           {diseaseStep === "loading" && (
-            <div className="py-8 flex flex-col items-center justify-center gap-4 text-muted-foreground" aria-live="polite">
-              <Loader2 className="h-10 w-10 animate-spin text-emerald-400" />
-              <p className="text-sm">Analyzing image...</p>
+            <div className="space-y-4 py-2" aria-live="polite">
+              <div className="rounded-xl border agri-card bg-background/40 p-4 space-y-3">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-2 w-full rounded" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-36" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
             </div>
           )}
           {diseaseStep === "result" && diseaseResult?.diagnosis && (
             <div className="space-y-4 py-2">
-              <div className="rounded-xl border border-emerald-900/40 bg-background/40 p-4">
+              <div className="rounded-xl border agri-card bg-background/40 p-4">
                 <p className="text-xs font-medium text-emerald-400 mb-1">Primary diagnosis</p>
                 <p className="text-lg font-semibold text-foreground">{diseaseResult.diagnosis.primary.name}</p>
                 <div className="mt-2">
@@ -571,17 +521,17 @@ export default function FarmersDashboard() {
               )}
               {diseaseResult.disclaimer && <p className="text-[10px] text-muted-foreground pt-2 border-t border-border/50">{diseaseResult.disclaimer}</p>}
               <div className="flex flex-col gap-2">
-                <Button variant="outline" className="w-full border-emerald-900/40 text-foreground" asChild>
-                  <Link to="/farmers/experts" onClick={() => setDiseaseModalOpen(false)}>Consult expert</Link>
+                <Button variant="outline" className="w-full agri-card text-foreground" asChild>
+                  <Link to="/agriculture/experts" onClick={() => setDiseaseModalOpen(false)}>Consult expert</Link>
                 </Button>
-                <Button variant="outline" className="w-full border-emerald-900/40 text-foreground" onClick={resetDiseaseToUpload}>Upload new image</Button>
+                <Button variant="outline" className="w-full agri-card text-foreground" onClick={resetDiseaseToUpload}>Upload new image</Button>
               </div>
             </div>
           )}
           {diseaseStep === "error" && (
             <div className="space-y-4 py-4">
               <p className="text-sm text-destructive flex items-center gap-2"><AlertCircle className="h-4 w-4 shrink-0" /> {diseaseError}</p>
-              <Button variant="outline" className="w-full border-emerald-900/40" onClick={resetDiseaseToUpload}>Try again</Button>
+              <Button variant="outline" className="w-full agri-card" onClick={resetDiseaseToUpload}>Try again</Button>
             </div>
           )}
         </DialogContent>
