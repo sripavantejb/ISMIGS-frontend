@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,29 +12,9 @@ import {
 } from "@/components/ui/table";
 import { ExternalLink, Calculator, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const PER_ACRE_LIMIT_LAKHS = 1.6;
-
-/** Indicative KCC/agri loan rates; processing fee and links for reference only. */
-const LOAN_BANKS_AND_RATES: {
-  bank: string;
-  scheme: string;
-  ratePct: number;
-  processingFee: string;
-  applicationLink: string;
-  notes?: string;
-}[] = [
-  { bank: "SBI", scheme: "KCC (crop loan)", ratePct: 7, processingFee: "Nil", applicationLink: "https://www.onlinesbi.sbi/sbicollect/icollecthome.htm", notes: "With interest subvention" },
-  { bank: "SBI", scheme: "KCC (beyond subvention)", ratePct: 9.5, processingFee: "—", applicationLink: "https://www.onlinesbi.sbi/sbicollect/icollecthome.htm" },
-  { bank: "HDFC Bank", scheme: "Kisan Credit Card", ratePct: 8.5, processingFee: "0.5%", applicationLink: "https://www.hdfcbank.com/personal/borrow/personal-loan/agriculture-loan" },
-  { bank: "ICICI Bank", scheme: "KCC / Agri term", ratePct: 9, processingFee: "—", applicationLink: "https://www.icicibank.com/agriculture" },
-  { bank: "Bank of Baroda", scheme: "KCC", ratePct: 7, processingFee: "Nil", applicationLink: "https://www.bankofbaroda.in/agriculture-banking.htm" },
-  { bank: "PNB", scheme: "KCC", ratePct: 7, processingFee: "Nil", applicationLink: "https://www.pnbbank.in/agriculture.html" },
-  { bank: "Canara Bank", scheme: "KCC", ratePct: 7, processingFee: "—", applicationLink: "https://canarabank.com/agriculture" },
-  { bank: "Union Bank", scheme: "KCC", ratePct: 7, processingFee: "Nil", applicationLink: "https://www.unionbankofindia.co.in/english/agriculture.aspx" },
-  { bank: "NABARD (via banks)", scheme: "Refinance-backed crop loans", ratePct: 7, processingFee: "—", applicationLink: "https://www.nabard.org/" },
-  { bank: "Regional Rural Banks", scheme: "KCC / short-term crop", ratePct: 7, processingFee: "—", applicationLink: "#" },
-];
+import { useLoanEstimatorConfig } from "../hooks/useLoanEstimatorConfig";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 function emi(P: number, annualRatePct: number, years: number): { emi: number; totalInterest: number } {
   if (P <= 0 || years <= 0) return { emi: 0, totalInterest: 0 };
@@ -50,12 +30,23 @@ export default function Loans() {
   const [loanAmount, setLoanAmount] = useState("");
   const [tenureYears, setTenureYears] = useState("3");
   const [ratePct, setRatePct] = useState("7");
+  const hasSetDefaultRate = useRef(false);
+  const { perAcreLimitLakhs, banksAndRates, loading: loanConfigLoading, error: loanConfigError, refetch: refetchLoanConfig } = useLoanEstimatorConfig();
+
+  useEffect(() => {
+    if (hasSetDefaultRate.current || !banksAndRates.length) return;
+    const first = banksAndRates[0];
+    if (first?.ratePct != null) {
+      setRatePct(String(first.ratePct));
+      hasSetDefaultRate.current = true;
+    }
+  }, [banksAndRates]);
 
   const estLimitLakhs = useMemo(() => {
     const a = parseFloat(landAcres);
     if (Number.isNaN(a) || a <= 0) return null;
-    return (a * PER_ACRE_LIMIT_LAKHS).toFixed(2);
-  }, [landAcres]);
+    return (a * perAcreLimitLakhs).toFixed(2);
+  }, [landAcres, perAcreLimitLakhs]);
 
   const emiInputs = useMemo(() => {
     const P = parseFloat(loanAmount) * 1_00_000; // lakhs to rupees
@@ -74,6 +65,12 @@ export default function Loans() {
           <CardDescription>Based on landholding; actual limit depends on bank norms.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
+          {loanConfigError && (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-900/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-200 mb-2">
+              <span>Could not load latest rates. Showing cached/default values.</span>
+              <Button variant="outline" size="sm" className="shrink-0 border-amber-700 text-amber-200 hover:bg-amber-900/30" onClick={() => refetchLoanConfig()}>Retry</Button>
+            </div>
+          )}
           <Label htmlFor="land-acres">Land area (acres)</Label>
           <Input
             id="land-acres"
@@ -165,56 +162,60 @@ export default function Loans() {
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 pb-6 pt-0 sm:px-6">
-          <div className="overflow-x-auto rounded-lg border border-border/60 bg-card/50">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border/60 bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="font-semibold text-foreground">Bank</TableHead>
-                  <TableHead className="font-semibold text-foreground">Scheme</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground w-[88px]">Rate %</TableHead>
-                  <TableHead className="font-semibold text-foreground w-[120px]">Processing fee</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground w-[100px]">Apply</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {LOAN_BANKS_AND_RATES.map((row, i) => (
-                  <TableRow key={i} className="border-border/60">
-                    <TableCell className="font-medium text-foreground">{row.bank}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-muted-foreground">{row.scheme}</span>
-                        {row.notes && (
-                          <span className="text-xs text-muted-foreground/80">{row.notes}</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums text-foreground">
-                      {row.ratePct}%
-                    </TableCell>
-                    <TableCell className="text-muted-foreground tabular-nums">
-                      {row.processingFee === "—" ? "—" : row.processingFee}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <a
-                        href={row.applicationLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Visit bank website"
-                        className={cn(
-                          "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium",
-                          "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10",
-                          "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
-                        )}
-                      >
-                        Apply Now
-                        <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-80" />
-                      </a>
-                    </TableCell>
+          {loanConfigLoading ? (
+            <Skeleton className="h-64 w-full rounded-lg" />
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-border/60 bg-card/50">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/60 bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="font-semibold text-foreground">Bank</TableHead>
+                    <TableHead className="font-semibold text-foreground">Scheme</TableHead>
+                    <TableHead className="text-right font-semibold text-foreground w-[88px]">Rate %</TableHead>
+                    <TableHead className="font-semibold text-foreground w-[120px]">Processing fee</TableHead>
+                    <TableHead className="text-right font-semibold text-foreground w-[100px]">Apply</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {banksAndRates.map((row, i) => (
+                    <TableRow key={i} className="border-border/60">
+                      <TableCell className="font-medium text-foreground">{row.bank}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-muted-foreground">{row.scheme}</span>
+                          {row.notes && (
+                            <span className="text-xs text-muted-foreground/80">{row.notes}</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums text-foreground">
+                        {row.ratePct}%
+                      </TableCell>
+                      <TableCell className="text-muted-foreground tabular-nums">
+                        {row.processingFee === "—" ? "—" : (row.processingFee ?? "—")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <a
+                          href={row.applicationLink ?? "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Visit bank website"
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium",
+                            "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10",
+                            "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                          )}
+                        >
+                          Apply Now
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-80" />
+                        </a>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

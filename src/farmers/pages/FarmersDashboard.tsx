@@ -17,11 +17,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { fetchWeatherByCity, weatherCodeToLabel, analyzeDisease, type WeatherForecast, type DiagnosisResponse } from "../services/farmersApi";
 import { FARMER_STATES, getCropStatsForState, getStatewiseProduction, type CropStat } from "../data/cropStatsByState";
 import { getRecommendedCrops } from "../data/cropRecommendations";
+import { useLoanEstimatorConfig } from "../hooks/useLoanEstimatorConfig";
 
 const CHATBOT_OPEN_EVENT = "ismigs-open-chatbot";
 const DEFAULT_CITY = "Serilingampalle";
 const chartTooltipStyle = { backgroundColor: "hsl(222 44% 9%)", border: "1px solid hsl(222 30% 22%)", borderRadius: "8px", fontFamily: "JetBrains Mono", fontSize: "12px" };
-const PER_ACRE_LIMIT_LAKHS = 1.6;
 const RAIN_WEATHER_CODES = [51, 61, 63, 80, 81, 82, 95, 96];
 
 function getCropWeatherAdvice(temp: number, hasRain: boolean): string {
@@ -32,20 +32,6 @@ function getCropWeatherAdvice(temp: number, hasRain: boolean): string {
   if (temp < 15) return "Cold — protect sensitive crops; delay irrigation if frost risk.";
   return "Check local advisory for crop-specific advice.";
 }
-
-/** Indicative KCC/agri loan rates (reference only; actual rates from banks). */
-const LOAN_BANKS_AND_RATES: { bank: string; scheme: string; ratePct: number; notes?: string }[] = [
-  { bank: "SBI", scheme: "KCC (crop loan)", ratePct: 7, notes: "With interest subvention" },
-  { bank: "SBI", scheme: "KCC (beyond subvention)", ratePct: 9.5 },
-  { bank: "HDFC Bank", scheme: "Kisan Credit Card", ratePct: 8.5 },
-  { bank: "ICICI Bank", scheme: "KCC / Agri term", ratePct: 9 },
-  { bank: "Bank of Baroda", scheme: "KCC", ratePct: 7 },
-  { bank: "PNB", scheme: "KCC", ratePct: 7 },
-  { bank: "Canara Bank", scheme: "KCC", ratePct: 7 },
-  { bank: "Union Bank", scheme: "KCC", ratePct: 7 },
-  { bank: "NABARD (via banks)", scheme: "Refinance-backed crop loans", ratePct: 7 },
-  { bank: "Regional Rural Banks", scheme: "KCC / short-term crop", ratePct: 7 },
-];
 
 function openVoiceAssistant() {
   window.dispatchEvent(new CustomEvent(CHATBOT_OPEN_EVENT));
@@ -99,6 +85,7 @@ export default function FarmersDashboard() {
   const [diseaseResult, setDiseaseResult] = useState<DiagnosisResponse | null>(null);
   const [diseaseError, setDiseaseError] = useState<string | null>(null);
   const [banksOpen, setBanksOpen] = useState(false);
+  const { perAcreLimitLakhs, banksAndRates, loading: loanConfigLoading, error: loanConfigError, refetch: refetchLoanConfig } = useLoanEstimatorConfig();
 
   const cropStats = getCropStatsForState(selectedStateId);
   const statewiseData = getStatewiseProduction();
@@ -167,7 +154,7 @@ export default function FarmersDashboard() {
     setDiseaseError(null);
   };
 
-  const loanEstimate = acres !== "" && !Number.isNaN(Number(acres)) && Number(acres) >= 0 ? Number(acres) * PER_ACRE_LIMIT_LAKHS : null;
+  const loanEstimate = acres !== "" && !Number.isNaN(Number(acres)) && Number(acres) >= 0 ? Number(acres) * perAcreLimitLakhs : null;
 
   return (
     <div className="min-h-screen p-4 sm:p-6 space-y-6 bg-background min-w-0 overflow-x-hidden">
@@ -349,6 +336,12 @@ export default function FarmersDashboard() {
           <CardDescription className="text-xs">Indicative estimate based on land area (KCC-style norms). Not a commitment.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {loanConfigError && (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-900/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-200">
+              <span>Could not load latest rates. Showing cached/default values.</span>
+              <Button variant="outline" size="sm" className="shrink-0 border-amber-700 text-amber-200 hover:bg-amber-900/30" onClick={() => refetchLoanConfig()}>Retry</Button>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
             <div className="space-y-1">
               <Label htmlFor="acres" className="text-xs">Land Area (acres)</Label>
@@ -371,28 +364,32 @@ export default function FarmersDashboard() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="pt-3 space-y-2">
-                <div className="overflow-x-auto rounded-lg border border-border/60">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-border/60 bg-muted/30">
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Bank</th>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Scheme</th>
-                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">Interest (p.a.)</th>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {LOAN_BANKS_AND_RATES.map((row, i) => (
-                        <tr key={i} className="border-b border-border/40 last:border-0">
-                          <td className="py-2 px-3 font-medium">{row.bank}</td>
-                          <td className="py-2 px-3 text-muted-foreground">{row.scheme}</td>
-                          <td className="py-2 px-3 text-right font-mono text-accent">{row.ratePct}%</td>
-                          <td className="py-2 px-3 text-muted-foreground">{row.notes ?? "—"}</td>
+                {loanConfigLoading ? (
+                  <Skeleton className="h-48 w-full rounded-lg" />
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-border/60">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-border/60 bg-muted/30">
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Bank</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Scheme</th>
+                          <th className="text-right py-2 px-3 font-medium text-muted-foreground">Interest (p.a.)</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Notes</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {banksAndRates.map((row, i) => (
+                          <tr key={i} className="border-b border-border/40 last:border-0">
+                            <td className="py-2 px-3 font-medium">{row.bank}</td>
+                            <td className="py-2 px-3 text-muted-foreground">{row.scheme}</td>
+                            <td className="py-2 px-3 text-right font-mono text-accent">{row.ratePct}%</td>
+                            <td className="py-2 px-3 text-muted-foreground">{row.notes ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
                 <p className="text-[10px] text-muted-foreground">Rates are indicative and may vary. Subvention may apply for timely repayment. Confirm with the bank.</p>
               </div>
             </CollapsibleContent>

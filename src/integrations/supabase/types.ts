@@ -64,6 +64,11 @@ export type Database = {
         Insert: { key: string; value?: Json; updated_at?: string }
         Update: { key?: string; value?: Json; updated_at?: string }
       }
+      loan_estimator_config: {
+        Row: { id: string; per_acre_limit_lakhs: number; banks_and_rates: Json; updated_at: string }
+        Insert: { id?: string; per_acre_limit_lakhs?: number; banks_and_rates?: Json; updated_at?: string }
+        Update: { id?: string; per_acre_limit_lakhs?: number; banks_and_rates?: Json; updated_at?: string }
+      }
     }
     Views: {
       [_ in never]: never
