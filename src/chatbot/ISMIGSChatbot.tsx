@@ -12,7 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { sendChatMessage, convertToGeminiHistory } from "./geminiChat";
+import { sendChatMessage, convertToChatHistory } from "./chatApi";
 import { cn } from "@/lib/utils";
 
 export interface ISMIGSChatbotProps {
@@ -112,8 +112,8 @@ export default function ISMIGSChatbot({ context }: ISMIGSChatbotProps) {
     setLoading(true);
 
     try {
-      // Convert to Gemini format
-      const history = convertToGeminiHistory(newMessages);
+      // Convert to chat format
+      const history = convertToChatHistory(newMessages);
 
       // Send to Gemini
       const response = await sendChatMessage(history, userMessage, context);
@@ -137,15 +137,43 @@ export default function ISMIGSChatbot({ context }: ISMIGSChatbotProps) {
   };
 
   const formatMessage = (content: string) => {
+    // Process markdown bold syntax (**text**) and convert to HTML
+    const processBold = (text: string) => {
+      const parts: (string | JSX.Element)[] = [];
+      const boldRegex = /\*\*(.*?)\*\*/g;
+      let lastIndex = 0;
+      let match;
+      let key = 0;
+
+      while ((match = boldRegex.exec(text)) !== null) {
+        // Add text before the bold
+        if (match.index > lastIndex) {
+          parts.push(text.substring(lastIndex, match.index));
+        }
+        // Add bold text
+        parts.push(
+          <strong key={key++} className="font-semibold">
+            {match[1]}
+          </strong>
+        );
+        lastIndex = match.index + match[0].length;
+      }
+      // Add remaining text
+      if (lastIndex < text.length) {
+        parts.push(text.substring(lastIndex));
+      }
+      return parts.length > 0 ? parts : [text];
+    };
+
     // Simple formatting: preserve line breaks and basic markdown-like structure
     const lines = content.split("\n");
     return lines.map((line, idx) => {
       const trimmed = line.trim();
       
-      // Bold headings (lines ending with ** or starting with **)
-      if (trimmed.startsWith("**") && trimmed.endsWith("**")) {
+      // Bold headings (lines that are entirely bold)
+      if (trimmed.startsWith("**") && trimmed.endsWith("**") && trimmed.split("**").length === 3) {
         return (
-          <div key={idx} className="font-semibold text-foreground mt-3 mb-1 first:mt-0">
+          <div key={idx} className="font-semibold text-blue-900 mt-3 mb-1 first:mt-0">
             {trimmed.slice(2, -2)}
           </div>
         );
@@ -155,14 +183,18 @@ export default function ISMIGSChatbot({ context }: ISMIGSChatbotProps) {
       if (trimmed.startsWith("•") || trimmed.startsWith("-")) {
         return (
           <div key={idx} className="ml-4 mb-1">
-            {trimmed}
+            {processBold(trimmed)}
           </div>
         );
       }
       
-      // Regular line
+      // Regular line - process bold syntax
       if (trimmed) {
-        return <div key={idx} className="mb-1">{line}</div>;
+        return (
+          <div key={idx} className="mb-1">
+            {processBold(line)}
+          </div>
+        );
       }
       
       // Empty line
@@ -175,22 +207,24 @@ export default function ISMIGSChatbot({ context }: ISMIGSChatbotProps) {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="fixed bottom-16 right-20 h-14 w-14 rounded-full shadow-lg z-50 bg-primary text-primary-foreground border-primary hover:bg-primary hover:text-primary-foreground hover:border-primary"
+          className="fixed bottom-16 right-20 h-14 w-14 rounded-full shadow-lg z-50 bg-blue-600 text-white border-blue-600 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-colors"
           aria-label="Open ISMIGS AI Chatbot"
         >
           <Bot className="h-5 w-5" />
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="fixed bottom-6 right-6 left-auto top-auto z-50 flex h-[min(85vh,36rem)] w-full max-w-lg translate-x-0 translate-y-0 flex-col gap-0 rounded-xl border p-0 shadow-[0_8px_30px_rgba(0,0,0,0.25)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-bottom-4 data-[state=open]:slide-in-from-bottom-4 sm:rounded-xl"
+        className="fixed bottom-6 right-6 left-auto top-auto z-50 flex h-[min(85vh,36rem)] w-full max-w-lg translate-x-0 translate-y-0 flex-col gap-0 rounded-xl border border-gray-200 p-0 shadow-[0_8px_30px_rgba(0,0,0,0.15)] bg-white data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-bottom-4 data-[state=open]:slide-in-from-bottom-4 sm:rounded-xl"
       >
-        <DialogHeader className="px-6 py-4 border-b">
+        <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-white">
           <div className="flex items-center gap-2">
-            <Bot className="h-5 w-5 text-primary" />
-            <DialogTitle>ISMIGS AI</DialogTitle>
+            <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
+              <Bot className="h-4 w-4 text-white" />
+            </div>
+            <DialogTitle className="text-black">ISMIGS AI</DialogTitle>
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
-            Ask questions about Energy, WPI, IIP, GDP, GVA, and macro outlooks
+            I'm here to help you navigate ISMIGS and understand India's macro-economic indicators
           </DialogDescription>
         </DialogHeader>
 
@@ -198,9 +232,12 @@ export default function ISMIGSChatbot({ context }: ISMIGSChatbotProps) {
           <div className="space-y-4">
             {messages.length === 0 && (
               <div className="text-center text-muted-foreground py-8">
-                <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-blue-600 flex items-center justify-center">
+                  <Bot className="h-8 w-8 text-white" />
+                </div>
+                <p className="text-sm font-medium mb-2">Hello! 👋</p>
                 <p className="text-sm">
-                  Welcome to ISMIGS AI. How can I help you understand India's macro-economic indicators?
+                  Welcome to ISMIGS AI. I'm here to help you navigate the platform and understand India's macro-economic indicators. How can I assist you today?
                 </p>
               </div>
             )}
@@ -214,16 +251,16 @@ export default function ISMIGSChatbot({ context }: ISMIGSChatbotProps) {
                 )}
               >
                 {message.role === "assistant" && (
-                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-primary" />
+                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
+                    <Bot className="h-4 w-4 text-white" />
                   </div>
                 )}
                 <div
                   className={cn(
                     "rounded-lg px-4 py-2 max-w-[80%]",
                     message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground"
+                      ? "bg-black text-white"
+                      : "bg-blue-50 text-blue-900 border border-blue-200"
                   )}
                 >
                   {message.role === "user" ? (
@@ -235,8 +272,8 @@ export default function ISMIGSChatbot({ context }: ISMIGSChatbotProps) {
                   )}
                 </div>
                 {message.role === "user" && (
-                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-4 w-4 text-primary" />
+                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-300">
+                    <User className="h-4 w-4 text-black" />
                   </div>
                 )}
               </div>
@@ -244,11 +281,11 @@ export default function ISMIGSChatbot({ context }: ISMIGSChatbotProps) {
 
             {loading && (
               <div className="flex gap-3 justify-start">
-                <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Bot className="h-4 w-4 text-primary" />
+                <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
+                  <Bot className="h-4 w-4 text-white" />
                 </div>
-                <div className="rounded-lg px-4 py-2 bg-muted">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="rounded-lg px-4 py-2 bg-blue-50 border border-blue-200">
+                  <div className="flex items-center gap-2 text-sm text-blue-700">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Thinking...</span>
                   </div>
@@ -290,21 +327,21 @@ export default function ISMIGSChatbot({ context }: ISMIGSChatbotProps) {
           </div>
         </ScrollArea>
 
-        <form onSubmit={handleSubmit} className="border-t p-4">
+        <form onSubmit={handleSubmit} className="border-t border-gray-200 p-4 bg-white">
           <div className="flex gap-2">
             <Textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about Energy, WPI, IIP, GDP, GVA, or macro trends..."
+              placeholder="Ask me anything about ISMIGS, navigation, features, or macro-economic data..."
               className="min-h-[60px] resize-none"
               disabled={loading}
             />
             <Button
               type="submit"
               disabled={!input.trim() || loading}
-              className="self-end"
+              className="self-end bg-black hover:bg-gray-900 text-white"
               size="icon"
             >
               {loading ? (

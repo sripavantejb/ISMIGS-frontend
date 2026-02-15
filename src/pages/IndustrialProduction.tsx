@@ -237,6 +237,12 @@ const IndustrialProduction = () => {
   }, [categoryConfig, filteredRows]);
 
   const handleApply = () => {
+    // Clear cache when filters change to force regeneration
+    if (viewMode === "predictions" && categoryConfig?.displayName) {
+      const oldCacheKey = `iip-predictions-${categoryConfig.displayName}-${selectedYear || 'all'}`;
+      sessionStorage.removeItem(oldCacheKey);
+      sessionStorage.removeItem('last-iip-prediction-data-key');
+    }
     setSelectedYear(pendingYear);
     setSelectedSubCategory(pendingSubCategory);
   };
@@ -353,10 +359,18 @@ const IndustrialProduction = () => {
       });
       const lastDataKey = sessionStorage.getItem('last-iip-prediction-data-key');
       
-      // Always regenerate if the year or category changed
+      // Force regeneration if filters changed
       if (lastDataKey !== dataKey) {
+        // Clear old cache entries when filters change
+        const oldDataKey = lastDataKey ? JSON.parse(lastDataKey) : null;
+        if (oldDataKey && categoryConfig?.displayName) {
+          // Clear cache for old filters
+          const oldCacheKey = `iip-predictions-${categoryConfig.displayName}-${oldDataKey.year || 'all'}`;
+          sessionStorage.removeItem(oldCacheKey);
+        }
+        
         sessionStorage.setItem('last-iip-prediction-data-key', dataKey);
-        // Generate new predictions with updated year - this will call OpenAI API
+        // Always regenerate when filters change
         generatePredictions(historicalDataForAI);
       }
     } else if (viewMode === "history") {
@@ -1119,100 +1133,6 @@ const IndustrialProduction = () => {
         </div>
       )}
 
-      {/* Prediction Charts - Only in predictions mode */}
-      {viewMode === "predictions" && (aiForecastData || iipForecast) && (aiForecastData?.forecastLine || iipForecast?.forecastLine) && (aiForecastData?.forecastLine?.length ?? iipForecast?.forecastLine?.length ?? 0) > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="glass-card p-5 border-orange-500/30 bg-orange-950/10"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-foreground">
-              IIP Index Forecast — {categoryConfig?.displayName}
-            </h3>
-            <div className="flex gap-4 text-xs">
-              <div>
-                <div className="text-muted-foreground">Year</div>
-                <div className="font-mono font-bold text-foreground">
-                  {selectedYear && selectedYear !== "ALL" ? selectedYear : aiForecastData?.nextYear || iipForecast?.nextYear || "—"}
-                </div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Projected</div>
-                <div className="font-mono font-bold text-orange-400">
-                  {aiForecastData?.projectedIndex != null ? aiForecastData.projectedIndex.toFixed(1) : iipForecast?.projectedIndex != null ? iipForecast.projectedIndex.toFixed(1) : "—"}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="h-48">
-            {(() => {
-              const forecastData = aiForecastData || iipForecast;
-              if (!forecastData || !forecastData.forecastLine) return null;
-              
-              // Filter to show only future forecast data (no historical data in predictions mode)
-              const historyLength = forecastData.history?.length ?? 0;
-              let forecastOnlyData = (forecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
-              
-              // If a specific year is selected, filter to show up to that year (and a bit beyond for context)
-              if (selectedYear && selectedYear !== "ALL") {
-                const yearMatch = selectedYear.match(/^(\d{4})/);
-                if (yearMatch) {
-                  const targetYear = parseInt(yearMatch[1], 10);
-                  // Show forecasts up to the selected year + 2 years for context
-                  // This ensures the selected year is always visible in the chart
-                  forecastOnlyData = forecastOnlyData.filter((d) => {
-                    let year: number;
-                    if (typeof d.x === 'number') {
-                      year = d.x;
-                    } else if (typeof d.x === 'string') {
-                      // Handle fiscal year format like "2024-25"
-                      const yearMatch = d.x.match(/^(\d{4})/);
-                      year = yearMatch ? parseInt(yearMatch[1], 10) : parseInt(d.x, 10);
-                    } else {
-                      year = parseInt(String(d.x), 10);
-                    }
-                    return !isNaN(year) && year <= targetYear + 2;
-                  });
-                }
-              }
-              
-              const tooltipStyle = {
-                backgroundColor: "hsl(222 44% 9%)",
-                border: "1px solid hsl(222 30% 22%)",
-                borderRadius: "8px",
-                fontFamily: "JetBrains Mono",
-                fontSize: "12px",
-              };
-              
-              return forecastOnlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%" key={selectedYear}>
-                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
-                    <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
-                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="index"
-                      name="IIP index (projected)"
-                      stroke="hsl(38 92% 50%)"
-                      strokeWidth={3}
-                      dot={{ fill: "hsl(38 92% 50%)", r: 5 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No forecast data available
-                </div>
-              );
-            })()}
-          </div>
-        </motion.div>
-      )}
 
       {/* Sectors affected — Only in predictions mode */}
       {viewMode === "predictions" && categoryConfig && categoryImpact.sectorsAffected.length > 0 && (
@@ -1303,43 +1223,95 @@ const IndustrialProduction = () => {
               },
             ]}
           >
-            {(() => {
-              // Filter to show only future forecast data (no historical data in predictions mode)
-              const historyLength = iipForecast.history?.length ?? 0;
-              const forecastOnlyData = (iipForecast.forecastLine as Record<string, unknown>[]).slice(historyLength);
-              const tooltipStyle = {
-                backgroundColor: "hsl(222 44% 9%)",
-                border: "1px solid hsl(222 30% 22%)",
-                borderRadius: "8px",
-                fontFamily: "JetBrains Mono",
-                fontSize: "12px",
-              };
-              
-              return forecastOnlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%" key={selectedYear}>
-                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
-                    <XAxis dataKey="periodLabel" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
-                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="index"
-                      name="IIP index (projected)"
-                      stroke="hsl(187 92% 50%)"
-                      strokeWidth={3}
-                      dot={{ fill: "hsl(187 92% 50%)", r: 5 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No forecast data available
-                </div>
-              );
-            })()}
           </PredictionCard>
+
+          {/* Year-by-Year Forecast Table */}
+          {predictions && predictions.forecasts && predictions.forecasts.years && predictions.forecasts.years.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="rounded-xl border border-orange-500/30 bg-orange-950/10 p-6 mt-6"
+            >
+              <h3 className="text-lg font-semibold text-foreground mb-4">Year-by-Year Forecast</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-orange-500/20">
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">Year</th>
+                      <th className="text-right py-2 px-3 text-muted-foreground font-medium">IIP Index</th>
+                      <th className="text-right py-2 px-3 text-muted-foreground font-medium">Growth Rate (%)</th>
+                      <th className="text-right py-2 px-3 text-muted-foreground font-medium">Index Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {predictions.forecasts.years.map((year, idx) => {
+                      const index = predictions.forecasts.index[idx] ?? 0;
+                      const growthRate = predictions.forecasts.growthRate[idx] ?? 0;
+                      const prevIndex = idx > 0 ? (predictions.forecasts.index[idx - 1] ?? index) : index;
+                      const indexChange = index - prevIndex;
+                      return (
+                        <tr key={year} className="border-b border-orange-500/10 hover:bg-orange-950/20">
+                          <td className="py-2 px-3 font-medium text-foreground">{year}</td>
+                          <td className="py-2 px-3 text-right font-mono text-orange-400">{index.toFixed(1)}</td>
+                          <td className={`py-2 px-3 text-right font-mono ${growthRate >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {growthRate >= 0 ? "+" : ""}{growthRate.toFixed(2)}%
+                          </td>
+                          <td className={`py-2 px-3 text-right font-mono ${indexChange >= 0 ? "text-orange-400" : "text-red-400"}`}>
+                            {indexChange >= 0 ? "+" : ""}{indexChange.toFixed(1)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Growth Indicators */}
+          {predictions && predictions.forecasts && predictions.forecasts.years && predictions.forecasts.years.length > 1 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6"
+            >
+              {(() => {
+                const firstIndex = predictions.forecasts.index[0] ?? 0;
+                const lastIndex = predictions.forecasts.index[predictions.forecasts.index.length - 1] ?? 0;
+                const firstGrowth = predictions.forecasts.growthRate[0] ?? 0;
+                const lastGrowth = predictions.forecasts.growthRate[predictions.forecasts.growthRate.length - 1] ?? 0;
+                const totalGrowth = firstIndex > 0 ? ((lastIndex - firstIndex) / firstIndex) * 100 : 0;
+                const avgGrowth = predictions.forecasts.growthRate.reduce((sum, val) => sum + (val ?? 0), 0) / predictions.forecasts.growthRate.length;
+                return (
+                  <>
+                    <div className="p-4 rounded-lg border border-orange-500/30 bg-orange-950/10">
+                      <div className="text-xs text-muted-foreground mb-1">Total Index Growth</div>
+                      <div className={`text-2xl font-mono font-bold ${totalGrowth >= 0 ? "text-orange-400" : "text-red-400"}`}>
+                        {totalGrowth >= 0 ? "+" : ""}{totalGrowth.toFixed(1)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">Over forecast period</div>
+                    </div>
+                    <div className="p-4 rounded-lg border border-orange-500/30 bg-orange-950/10">
+                      <div className="text-xs text-muted-foreground mb-1">Average Growth Rate</div>
+                      <div className={`text-2xl font-mono font-bold ${avgGrowth >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {avgGrowth >= 0 ? "+" : ""}{avgGrowth.toFixed(2)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">Period average</div>
+                    </div>
+                    <div className="p-4 rounded-lg border border-orange-500/30 bg-orange-950/10">
+                      <div className="text-xs text-muted-foreground mb-1">Growth Trend</div>
+                      <div className={`text-2xl font-mono font-bold ${lastGrowth >= firstGrowth ? "text-emerald-400" : "text-red-400"}`}>
+                        {lastGrowth >= firstGrowth ? "↑ Improving" : "↓ Declining"}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">First vs Last year</div>
+                    </div>
+                  </>
+                );
+              })()}
+            </motion.div>
+          )}
         </motion.div>
       )}
 

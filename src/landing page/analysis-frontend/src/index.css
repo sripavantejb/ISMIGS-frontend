@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-ismigs-dark text-white antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  /* Hero content entrance */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-fade-in-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s ease-out forwards;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 ease-out;
+  }
+  .card-hover:hover {
+    @apply bg-ismigs-purple/20 border-ismigs-purple scale-[1.02];
+  }
+
+  /* Hero subtle grid background */
+  .hero-grid {
+    background-image:
+      linear-gradient(rgba(139, 92, 246, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139, 92, 246, 0.08) 1px, transparent 1px);
+    background-size: 48px 48px;
+    animation: hero-grid-shift 25s linear infinite;
+  }
+  @keyframes hero-grid-shift {
+    0% { background-position: 0 0; }
+    100% { background-position: 48px 48px; }
+  }
+
+  /* Floating orbs — soft drift */
+  .hero-orb {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.2);
+    filter: blur(60px);
+    pointer-events: none;
+  }
+  .hero-orb-1 {
+    width: 320px;
+    height: 320px;
+    left: 5%;
+    top: 15%;
+    animation: orb-float 18s ease-in-out infinite;
+  }
+  .hero-orb-2 {
+    width: 280px;
+    height: 280px;
+    right: 10%;
+    top: 40%;
+    animation: orb-float 22s ease-in-out infinite 3s;
+  }
+  .hero-orb-3 {
+    width: 240px;
+    height: 240px;
+    left: 45%;
+    bottom: 5%;
+    animation: orb-float 20s ease-in-out infinite 1.5s;
+  }
+  @keyframes orb-float {
+    0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+    33% { transform: translate(25px, -15px) scale(1.08); opacity: 0.75; }
+    66% { transform: translate(-20px, 20px) scale(0.95); opacity: 0.45; }
+  }
+}

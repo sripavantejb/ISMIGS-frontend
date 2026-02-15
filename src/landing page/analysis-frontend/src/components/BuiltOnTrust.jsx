@@ -1,0 +1,41 @@
+const items = [
+  { num: '01', title: 'Real Data (no mock data)', description: 'MoSPI and related official sources only.' },
+  { num: '02', title: 'Easy switch between analyses', description: 'One click in the sidebar changes the view.' },
+  { num: '03', title: 'AI Chatbot integration', description: 'ISMIGS AI answers Energy, WPI, IIP, GDP, GVA, macro.' },
+  { num: '04', title: 'Admin panel for governance', description: 'Sector emails, LinkedIn/social posting with approval.' },
+]
+
+function TrustCard({ num, title, description }) {
+  return (
+    <div className="group relative p-5 sm:p-6 rounded-xl bg-ismigs-card border border-white/10 transition-all duration-300 ease-out hover:border-ismigs-purple hover:bg-gray-800/80 hover:shadow-lg hover:shadow-ismigs-purple/20 hover:-translate-y-1 hover:scale-[1.02] cursor-default">
+      <span className="absolute top-4 right-4 w-6 h-6 rounded-full border border-white/30 flex items-center justify-center text-xs text-white/80 group-hover:border-ismigs-purple group-hover:text-ismigs-purple transition-colors duration-300">
+        i
+      </span>
+      <span className="text-3xl sm:text-4xl font-bold text-white/90 mb-2 block group-hover:text-white transition-colors duration-300">{num}</span>
+      <h3 className="text-white font-semibold text-base sm:text-lg mb-1 group-hover:text-white transition-colors duration-300">{title}</h3>
+      <p className="text-gray-300 text-xs sm:text-sm group-hover:text-gray-200 transition-colors duration-300">{description}</p>
+    </div>
+  )
+}
+
+export default function BuiltOnTrust() {
+  return (
+    <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 md:px-8 bg-ismigs-purple/90">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-8 sm:mb-12">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2">
+            Built on Trust. Driven by Results.
+          </h2>
+          <p className="text-white/90 text-base sm:text-lg max-w-2xl mx-auto px-4">
+            Real data, easy switching, AI chatbot, and admin governance — no mock data.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {items.map((item) => (
+            <TrustCard key={item.num} {...item} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}

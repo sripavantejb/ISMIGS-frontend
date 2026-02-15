@@ -129,13 +129,13 @@ ${dataPoints.join("\n")}
 
 Analyze the historical trends and provide:
 1. A narrative explanation of future industrial production trends${targetYear ? `, with specific focus on ${targetYear}` : ''}
-2. Numerical forecasts for IIP index and growth rates${targetYear ? ` starting from ${startYear} and extending AT LEAST to ${targetYear} (preferably 2-3 years beyond ${targetYear} for context). The years array MUST include EVERY year from ${startYear} through ${targetYear} (e.g., if ${targetYear} is selected, include: [${startYear}, ${startYear + 1}, ${startYear + 2}, ..., ${targetYear - 1}, ${targetYear}, ${targetYear + 1}, ${targetYear + 2}, ${targetYear + 3}]). DO NOT skip any years.` : ' for the next 5-10 years'}
+2. Numerical forecasts for IIP index and growth rates${targetYear ? ` starting from ${startYear} and extending AT LEAST to ${targetYear} (preferably 2-3 years beyond ${targetYear} for context). The years array MUST include EVERY year from ${startYear} through ${targetYear} (e.g., if ${targetYear} is selected, include: [${startYear}, ${startYear + 1}, ${startYear + 2}, ..., ${targetYear - 1}, ${targetYear}, ${targetYear + 1}, ${targetYear + 2}, ${targetYear + 3}]). DO NOT stop at an earlier year. DO NOT skip years.` : ' for the next 5-10 years'}
 3. Projected KPIs (IIP index, growth rate)${targetYear ? ` for ${targetYear}` : ' for the next year'}
 4. Projected impact on related sectors${targetYear ? ` for ${targetYear}` : ' for the next year'}
 5. Key risk factors to monitor
 6. Actionable recommendations
 
-${targetYear ? `CRITICAL: All KPIs and sector impact values must be projected specifically for ${targetYear} (${selectedYear}), not for a generic "next year". Use trend analysis to estimate what the values will be in ${targetYear} based on historical patterns. The forecasts arrays MUST include data for ${targetYear} - do not stop at an earlier year.` : 'For KPIs and sector impact, project values for the next year based on historical trends and patterns.'}
+${targetYear ? `CRITICAL: All KPIs and sector impact values must be projected specifically for ${targetYear} (${selectedYear}), not for a generic "next year". Use trend analysis to estimate what the values will be in ${targetYear} based on historical patterns. The forecasts arrays MUST include data for EVERY year from ${startYear} through ${targetYear} - do not stop at an earlier year.` : 'For KPIs and sector impact, project values for the next year based on historical trends and patterns.'}
 
 CRITICAL INSTRUCTIONS FOR JSON OUTPUT:
 - Output ONLY the JSON object, nothing else
@@ -389,19 +389,41 @@ export function useIIPPredictions() {
   const [predictions, setPredictions] = useState<IIPPredictionData | null>(null);
 
   const generatePredictions = async (data: IIPHistoricalData) => {
-    // Create a cache key based on the data
+    // Create a cache key based on the data (include year in key)
     const cacheKey = `iip-predictions-${data.category}-${data.selectedYear || 'all'}`;
     
     // Check cache first - show cached data immediately if available
     const cached = sessionStorage.getItem(cacheKey);
-    if (cached) {
+    if (cached && data.selectedYear) {
       try {
         const cachedData = JSON.parse(cached) as IIPPredictionData;
-        // Validate cached data structure
+        // Validate cached data structure and verify it extends to selected year
+        if (cachedData && cachedData.forecasts && cachedData.forecasts.years && cachedData.forecasts.years.length > 0) {
+          // Verify cached data extends to selected year
+          const yearMatch = data.selectedYear.match(/^(\d{4})/);
+          if (yearMatch) {
+            const targetYear = parseInt(yearMatch[1], 10);
+            const maxYear = Math.max(...cachedData.forecasts.years);
+            if (maxYear >= targetYear) {
+              setPredictions(cachedData);
+              // Still generate in background for fresh data, but show cached immediately
+            } else {
+              // Cache doesn't extend far enough - clear it and regenerate
+              sessionStorage.removeItem(cacheKey);
+            }
+          } else {
+            setPredictions(cachedData);
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to parse cached predictions", e);
+      }
+    } else if (cached && !data.selectedYear) {
+      // If no year selected, use cached data
+      try {
+        const cachedData = JSON.parse(cached) as IIPPredictionData;
         if (cachedData && cachedData.forecasts && cachedData.forecasts.years && cachedData.forecasts.years.length > 0) {
           setPredictions(cachedData);
-          // Don't show loading state if we have cached data - update in background
-          // This provides instant feedback
         }
       } catch (e) {
         console.warn("Failed to parse cached predictions", e);

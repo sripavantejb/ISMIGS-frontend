@@ -84,6 +84,8 @@ export async function generateEnergyPredictions(
   }
   // Parse target year if provided
   let targetYear: number | null = null;
+  const currentYear = new Date().getFullYear();
+  const startYear = currentYear + 1; // Start from next year
   if (selectedYear && selectedYear !== "ALL") {
     // Extract year from format like "2027-28" -> 2027
     const yearMatch = selectedYear.match(/^(\d{4})/);
@@ -91,6 +93,7 @@ export async function generateEnergyPredictions(
       targetYear = parseInt(yearMatch[1], 10);
     }
     dataPoints.push(`TARGET YEAR FOR PREDICTIONS: ${selectedYear} (${targetYear})`);
+    dataPoints.push(`CRITICAL: Generate forecasts starting from ${startYear} and extending AT LEAST to ${targetYear}. The years array must include ALL years from ${startYear} through ${targetYear} (and preferably 2-3 years beyond ${targetYear} for context).`);
   }
   if (selectedSector && selectedSector !== "ALL") dataPoints.push(`Filtered by sector: ${selectedSector}`);
 
@@ -98,7 +101,7 @@ export async function generateEnergyPredictions(
 
 Your task is to generate accurate, data-driven predictions for energy supply and consumption based on historical trends.
 
-${targetYear ? `IMPORTANT: The user has selected a specific target year (${targetYear}). You MUST generate predictions specifically for this year and surrounding years. The KPIs should reflect values for ${targetYear}, not just "next year".` : ''}
+${targetYear ? `IMPORTANT: The user has selected a specific target year (${targetYear}). You MUST generate predictions starting from ${startYear} and extending AT LEAST to ${targetYear}. The years array must include all years from ${startYear} through ${targetYear} (and preferably 2-3 years beyond for context). The KPIs should reflect values for ${targetYear}, not just "next year".` : ''}
 
 CRITICAL: You MUST output ONLY a valid JSON object. No markdown, no code blocks, no explanatory text, no comments. The response must be parseable JSON.
 
@@ -106,9 +109,9 @@ You must output a valid JSON object with this exact structure:
 {
   "narrative": "A concise explanation (150-200 words) of future trends, key drivers, and what to expect${targetYear ? `, with focus on ${targetYear}` : ''}",
   "forecasts": {
-    "supply": [number, number, ...], // Projected supply values${targetYear ? ` starting from ${targetYear}` : ' for next 5-10 years'} (same units as historical data)
-    "consumption": [number, number, ...], // Projected consumption values${targetYear ? ` starting from ${targetYear}` : ' for next 5-10 years'}
-    "years": [number, number, ...] // Corresponding years${targetYear ? ` starting with ${targetYear}` : ' (e.g., [2025, 2026, 2027, 2028, 2029])'}
+    "supply": [number, number, ...], // Projected supply values${targetYear ? ` starting from ${startYear} and extending to at least ${targetYear} (include ${targetYear} in the array)` : ' for next 5-10 years'} (same units as historical data)
+    "consumption": [number, number, ...], // Projected consumption values${targetYear ? ` starting from ${startYear} and extending to at least ${targetYear} (include ${targetYear} in the array)` : ' for next 5-10 years'}
+    "years": [number, number, ...] // Corresponding years${targetYear ? ` starting from ${startYear}, MUST include ${targetYear}, and extend 2-3 years beyond ${targetYear}` : ' (e.g., [2025, 2026, 2027, 2028, 2029])'}
   },
   "kpis": {
     "production": number, // Projected production${targetYear ? ` for ${targetYear}` : ' for next year'} (same units as current)
@@ -126,12 +129,13 @@ You must output a valid JSON object with this exact structure:
 
 Rules:
 - Use linear regression and trend analysis on the historical data to project future values
-- ${targetYear ? `CRITICAL: Generate forecasts starting from ${targetYear}. The first year in the years array must be ${targetYear}.` : 'Generate 5-10 years of forecasts (use 5 years if data is limited, 10 years if sufficient historical data exists)'}
+- ${targetYear ? `CRITICAL: Generate forecasts starting from ${startYear} and extending AT LEAST to ${targetYear}. The years array must start with ${startYear} and MUST include ${targetYear}. Extend 2-3 years beyond ${targetYear} for context. For example, if ${targetYear} is selected, generate: [${startYear}, ${startYear + 1}, ${startYear + 2}, ..., ${targetYear - 1}, ${targetYear}, ${targetYear + 1}, ${targetYear + 2}, ${targetYear + 3}]. DO NOT skip any years - include EVERY year from ${startYear} through ${targetYear}.` : 'Generate 5-10 years of forecasts (use 5 years if data is limited, 10 years if sufficient historical data exists)'}
+- CRITICAL: Each year in the forecasts MUST have DIFFERENT values. Use trend analysis to project increasing or decreasing values over time. DO NOT repeat the same value for multiple years. Each year should show progression based on historical trends (e.g., if supply is growing at 5% per year, each year should be 5% higher than the previous).
 - Ensure forecasts are realistic and follow historical patterns
 - Supply and consumption arrays must have the same length as years array
 - Numbers should be in the same units as the historical data (KToE or PJ)
 - Be conservative in projections - don't predict extreme changes unless strongly supported by trends
-- ${targetYear ? `KPIs must reflect projected values for ${targetYear} specifically.` : 'KPIs should reflect projected values for the next year.'}
+- ${targetYear ? `KPIs must reflect projected values for ${targetYear} specifically - extract them from the forecasts arrays at the index where years equals ${targetYear}. DO NOT use values from other years.` : 'KPIs should reflect projected values for the next year.'}
 - Narrative should explain the reasoning behind the forecasts${targetYear ? `, especially for ${targetYear}` : ''}
 - Risk factors should be specific and actionable
 - Recommendations should be concrete and implementable
@@ -146,13 +150,20 @@ ${dataPoints.join("\n")}
 
 Analyze the historical trends and provide:
 1. A narrative explanation of future trends${targetYear ? `, with specific focus on ${targetYear}` : ''}
-2. Numerical forecasts for supply and consumption${targetYear ? ` starting from ${targetYear} and extending 5-10 years forward` : ' for the next 5-10 years'}
+2. Numerical forecasts for supply and consumption${targetYear ? ` starting from ${startYear} and extending AT LEAST to ${targetYear} (preferably 2-3 years beyond ${targetYear} for context). The years array MUST include EVERY year from ${startYear} through ${targetYear} (e.g., if ${targetYear} is selected, include: [${startYear}, ${startYear + 1}, ${startYear + 2}, ..., ${targetYear - 1}, ${targetYear}, ${targetYear + 1}, ${targetYear + 2}, ${targetYear + 3}]). DO NOT stop at an earlier year. DO NOT skip years.` : ' for the next 5-10 years'}
 3. Projected KPIs (production, imports, exports, consumption)${targetYear ? ` for ${targetYear}` : ' for the next year'}
 4. Projected consumption breakdown by sector${targetYear ? ` for ${targetYear}` : ' for the next year'}
 5. Key risk factors to monitor
 6. Actionable recommendations
 
-${targetYear ? `CRITICAL: All KPIs and sector consumption values must be projected specifically for ${targetYear} (${selectedYear}), not for a generic "next year". Use trend analysis to estimate what the values will be in ${targetYear} based on historical patterns.` : 'For KPIs and sector consumption, project values for the next year based on historical trends and patterns.'}
+${targetYear ? `CRITICAL: All KPIs (production, imports, exports, consumption) and sector consumption values MUST be projected specifically for ${targetYear} (${selectedYear}), NOT for a generic "next year" or the first year in the forecast. 
+
+IMPORTANT: 
+- The "production" KPI should match the value in forecasts.supply array at the index where forecasts.years equals ${targetYear}
+- The "consumption" KPI should match the value in forecasts.consumption array at the index where forecasts.years equals ${targetYear}
+- For "imports" and "exports", calculate them based on the supply/consumption gap for ${targetYear} and historical import/export patterns
+- The forecasts arrays MUST include data for EVERY year from ${startYear} through ${targetYear} - do not stop at an earlier year
+- Each year should have DIFFERENT predicted values - do not repeat the same values for all years` : 'For KPIs and sector consumption, project values for the next year based on historical trends and patterns.'}
 Ensure all numerical values are in the same units as the historical data (KToE).
 
 CRITICAL INSTRUCTIONS FOR JSON OUTPUT:
@@ -385,12 +396,42 @@ export function useEnergyPredictions() {
   const [error, setError] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<EnergyPredictionData | null>(null);
 
-  const generatePredictions = async (data: EnergyHistoricalData) => {
+  const generatePredictions = async (data: EnergyHistoricalData, forceRegenerate = false) => {
+    // Create a cache key based on the data (include year in key for exact matching)
+    const cacheKey = `energy-predictions-${data.commodityName}-${data.selectedYear || 'all'}`;
+    
+    // Check cache first, but ONLY if it's for the EXACT same selected year and not forcing regeneration
+    // This ensures each year gets its own prediction with year-specific KPIs
+    if (!forceRegenerate) {
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached) as EnergyPredictionData;
+          // Only use cache if it's for the exact same selected year
+          // The cache key already includes the year, so if it exists, it's for the right year
+          setPredictions(parsed);
+          setLoading(false);
+          setError(null);
+          return;
+        }
+      } catch (cacheError) {
+        // Cache invalid, continue to generate
+        console.warn("Cache check failed", cacheError);
+      }
+    }
+    
     try {
       setLoading(true);
       setError(null);
+      // Always generate fresh predictions - this ensures year-specific KPIs
       const result = await generateEnergyPredictions(data);
       setPredictions(result);
+      // Cache the result with the year in the key
+      try {
+        sessionStorage.setItem(cacheKey, JSON.stringify(result));
+      } catch (cacheError) {
+        console.warn("Failed to cache predictions", cacheError);
+      }
     } catch (e) {
       const msg = (e as Error)?.message || "Failed to generate predictions";
       setError(msg);

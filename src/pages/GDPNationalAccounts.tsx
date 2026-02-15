@@ -277,6 +277,11 @@ const GDPNationalAccounts = () => {
   }, [viewMode, allGdpRows]);
 
   const handleApply = () => {
+    // Clear cache when filters change to force regeneration
+    if (viewMode === "predictions") {
+      // For GDP, we use useForecast which is regression-based, but we still want to ensure data updates
+      sessionStorage.removeItem('last-gdp-prediction-data-key');
+    }
     setSelectedRevision(pendingRevision);
     if (viewMode === "predictions") {
       setSelectedFiscalYear(pendingFiscalYear);
@@ -752,91 +757,6 @@ const GDPNationalAccounts = () => {
         </div>
       )}
 
-      {/* Prediction Charts - Only in predictions mode */}
-      {viewMode === "predictions" && gdpForecast && gdpForecast.forecastLine && gdpForecast.forecastLine.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="glass-card p-5 border-orange-500/30 bg-orange-950/10"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-foreground">
-              GDP Forecast
-            </h3>
-            <div className="flex gap-4 text-xs">
-              <div>
-                <div className="text-muted-foreground">Year</div>
-                <div className="font-mono font-bold text-foreground">
-                  {selectedFiscalYear && selectedFiscalYear !== "ALL" ? selectedFiscalYear : gdpForecast.nextYear ? `${gdpForecast.nextYear}-${String((gdpForecast.nextYear + 1) % 100).padStart(2, "0")}` : "—"}
-                </div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Projected</div>
-                <div className="font-mono font-bold text-orange-400">
-                  {gdpForecast.projectedConstant != null ? `₹ ${toTrillions(gdpForecast.projectedConstant).toFixed(1)} L Cr` : "—"}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="h-48">
-            {(() => {
-              // Filter to show only future forecast data (no historical data in predictions mode)
-              const historyLength = gdpForecast.history?.length ?? 0;
-              let forecastOnlyData = (gdpForecast.forecastLine as Record<string, unknown>[]).slice(historyLength);
-              
-              // Filter by selected fiscal year if a specific year is selected
-              if (selectedFiscalYear && selectedFiscalYear !== "ALL") {
-                // Extract year from fiscal year string (e.g., "2025-26" -> 2025)
-                const targetYear = parseInt(selectedFiscalYear.split('-')[0]);
-                // Filter to show data up to the selected year + 2 years for context
-                // Also ensure we include the selected year itself
-                forecastOnlyData = forecastOnlyData.filter((item) => {
-                  if (typeof item.x === 'string') {
-                    const itemYear = parseInt(item.x.split('-')[0]);
-                    return itemYear <= targetYear + 2;
-                  } else if (typeof item.x === 'number') {
-                    return item.x <= targetYear + 2;
-                  }
-                  return false;
-                });
-              }
-              
-              const tooltipStyle = {
-                backgroundColor: "hsl(222 44% 9%)",
-                border: "1px solid hsl(222 30% 22%)",
-                borderRadius: "8px",
-                fontFamily: "JetBrains Mono",
-                fontSize: "12px",
-              };
-              
-              return forecastOnlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%" key={selectedFiscalYear}>
-                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
-                    <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
-                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="constantPrice"
-                      name="GDP (₹ L Cr, projected)"
-                      stroke="hsl(187 92% 50%)"
-                      strokeWidth={3}
-                      dot={{ fill: "hsl(187 92% 50%)", r: 5 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No forecast data available
-                </div>
-              );
-            })()}
-          </div>
-        </motion.div>
-      )}
 
       {/* Sectors affected — Only in predictions mode */}
       {viewMode === "predictions" && gdpComponentImpacts.length > 0 && (
@@ -927,61 +847,71 @@ const GDPNationalAccounts = () => {
               },
               ]}
             >
-            {(() => {
-              // Filter to show only future forecast data (no historical data in predictions mode)
-              const historyLength = gdpForecast.history?.length ?? 0;
-              let forecastOnlyData = (gdpForecast.forecastLine as Record<string, unknown>[]).slice(historyLength);
-              
-              // Filter by selected fiscal year if a specific year is selected
-              if (selectedFiscalYear && selectedFiscalYear !== "ALL") {
-                // Extract year from fiscal year string (e.g., "2025-26" -> 2025)
-                const targetYear = parseInt(selectedFiscalYear.split('-')[0]);
-                // Filter to show data up to the selected year + 2 years for context
-                // Also ensure we include the selected year itself
-                forecastOnlyData = forecastOnlyData.filter((item) => {
-                  if (typeof item.x === 'string') {
-                    const itemYear = parseInt(item.x.split('-')[0]);
-                    return itemYear <= targetYear + 2;
-                  } else if (typeof item.x === 'number') {
-                    return item.x <= targetYear + 2;
-                  }
-                  return false;
-                });
-              }
-              
-              const tooltipStyle = {
-                backgroundColor: "hsl(222 44% 9%)",
-                border: "1px solid hsl(222 30% 22%)",
-                borderRadius: "8px",
-                fontFamily: "JetBrains Mono",
-                fontSize: "12px",
-              };
-              
-              return forecastOnlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%" key={selectedFiscalYear}>
-                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
-                    <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
-                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="constantPrice"
-                      name="GDP (₹ L Cr, projected)"
-                      stroke="hsl(187 92% 50%)"
-                      strokeWidth={3}
-                      dot={{ fill: "hsl(187 92% 50%)", r: 5 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No forecast data available
-                </div>
-              );
-            })()}
             </PredictionCard>
+
+            {/* Forecast Summary Table */}
+            {gdpForecast && gdpForecast.forecastLine && gdpForecast.forecastLine.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="rounded-xl border border-orange-500/30 bg-orange-950/10 p-6 mt-6"
+              >
+                <h3 className="text-lg font-semibold text-foreground mb-4">Forecast Summary</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {gdpForecast.forecastLine.slice(-6).map((point: any, idx: number) => {
+                    const year = point.year || point.x || "";
+                    const gdp = point.currentPrice || point.constantPrice || 0;
+                    const growth = point.growthRate || point.growth || 0;
+                    return (
+                      <div key={idx} className="p-4 rounded-lg border border-orange-500/20 bg-orange-950/5">
+                        <div className="text-xs text-muted-foreground mb-1">{year}</div>
+                        <div className="text-lg font-mono font-bold text-orange-400 mb-1">
+                          ₹ {toTrillions(gdp).toFixed(1)} L Cr
+                        </div>
+                        <div className={`text-sm font-mono ${growth >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {growth >= 0 ? "+" : ""}{growth.toFixed(1)}%
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Growth Indicators */}
+            {gdpForecast && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6"
+              >
+                <div className="p-4 rounded-lg border border-orange-500/30 bg-orange-950/10">
+                  <div className="text-xs text-muted-foreground mb-1">Latest Growth</div>
+                  <div className={`text-2xl font-mono font-bold ${(gdpForecast.latestGrowth ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {(gdpForecast.latestGrowth ?? 0) >= 0 ? "+" : ""}{(gdpForecast.latestGrowth ?? 0).toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Year-over-year</div>
+                </div>
+                <div className="p-4 rounded-lg border border-orange-500/30 bg-orange-950/10">
+                  <div className="text-xs text-muted-foreground mb-1">Projected Growth</div>
+                  <div className={`text-2xl font-mono font-bold ${(gdpForecast.projectedGrowth ?? 0) >= 0 ? "text-orange-400" : "text-red-400"}`}>
+                    {(gdpForecast.projectedGrowth ?? 0) >= 0 ? "+" : ""}{(gdpForecast.projectedGrowth ?? 0).toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {selectedFiscalYear && selectedFiscalYear !== "ALL" ? selectedFiscalYear : gdpForecast.nextYear ? `${gdpForecast.nextYear}-${String((gdpForecast.nextYear + 1) % 100).padStart(2, "0")}` : "Next year"}
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg border border-orange-500/30 bg-orange-950/10">
+                  <div className="text-xs text-muted-foreground mb-1">Projected GDP</div>
+                  <div className="text-2xl font-mono font-bold text-orange-400">
+                    ₹ {gdpForecast.projectedConstant != null ? toTrillions(gdpForecast.projectedConstant).toFixed(1) : "—"} L Cr
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Constant prices</div>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         )}
 

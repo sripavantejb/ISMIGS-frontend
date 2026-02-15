@@ -43,10 +43,40 @@ const queryClient = new QueryClient();
 
 function ChatbotWithContext() {
   const location = useLocation();
-  const context =
-    location.pathname.startsWith("/farmers")
-      ? "Farmer Dashboard – farming, crops, weather, loans, and agriculture"
-      : undefined;
+  
+  // Build detailed context based on current page
+  let context: string | undefined = undefined;
+  
+  if (location.pathname === "/") {
+    context = "Overview page - Main dashboard with state-level energy data, GDP indicators, and macro-economic overview";
+  } else if (location.pathname.startsWith("/energy")) {
+    const commodityMatch = location.pathname.match(/\/energy\/(.+)/);
+    const commodity = commodityMatch ? commodityMatch[1] : "general";
+    context = `Energy Analytics page - ${commodity} analytics with production, consumption, imports, exports, and AI-powered predictions. Users can toggle between Past History and Predictions modes, and filter by Year and Sector.`;
+  } else if (location.pathname.startsWith("/wpi")) {
+    const groupMatch = location.pathname.match(/\/wpi\/(.+)/);
+    const group = groupMatch ? groupMatch[1] : "overall";
+    context = `Wholesale Inflation (WPI) page - ${group} major group analysis with inflation rates, forecasts, and AI-powered predictions. Users can toggle between Past History and Predictions modes, and filter by Year and Major Group.`;
+  } else if (location.pathname.startsWith("/iip")) {
+    const categoryMatch = location.pathname.match(/\/iip\/(.+)/);
+    const category = categoryMatch ? categoryMatch[1] : "general";
+    context = `Industrial Production (IIP) page - ${category} category analysis with index values, growth rates, and AI-powered predictions. Users can toggle between Past History and Predictions modes, and filter by Year and Category.`;
+  } else if (location.pathname.startsWith("/gva")) {
+    const industryMatch = location.pathname.match(/\/gva\/(.+)/);
+    const industry = industryMatch ? industryMatch[1] : "all";
+    context = `Sector-wise Economy (GVA) page - ${industry} industry analysis with Gross Value Added data, growth rates, and AI-powered predictions. Users can toggle between Past History and Predictions modes, and filter by Year and Industry.`;
+  } else if (location.pathname === "/gdp") {
+    context = "GDP and National Accounts page - GDP analytics with current and constant prices, growth rates, and AI-powered predictions. Users can toggle between Past History and Predictions modes, and filter by Fiscal Year.";
+  } else if (location.pathname === "/cpi-map") {
+    context = "Rural Prices Map page - Interactive map showing state-level CPI-AL and CPI-RL data with year-over-year inflation rates";
+  } else if (location.pathname === "/cpi-outlook") {
+    context = "Consumer Price Outlook page - AI-powered CPI outlook and analysis with inflation forecasts and state-wise comparisons";
+  } else if (location.pathname === "/risk-intelligence") {
+    context = "Risk Intelligence page - AI-powered risk assessment across economic indicators with sector-wise risk identification and mitigation recommendations";
+  } else if (location.pathname.startsWith("/farmers")) {
+    context = "Farmers Dashboard - Specialized dashboard for farmers with farm profile, input costs, crop profitability, energy impact, alerts, loans, crop recommendations, government schemes, market prices, water/irrigation data, and expert consultation";
+  }
+  
   return <ISMIGSChatbot context={context} />;
 }
 

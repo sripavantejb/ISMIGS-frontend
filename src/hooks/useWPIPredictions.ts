@@ -132,12 +132,12 @@ ${dataPoints.join("\n")}
 
 Analyze the historical trends and provide:
 1. A narrative explanation of future inflation trends${targetYear ? `, with specific focus on ${targetYear}` : ''}
-2. Numerical forecasts for inflation rates and WPI index${targetYear ? ` starting from ${startYear} and extending AT LEAST to ${targetYear} (preferably 2-3 years beyond ${targetYear} for context). The years array MUST start with ${startYear} and MUST include ${targetYear}.` : ' for the next 5-10 years'}
+2. Numerical forecasts for inflation rates and WPI index${targetYear ? ` starting from ${startYear} and extending AT LEAST to ${targetYear} (preferably 2-3 years beyond ${targetYear} for context). The years array MUST include EVERY year from ${startYear} through ${targetYear} (e.g., if ${targetYear} is selected, include: [${startYear}, ${startYear + 1}, ${startYear + 2}, ..., ${targetYear - 1}, ${targetYear}, ${targetYear + 1}, ${targetYear + 2}, ${targetYear + 3}]). DO NOT stop at an earlier year. DO NOT skip years.` : ' for the next 5-10 years'}
 3. Projected KPIs (inflation, index, primary articles, fuel & power)${targetYear ? ` for ${targetYear}` : ' for the next year'}
 4. Key risk factors to monitor
 5. Actionable recommendations
 
-${targetYear ? `CRITICAL: All KPIs must be projected specifically for ${targetYear} (${selectedYear}), not for a generic "next year". Use trend analysis to estimate what the values will be in ${targetYear} based on historical patterns.` : 'For KPIs, project values for the next year based on historical trends and patterns.'}
+${targetYear ? `CRITICAL: All KPIs must be projected specifically for ${targetYear} (${selectedYear}), not for a generic "next year". Use trend analysis to estimate what the values will be in ${targetYear} based on historical patterns. The forecasts arrays MUST include data for EVERY year from ${startYear} through ${targetYear} - do not stop at an earlier year.` : 'For KPIs, project values for the next year based on historical trends and patterns.'}
 
 CRITICAL INSTRUCTIONS FOR JSON OUTPUT:
 - Output ONLY the JSON object, nothing else
@@ -393,11 +393,54 @@ export function useWPIPredictions() {
   const [predictions, setPredictions] = useState<WPIPredictionData | null>(null);
 
   const generatePredictions = async (data: WPIHistoricalData) => {
+    // Create a cache key based on the data (include year in key)
+    const cacheKey = `wpi-predictions-${data.majorGroup}-${data.selectedYear || 'all'}`;
+    
+    // Check cache first - show cached data immediately if available
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached && data.selectedYear) {
+      try {
+        const cachedData = JSON.parse(cached) as WPIPredictionData;
+        // Validate cached data structure and verify it extends to selected year
+        if (cachedData && cachedData.forecasts && cachedData.forecasts.years && cachedData.forecasts.years.length > 0) {
+          // Verify cached data extends to selected year
+          const yearMatch = data.selectedYear.match(/^(\d{4})/);
+          if (yearMatch) {
+            const targetYear = parseInt(yearMatch[1], 10);
+            const maxYear = Math.max(...cachedData.forecasts.years);
+            if (maxYear >= targetYear) {
+              setPredictions(cachedData);
+              // Still generate in background for fresh data, but show cached immediately
+            } else {
+              // Cache doesn't extend far enough - clear it and regenerate
+              sessionStorage.removeItem(cacheKey);
+            }
+          } else {
+            setPredictions(cachedData);
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to parse cached predictions", e);
+      }
+    } else if (cached && !data.selectedYear) {
+      // If no year selected, use cached data
+      try {
+        const cachedData = JSON.parse(cached) as WPIPredictionData;
+        if (cachedData && cachedData.forecasts && cachedData.forecasts.years && cachedData.forecasts.years.length > 0) {
+          setPredictions(cachedData);
+        }
+      } catch (e) {
+        console.warn("Failed to parse cached predictions", e);
+      }
+    }
+    
     try {
       setLoading(true);
       setError(null);
       const result = await generateWPIPredictions(data);
       setPredictions(result);
+      // Cache the result
+      sessionStorage.setItem(cacheKey, JSON.stringify(result));
     } catch (e) {
       const msg = (e as Error)?.message || "Failed to generate predictions";
       setError(msg);

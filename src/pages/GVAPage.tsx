@@ -142,6 +142,12 @@ const GVAPage = () => {
   );
 
   const handleApply = () => {
+    // Clear cache when filters change to force regeneration
+    if (viewMode === "predictions" && selectedIndustry) {
+      const oldCacheKey = `gva-predictions-${selectedIndustry}-${selectedYear || 'all'}`;
+      sessionStorage.removeItem(oldCacheKey);
+      sessionStorage.removeItem('last-gva-prediction-data-key');
+    }
     setSelectedYear(pendingYear);
     setSelectedSubindustry(pendingSubindustry);
     setSelectedInstitution(pendingInstitution);
@@ -186,12 +192,18 @@ const GVAPage = () => {
       });
       const lastDataKey = sessionStorage.getItem('last-gva-prediction-data-key');
       
-      // Only regenerate if the year or industry actually changed
-      // This prevents unnecessary API calls when the same data is requested
+      // Force regeneration if filters changed
       if (lastDataKey !== dataKey) {
+        // Clear old cache entries when filters change
+        const oldDataKey = lastDataKey ? JSON.parse(lastDataKey) : null;
+        if (oldDataKey && selectedIndustry) {
+          // Clear cache for old filters
+          const oldCacheKey = `gva-predictions-${selectedIndustry}-${oldDataKey.year || 'all'}`;
+          sessionStorage.removeItem(oldCacheKey);
+        }
+        
         sessionStorage.setItem('last-gva-prediction-data-key', dataKey);
-        // Generate new predictions with updated year - this will call OpenAI API
-        // The hook will check cache first and show cached data immediately if available
+        // Always regenerate when filters change
         generatePredictions(historicalDataForAI);
       }
     } else if (viewMode === "history") {
@@ -870,166 +882,6 @@ const GVAPage = () => {
         </div>
       )}
 
-      {/* Prediction Charts - Only in predictions mode */}
-      {viewMode === "predictions" && aiForecastData && aiForecastData.forecastLine && aiForecastData.forecastLine.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="glass-card p-5 border-orange-500/30 bg-orange-950/10"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-foreground">
-              GVA Forecast — {selectedIndustry}{selectedYear && selectedYear !== "ALL" ? ` (${selectedYear})` : ""}
-            </h3>
-            <div className="flex gap-4 text-xs">
-              <div>
-                <div className="text-muted-foreground">Year</div>
-                <div className="font-mono font-bold text-foreground">
-                  {selectedYear && selectedYear !== "ALL" ? selectedYear : aiForecastData?.nextYear || "—"}
-                </div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Projected Current Price</div>
-                <div className="font-mono font-bold text-orange-400">
-                  {aiForecastData?.projectedCurrentPrice != null ? aiForecastData.projectedCurrentPrice.toLocaleString("en-IN") : "—"}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="h-48">
-            {(() => {
-              if (!aiForecastData || !aiForecastData.forecastLine) return null;
-              
-              // Show loading state if predictions are being generated
-              if (predictionsLoading) {
-                return (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-400 mx-auto mb-2"></div>
-                      <p className="text-sm">Generating AI predictions...</p>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Show error if predictions failed
-              if (predictionsError) {
-                return (
-                  <div className="flex items-center justify-center h-full text-red-400">
-                    <div className="text-center">
-                      <p className="text-sm">Failed to generate predictions</p>
-                      <p className="text-xs text-muted-foreground mt-1">{predictionsError}</p>
-                    </div>
-                  </div>
-                );
-              }
-              
-              // Filter to show only future forecast data (no historical data in predictions mode)
-              const historyLength = aiForecastData.history?.length ?? 0;
-              let forecastOnlyData = (aiForecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
-              
-              // If a specific year is selected, filter to show up to that year (and a bit beyond for context)
-              if (selectedYear && selectedYear !== "ALL") {
-                const yearMatch = selectedYear.match(/^(\d{4})/);
-                if (yearMatch) {
-                  const targetYear = parseInt(yearMatch[1], 10);
-                  // Show forecasts from the start up to the selected year + 2 years for context
-                  // This ensures the graph extends to show the selected year
-                  forecastOnlyData = forecastOnlyData.filter((d) => {
-                    let year: number;
-                    if (typeof d.x === 'number') {
-                      year = d.x;
-                    } else if (typeof d.x === 'string') {
-                      // Handle fiscal year format like "2024-25"
-                      const yearMatch = d.x.match(/^(\d{4})/);
-                      year = yearMatch ? parseInt(yearMatch[1], 10) : parseInt(d.x, 10);
-                    } else {
-                      year = parseInt(String(d.x), 10);
-                    }
-                    // Show all data from start up to targetYear + 2 for context
-                    return !isNaN(year) && year <= targetYear + 2;
-                  });
-                  
-                  // Ensure the selected year is included even if it's not in the data
-                  // Add a data point for the selected year if it's missing
-                  const hasSelectedYear = forecastOnlyData.some((d) => {
-                    let year: number;
-                    if (typeof d.x === 'number') {
-                      year = d.x;
-                    } else if (typeof d.x === 'string') {
-                      const yearMatch = d.x.match(/^(\d{4})/);
-                      year = yearMatch ? parseInt(yearMatch[1], 10) : parseInt(d.x, 10);
-                    } else {
-                      year = parseInt(String(d.x), 10);
-                    }
-                    return year === targetYear;
-                  });
-                  
-                  if (!hasSelectedYear && aiForecastData) {
-                    // Add the selected year data point using the projected values
-                    const selectedYearData = {
-                      x: targetYear,
-                      currentPrice: aiForecastData.projectedCurrentPrice,
-                      constantPrice: aiForecastData.projectedConstantPrice,
-                      growthRate: aiForecastData.projectedGrowthRate,
-                    };
-                    forecastOnlyData.push(selectedYearData);
-                    // Sort by year to maintain order
-                    forecastOnlyData.sort((a, b) => {
-                      const yearA = typeof a.x === 'number' ? a.x : parseInt(String(a.x).match(/^(\d{4})/)?.[1] || '0', 10);
-                      const yearB = typeof b.x === 'number' ? b.x : parseInt(String(b.x).match(/^(\d{4})/)?.[1] || '0', 10);
-                      return yearA - yearB;
-                    });
-                  }
-                }
-              }
-              
-              // If filtering removed all data, show all available data instead
-              if (forecastOnlyData.length === 0 && (aiForecastData.forecastLine as Record<string, unknown>[]).length > historyLength) {
-                forecastOnlyData = (aiForecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
-              }
-              
-              return forecastOnlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%" key={`gva-forecast-chart-${selectedYear || 'all'}-${selectedIndustry}`}>
-                  <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
-                    <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
-                    <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" tickFormatter={(v) => v.toLocaleString()} />
-                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [v.toLocaleString("en-IN"), "GVA"]} />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="currentPrice"
-                      name="GVA (Current Price, projected)"
-                      stroke="hsl(38 92% 50%)"
-                      strokeWidth={3}
-                      dot={{ fill: "hsl(38 92% 50%)", r: 5 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="constantPrice"
-                      name="GVA (Constant Price, projected)"
-                      stroke="hsl(160 84% 45%)"
-                      strokeWidth={3}
-                      dot={{ fill: "hsl(160 84% 45%)", r: 5 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  <div className="text-center">
-                    <p className="text-sm">No forecast data available</p>
-                    {predictionsLoading && (
-                      <p className="text-xs mt-1">Generating predictions...</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        </motion.div>
-      )}
 
       {/* Sectors affected — Only in predictions mode */}
       {viewMode === "predictions" && predictions && predictions.sectorImpact && predictions.sectorImpact.length > 0 && (
@@ -1112,102 +964,92 @@ const GVAPage = () => {
                 </div>
               </div>
             </div>
-            <div className="h-48">
+          </div>
+
+          {/* Year-by-Year Forecast Table */}
+          {predictions && predictions.forecasts && predictions.forecasts.years && predictions.forecasts.years.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="rounded-xl border border-orange-500/30 bg-orange-950/10 p-6 mt-6"
+            >
+              <h3 className="text-lg font-semibold text-foreground mb-4">Year-by-Year Forecast</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-orange-500/20">
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">Year</th>
+                      <th className="text-right py-2 px-3 text-muted-foreground font-medium">Current Price (₹ Cr)</th>
+                      <th className="text-right py-2 px-3 text-muted-foreground font-medium">Constant Price (₹ Cr)</th>
+                      <th className="text-right py-2 px-3 text-muted-foreground font-medium">Growth Rate (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {predictions.forecasts.years.map((year, idx) => {
+                      const currentPrice = predictions.forecasts.currentPrice[idx] ?? 0;
+                      const constantPrice = predictions.forecasts.constantPrice[idx] ?? 0;
+                      const growthRate = predictions.forecasts.growthRate[idx] ?? 0;
+                      return (
+                        <tr key={year} className="border-b border-orange-500/10 hover:bg-orange-950/20">
+                          <td className="py-2 px-3 font-medium text-foreground">{year}-{String((year + 1) % 100).padStart(2, "0")}</td>
+                          <td className="py-2 px-3 text-right font-mono text-orange-400">{Math.round(currentPrice).toLocaleString("en-IN")}</td>
+                          <td className="py-2 px-3 text-right font-mono text-orange-400">{Math.round(constantPrice).toLocaleString("en-IN")}</td>
+                          <td className={`py-2 px-3 text-right font-mono ${growthRate >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {growthRate >= 0 ? "+" : ""}{growthRate.toFixed(2)}%
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Growth Indicators */}
+          {predictions && predictions.forecasts && predictions.forecasts.years && predictions.forecasts.years.length > 1 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6"
+            >
               {(() => {
-                if (!aiForecastData || !aiForecastData.forecastLine) return null;
-                
-                const historyLength = aiForecastData.history?.length ?? 0;
-                let forecastOnlyData = (aiForecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
-                
-                if (selectedYear && selectedYear !== "ALL") {
-                  const yearMatch = selectedYear.match(/^(\d{4})/);
-                  if (yearMatch) {
-                    const targetYear = parseInt(yearMatch[1], 10);
-                    // Show forecasts from the start up to the selected year + 2 years for context
-                    forecastOnlyData = forecastOnlyData.filter((d) => {
-                      let year: number;
-                      if (typeof d.x === 'number') {
-                        year = d.x;
-                      } else if (typeof d.x === 'string') {
-                        const yearMatch = d.x.match(/^(\d{4})/);
-                        year = yearMatch ? parseInt(yearMatch[1], 10) : parseInt(d.x, 10);
-                      } else {
-                        year = parseInt(String(d.x), 10);
-                      }
-                      return !isNaN(year) && year <= targetYear + 2;
-                    });
-                    
-                    // Ensure the selected year is included even if it's not in the data
-                    const hasSelectedYear = forecastOnlyData.some((d) => {
-                      let year: number;
-                      if (typeof d.x === 'number') {
-                        year = d.x;
-                      } else if (typeof d.x === 'string') {
-                        const yearMatch = d.x.match(/^(\d{4})/);
-                        year = yearMatch ? parseInt(yearMatch[1], 10) : parseInt(d.x, 10);
-                      } else {
-                        year = parseInt(String(d.x), 10);
-                      }
-                      return year === targetYear;
-                    });
-                    
-                    if (!hasSelectedYear && aiForecastData) {
-                      // Add the selected year data point using the projected values
-                      const selectedYearData = {
-                        x: targetYear,
-                        currentPrice: aiForecastData.projectedCurrentPrice,
-                        constantPrice: aiForecastData.projectedConstantPrice,
-                        growthRate: aiForecastData.projectedGrowthRate,
-                      };
-                      forecastOnlyData.push(selectedYearData);
-                      // Sort by year to maintain order
-                      forecastOnlyData.sort((a, b) => {
-                        const yearA = typeof a.x === 'number' ? a.x : parseInt(String(a.x).match(/^(\d{4})/)?.[1] || '0', 10);
-                        const yearB = typeof b.x === 'number' ? b.x : parseInt(String(b.x).match(/^(\d{4})/)?.[1] || '0', 10);
-                        return yearA - yearB;
-                      });
-                    }
-                  }
-                }
-                
-                if (forecastOnlyData.length === 0 && (aiForecastData.forecastLine as Record<string, unknown>[]).length > historyLength) {
-                  forecastOnlyData = (aiForecastData.forecastLine as Record<string, unknown>[]).slice(historyLength);
-                }
-                
-                return forecastOnlyData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%" key={`gva-ai-forecast-chart-${selectedYear || 'all'}-${selectedIndustry}`}>
-                    <LineChart data={forecastOnlyData} margin={{ top: 10, right: 24, bottom: 24, left: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
-                      <XAxis dataKey="x" stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" hide={true} />
-                      <YAxis stroke="hsl(215 20% 55%)" fontSize={10} fontFamily="JetBrains Mono" tickFormatter={(v) => v.toLocaleString()} />
-                      <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [v.toLocaleString("en-IN"), "GVA"]} />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="currentPrice"
-                        name="Current Price (projected)"
-                        stroke="hsl(38 92% 50%)"
-                        strokeWidth={3}
-                        dot={{ fill: "hsl(38 92% 50%)", r: 5 }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="constantPrice"
-                        name="Constant Price (projected)"
-                        stroke="hsl(160 84% 45%)"
-                        strokeWidth={3}
-                        dot={{ fill: "hsl(160 84% 45%)", r: 5 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    No forecast data available
-                  </div>
+                const firstCurrent = predictions.forecasts.currentPrice[0] ?? 0;
+                const lastCurrent = predictions.forecasts.currentPrice[predictions.forecasts.currentPrice.length - 1] ?? 0;
+                const firstGrowth = predictions.forecasts.growthRate[0] ?? 0;
+                const lastGrowth = predictions.forecasts.growthRate[predictions.forecasts.growthRate.length - 1] ?? 0;
+                const totalGrowth = firstCurrent > 0 ? ((lastCurrent - firstCurrent) / firstCurrent) * 100 : 0;
+                const avgGrowth = predictions.forecasts.growthRate.reduce((sum, val) => sum + (val ?? 0), 0) / predictions.forecasts.growthRate.length;
+                return (
+                  <>
+                    <div className="p-4 rounded-lg border border-orange-500/30 bg-orange-950/10">
+                      <div className="text-xs text-muted-foreground mb-1">Total GVA Growth</div>
+                      <div className={`text-2xl font-mono font-bold ${totalGrowth >= 0 ? "text-orange-400" : "text-red-400"}`}>
+                        {totalGrowth >= 0 ? "+" : ""}{totalGrowth.toFixed(1)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">Over forecast period</div>
+                    </div>
+                    <div className="p-4 rounded-lg border border-orange-500/30 bg-orange-950/10">
+                      <div className="text-xs text-muted-foreground mb-1">Average Growth Rate</div>
+                      <div className={`text-2xl font-mono font-bold ${avgGrowth >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {avgGrowth >= 0 ? "+" : ""}{avgGrowth.toFixed(2)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">Period average</div>
+                    </div>
+                    <div className="p-4 rounded-lg border border-orange-500/30 bg-orange-950/10">
+                      <div className="text-xs text-muted-foreground mb-1">Growth Trend</div>
+                      <div className={`text-2xl font-mono font-bold ${lastGrowth >= firstGrowth ? "text-emerald-400" : "text-red-400"}`}>
+                        {lastGrowth >= firstGrowth ? "↑ Improving" : "↓ Declining"}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">First vs Last year</div>
+                    </div>
+                  </>
                 );
               })()}
-            </div>
-          </div>
+            </motion.div>
+          )}
         </motion.div>
       )}
 
