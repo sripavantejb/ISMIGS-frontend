@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}", "./src/landing page/analysis-frontend/src/**/*.{js,jsx}"],
   prefix: "",
   theme: {
     container: {
@@ -78,6 +78,14 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        ismigs: {
+          dark: "#0a0a0f",
+          card: "#16161d",
+          border: "rgba(255,255,255,0.12)",
+          purple: "#8b5cf6",
+          "purple-bright": "#a78bfa",
+          "purple-glow": "rgba(139, 92, 246, 0.4)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -109,6 +117,10 @@ export default {
           "0%, 100%": { boxShadow: "0 0 5px hsl(var(--primary) / 0.3)" },
           "50%": { boxShadow: "0 0 20px hsl(var(--primary) / 0.6)" },
         },
+        "landing-glow-pulse": {
+          "0%, 100%": { opacity: "0.6", transform: "scale(1)" },
+          "50%": { opacity: "0.9", transform: "scale(1.02)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -117,6 +129,7 @@ export default {
         "fade-in": "fade-in 0.5s ease-out",
         "slide-up": "slide-up 0.6s ease-out",
         "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "landing-glow-pulse": "landing-glow-pulse 4s ease-in-out infinite",
       },
     },
   },

@@ -59,7 +59,7 @@ const AGRICULTURE_NAV_ITEMS: { to: string; label: string }[] = [
   { to: "/agriculture/experts", label: "Expert consultation" },
 ];
 
-// Overview link: Agriculture panel → /agriculture, Energy panel → /
+// Overview link: Agriculture panel → /agriculture, Energy panel → /dashboard
 
 const navItemsAfterEnergy = [
   { title: "Risk Intelligence", url: "/risk-intelligence", icon: Activity },
@@ -68,9 +68,9 @@ const navItemsAfterEnergy = [
   // { title: "Data Explorer", url: "/explorer", icon: Search },
 ];
 
-const ENERGY_PATHS = ["/energy", "/wpi", "/iip", "/gva", "/risk-intelligence", "/gdp"] as const;
+const ENERGY_PATHS = ["/dashboard", "/energy", "/wpi", "/iip", "/gva", "/risk-intelligence", "/gdp"] as const;
 function isOnEnergyPath(pathname: string): boolean {
-  return pathname === "/" || ENERGY_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  return pathname === "/dashboard" || pathname.startsWith("/dashboard/") || ENERGY_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
 export function AppSidebar() {
@@ -94,7 +94,7 @@ export function AppSidebar() {
     if (newSector === "agriculture" && isOnEnergyPath(location.pathname)) {
       navigate("/agriculture", { replace: true });
     } else if (newSector === "energy" && isAgricultureSection) {
-      navigate("/energy", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   };
 
@@ -163,7 +163,7 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip={sector === "agriculture" ? "Agriculture Overview" : "Overview"}>
                   <NavLink
-                    to={sector === "agriculture" ? "/agriculture" : "/"}
+                    to={sector === "agriculture" ? "/agriculture" : "/dashboard"}
                     end={true}
                     className="hover:bg-sidebar-accent/50"
                     activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"

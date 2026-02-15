@@ -41,13 +41,13 @@ export default function IndiaMapVisualization({ highlightedId = null }) {
       <div className="relative flex items-center justify-center">
         <svg
           viewBox={indiaMap.viewBox}
-          className="h-[55vh] w-auto max-w-full"
+          className="h-[55vh] w-auto max-w-full text-primary"
           xmlns="http://www.w3.org/2000/svg"
           preserveAspectRatio="xMidYMid meet"
-          style={{ filter: 'drop-shadow(0 0 40px rgba(139, 92, 246, 0.12))' }}
+          style={{ filter: 'drop-shadow(0 0 40px hsl(var(--primary) / 0.12))' }}
         >
           <defs>
-            <filter id="ismigs-glow">
+            <filter id="landing-map-glow">
               <feGaussianBlur stdDeviation="4" result="coloredBlur" />
               <feMerge>
                 <feMergeNode in="coloredBlur" />
@@ -62,10 +62,10 @@ export default function IndiaMapVisualization({ highlightedId = null }) {
               <path
                 key={loc.id}
                 d={loc.path}
-                fill={isActive ? 'rgba(139, 92, 246, 0.35)' : 'rgba(139, 92, 246, 0.18)'}
-                stroke={isActive ? 'rgb(167, 139, 250)' : 'rgba(255,255,255,0.35)'}
+                fill={isActive ? 'hsl(var(--primary) / 0.35)' : 'hsl(var(--primary) / 0.18)'}
+                stroke={isActive ? 'hsl(var(--primary))' : 'rgba(255,255,255,0.35)'}
                 strokeWidth={isActive ? 1.5 : 0.8}
-                filter={isActive ? 'url(#ismigs-glow)' : undefined}
+                filter={isActive ? 'url(#landing-map-glow)' : undefined}
                 className="transition-all duration-300 cursor-pointer"
                 onMouseEnter={() => setHoveredId(loc.id)}
                 onMouseLeave={() => setHoveredId(null)}

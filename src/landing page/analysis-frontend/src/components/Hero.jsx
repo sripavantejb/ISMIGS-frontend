@@ -3,36 +3,14 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import IndiaMapVisualization from './IndiaMapVisualization'
 
-const GRID_FACTOR = 0.02
-const GRID_CLAMP = 20
 const PARALLAX_FACTOR = 0.65
 const FADEOUT_FACTOR = 1.5
 const FADEOUT_TRANSLATE = 40
 
-function clamp(value, max) {
-  return Math.max(-max, Math.min(max, value))
-}
-
 export default function Hero() {
   const sectionRef = useRef(null)
-  const [cursorOffset, setCursorOffset] = useState({ x: 0, y: 0 })
   const [scrollProgress, setScrollProgress] = useState(0)
   const [heroHeight, setHeroHeight] = useState(0)
-
-  const handleMouseMove = (e) => {
-    const centerX = window.innerWidth / 2
-    const centerY = window.innerHeight / 2
-    const rawX = (e.clientX - centerX) * GRID_FACTOR
-    const rawY = (e.clientY - centerY) * GRID_FACTOR
-    setCursorOffset({
-      x: clamp(rawX, GRID_CLAMP),
-      y: clamp(rawY, GRID_CLAMP),
-    })
-  }
-
-  const handleMouseLeave = () => {
-    setCursorOffset({ x: 0, y: 0 })
-  }
 
   const updateScroll = useCallback(() => {
     const el = sectionRef.current
@@ -72,35 +50,22 @@ export default function Hero() {
     <section
       ref={sectionRef}
       className="relative h-full min-h-0 flex flex-col lg:flex-row items-stretch px-6 md:px-8 lg:px-10 pt-28 pb-4 md:pb-6 overflow-hidden w-full"
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
     >
-      {/* Background layers wrapper — parallax (moves slower than content) */}
+      {/* Background layers wrapper — parallax (moves slower than content); no cursor tracking to avoid flicker */}
       <div
-        className="absolute inset-0 pointer-events-none transition-transform duration-150 ease-out"
+        className="absolute inset-0 pointer-events-none hero-bg-layer"
         aria-hidden
         style={{
-          transform: `translateY(${parallaxY}px)`,
-          willChange: 'transform',
+          transform: `translateY(${parallaxY}px) translateZ(0)`,
         }}
       >
-        {/* Purple arc / glow background */}
-        <div className="absolute inset-0 pointer-events-none animate-glow-pulse">
-          <div
-            className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[140%] h-[70%] rounded-full opacity-60"
-            style={{
-              background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139, 92, 246, 0.5) 0%, rgba(139, 92, 246, 0.15) 40%, transparent 70%)',
-            }}
-          />
+        {/* Primary arc / glow background (dashboard theme) — subtle pulse only */}
+        <div className="absolute inset-0 pointer-events-none animate-glow-pulse-landing">
+          <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[140%] h-[70%] rounded-full opacity-60 hero-glow-gradient" />
         </div>
 
-        {/* Subtle grid background — cursor-reactive */}
-        <div
-          className="absolute inset-0 pointer-events-none hero-grid transition-transform duration-150 ease-out"
-          style={{
-            transform: `translate(${cursorOffset.x}px, ${cursorOffset.y}px)`,
-          }}
-        />
+        {/* Static grid background — no cursor reaction to prevent flicker */}
+        <div className="absolute inset-0 pointer-events-none hero-grid" />
 
         {/* Floating orbs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -126,25 +91,25 @@ export default function Hero() {
       >
         {/* Left: ISMIGS, full name, description, CTAs — shifted right */}
         <div className="flex-1 flex flex-col justify-center min-w-0 w-full ml-10 md:ml-16 lg:ml-24">
-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold text-white leading-tight mb-5 text-left">
+          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold text-foreground leading-tight mb-5 text-left">
             ISMIGS
           </h1>
-          <p className="text-left mb-3 pb-1.5 border-b-2 border-ismigs-purple w-fit text-gray-300 text-xl md:text-2xl font-normal leading-relaxed max-w-2xl">
+          <p className="text-left mb-3 pb-1.5 border-b-2 border-primary w-fit text-muted-foreground text-xl md:text-2xl font-normal leading-relaxed max-w-2xl">
             India State Macro Intelligence & Governance System
           </p>
-          <p className="text-left text-gray-400 text-base md:text-lg mb-10 max-w-xl">
-            State-level macro, energy, and inflation intelligence — powered by official data.
+          <p className="text-left text-muted-foreground text-base md:text-lg mb-10 max-w-xl">
+            State-level macro, energy, and agriculture intelligence — powered by official data.
           </p>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 text-left">
             <Link
               to="/dashboard"
-              className="inline-flex items-center justify-center px-10 py-4 text-lg font-semibold bg-ismigs-purple text-white rounded-xl hover:bg-ismigs-purple-bright hover:shadow-lg hover:shadow-ismigs-purple/30 transition-all duration-200 min-w-[200px]"
+              className="inline-flex items-center justify-center px-10 py-4 text-lg font-semibold bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 hover:shadow-lg transition-all duration-200 min-w-[200px]"
             >
-              View Dashboards
+              Get started
             </Link>
             <Link
               to="#"
-              className="inline-flex items-center justify-center px-10 py-4 text-lg font-medium border-2 border-white/40 text-white rounded-xl hover:bg-white/10 hover:border-white/60 transition-all duration-200 min-w-[200px]"
+              className="inline-flex items-center justify-center px-10 py-4 text-lg font-medium border-2 border-border text-foreground rounded-xl hover:bg-muted hover:border-border transition-all duration-200 min-w-[200px]"
             >
               See How It Works
             </Link>

@@ -31,7 +31,9 @@ type SectorContextValue = {
 const SectorContext = createContext<SectorContextValue | null>(null);
 
 function deriveSectorFromPath(pathname: string): Sector {
-  return pathname.startsWith("/agriculture") ? "agriculture" : "energy";
+  if (pathname.startsWith("/agriculture")) return "agriculture";
+  if (pathname === "/" || pathname.startsWith("/dashboard")) return "energy";
+  return pathname.startsWith("/energy") || pathname.startsWith("/wpi") || pathname.startsWith("/iip") || pathname.startsWith("/gva") || pathname.startsWith("/risk-intelligence") || pathname.startsWith("/gdp") || pathname.startsWith("/cpi-map") || pathname.startsWith("/cpi-outlook") ? "energy" : "energy";
 }
 
 export function SectorProvider({ children }: { children: React.ReactNode }) {

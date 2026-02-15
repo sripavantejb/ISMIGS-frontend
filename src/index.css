@@ -175,4 +175,66 @@
   .agri-link:hover {
     color: hsl(160 84% 55%);
   }
+
+  /* Landing page hero (dashboard theme – primary); reduced motion to prevent flicker */
+  .hero-bg-layer {
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+  .hero-grid {
+    background-image:
+      linear-gradient(hsl(var(--primary) / 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / 0.08) 1px, transparent 1px);
+    background-size: 48px 48px;
+    background-position: 0 0;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+  .hero-orb {
+    position: absolute;
+    border-radius: 50%;
+    background: hsl(var(--primary) / 0.2);
+    filter: blur(60px);
+    pointer-events: none;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+  .hero-orb-1 {
+    width: 320px;
+    height: 320px;
+    left: 5%;
+    top: 15%;
+    animation: orb-float 20s ease-in-out infinite;
+  }
+  .hero-orb-2 {
+    width: 280px;
+    height: 280px;
+    right: 10%;
+    top: 40%;
+    animation: orb-float 24s ease-in-out infinite 4s;
+  }
+  .hero-orb-3 {
+    width: 240px;
+    height: 240px;
+    left: 45%;
+    bottom: 5%;
+    animation: orb-float 22s ease-in-out infinite 2s;
+  }
+  @keyframes orb-float {
+    0%, 100% { transform: translateZ(0) translate(0, 0) scale(1); opacity: 0.5; }
+    50% { transform: translateZ(0) translate(10px, -8px) scale(1.03); opacity: 0.65; }
+  }
+  .animate-glow-pulse-landing {
+    animation: landing-glow-pulse-kf 6s ease-in-out infinite;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+  @keyframes landing-glow-pulse-kf {
+    0%, 100% { opacity: 0.55; transform: translateZ(0) scale(1); }
+    50% { opacity: 0.7; transform: translateZ(0) scale(1.01); }
+  }
+  .hero-glow-gradient {
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, hsl(var(--primary) / 0.5) 0%, hsl(var(--primary) / 0.15) 40%, transparent 70%);
+  }
 }

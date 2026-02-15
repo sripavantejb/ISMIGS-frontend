@@ -41,6 +41,7 @@ import ISMIGSChatbot from "@/chatbot/ISMIGSChatbot";
 import { SectorProvider } from "@/contexts/SectorContext";
 import { SectorRouteGuard } from "@/components/SectorRouteGuard";
 import { FarmersLayout, FarmersDashboard, FarmProfile, InputCosts, CropProfitability, Alerts, Loans, CropRecommendation, AICropDoctor, GovernmentSchemes, MarketPrices, WaterIrrigation, ExpertConsultation } from "@/farmers";
+import LandingPage from "./pages/LandingPage";
 
 const queryClient = new QueryClient();
 
@@ -56,7 +57,7 @@ function ChatbotWithContext() {
   // Build detailed context based on current page
   let context: string | undefined = undefined;
   
-  if (location.pathname === "/") {
+  if (location.pathname === "/" || location.pathname === "/dashboard") {
     context = "Overview page - Main dashboard with state-level energy data, GDP indicators, and macro-economic overview";
   } else if (location.pathname.startsWith("/energy")) {
     const commodityMatch = location.pathname.match(/\/energy\/(.+)/);
@@ -240,6 +241,7 @@ const App = () => (
             </Route>
             <Route index element={<Navigate to="/sector/approvals" replace />} />
           </Route>
+          <Route path="/" element={<LandingPage />} />
           <Route path="*" element={
             <SectorProvider>
             <SidebarProvider>
@@ -268,7 +270,7 @@ const App = () => (
                       <Route path="water-irrigation" element={<WaterIrrigation />} />
                       <Route path="experts" element={<ExpertConsultation />} />
                     </Route>
-                    <Route path="/" element={<Overview />} />
+                    <Route path="/dashboard" element={<Overview />} />
                 {/* <Route path="/energy-map" element={<EnergyMap />} /> */}
                 <Route path="/energy/:commoditySlug?" element={<EnergyAnalytics />} />
                 <Route path="/iip/:categorySlug?" element={<IndustrialProduction />} />

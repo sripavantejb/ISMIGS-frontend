@@ -66,6 +66,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        "@landing": path.resolve(__dirname, "./src/landing page/analysis-frontend/src"),
       },
     },
   };

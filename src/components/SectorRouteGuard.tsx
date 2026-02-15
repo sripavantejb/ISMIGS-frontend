@@ -30,9 +30,9 @@ export function SectorRouteGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (sector === "energy") {
-    // Energy panel: allow /, /energy, /wpi, /iip, /gva, /risk-intelligence, /gdp
+    // Energy panel: allow /dashboard, /energy, /wpi, /iip, /gva, /risk-intelligence, /gdp
     if (
-      pathname === "/" ||
+      pathname === "/dashboard" ||
       pathname.startsWith("/energy") ||
       pathname.startsWith("/wpi") ||
       pathname.startsWith("/iip") ||

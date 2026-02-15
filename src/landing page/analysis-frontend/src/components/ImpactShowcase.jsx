@@ -21,28 +21,28 @@ const cards = [
 function ShowcaseCard({ tag, title, description, isHighlight }) {
   return (
     <div
-      className={`p-6 rounded-xl border transition-all duration-300 cursor-default hover:scale-[1.02] hover:shadow-lg hover:shadow-ismigs-purple/10 ${
+      className={`p-6 rounded-xl border transition-all duration-300 cursor-default hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10 ${
         isHighlight
-          ? 'bg-ismigs-purple/20 border-ismigs-purple'
-          : 'bg-ismigs-card border-white/10 hover:bg-ismigs-purple/20 hover:border-ismigs-purple'
+          ? 'bg-primary/20 border-primary'
+          : 'bg-card border-border hover:bg-primary/20 hover:border-primary'
       }`}
     >
-      <span className="text-xs text-white/70 uppercase tracking-wider">{tag}</span>
-      <h3 className="text-white font-semibold text-lg mt-2 mb-2">{title}</h3>
-      <p className="text-gray-400 text-sm leading-relaxed">{description}</p>
+      <span className="text-xs text-muted-foreground uppercase tracking-wider">{tag}</span>
+      <h3 className="text-foreground font-semibold text-lg mt-2 mb-2">{title}</h3>
+      <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
     </div>
   )
 }
 
 export default function ImpactShowcase() {
   return (
-    <section className="py-16 md:py-20 px-6 md:px-8 bg-ismigs-dark">
+    <section className="py-16 md:py-20 px-6 md:px-8 bg-background">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
             Real Impact. Proven Insights.
           </h2>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             How ISMIGS helps analysts with Energy, WPI, IIP, GDP, GVA, and macro outlooks.
           </p>
         </div>
@@ -58,7 +58,7 @@ export default function ImpactShowcase() {
         <div className="flex justify-center">
           <Link
             to="/dashboard"
-            className="inline-block px-6 py-3 bg-ismigs-purple text-white font-medium rounded-lg hover:bg-ismigs-purple-bright hover:shadow-lg hover:shadow-ismigs-purple/25 hover:scale-105 active:scale-100 transition-all duration-200"
+            className="inline-block px-6 py-3 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200"
           >
             Explore Data Stories
           </Link>
