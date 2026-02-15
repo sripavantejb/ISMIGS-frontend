@@ -116,19 +116,33 @@ export function AppSidebar() {
           <TooltipProvider delayDuration={300}>
             <Tabs value={sector} onValueChange={handleSectorChange}>
               <TabsList className={cn(
-                "w-full grid grid-cols-2 h-9 bg-sidebar-accent/50 p-1",
+                "w-full grid grid-cols-2 h-10 bg-sidebar-accent/30 p-1 relative rounded-lg border border-sidebar-border/50",
                 collapsed && "grid-cols-2"
               )}>
+                {/* Sliding background indicator */}
+                <div
+                  className={cn(
+                    "absolute top-1 bottom-1 rounded-md border transition-all duration-200 ease-out",
+                    sector === "agriculture" 
+                      ? "left-1 right-[calc(50%+2px)] bg-green-500/30 border-green-500/50" 
+                      : "left-[calc(50%+2px)] right-1 bg-orange-500/30 border-orange-500/50"
+                  )}
+                />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <TabsTrigger
                       value="agriculture"
                       className={cn(
-                        "flex items-center justify-center gap-2 text-sidebar-foreground/70 data-[state=active]:bg-sidebar-primary data-[state=active]:text-sidebar-primary-foreground data-[state=active]:ring-1 data-[state=active]:ring-sidebar-ring data-[state=active]:ring-inset",
+                        "flex items-center justify-center gap-2 relative z-10 transition-all duration-200",
+                        "text-sidebar-foreground/60 data-[state=active]:text-green-400 data-[state=active]:font-semibold",
+                        "hover:text-sidebar-foreground/80",
                         collapsed && "px-2"
                       )}
                     >
-                      <Sprout className="h-4 w-4 shrink-0" />
+                      <Sprout className={cn(
+                        "h-4 w-4 shrink-0 transition-colors duration-200",
+                        sector === "agriculture" ? "text-green-400" : "text-sidebar-foreground/60"
+                      )} />
                       {!collapsed && <span className="truncate text-xs">Agriculture</span>}
                     </TabsTrigger>
                   </TooltipTrigger>
@@ -139,11 +153,16 @@ export function AppSidebar() {
                     <TabsTrigger
                       value="energy"
                       className={cn(
-                        "flex items-center justify-center gap-2 text-sidebar-foreground/70 data-[state=active]:bg-sidebar-primary data-[state=active]:text-sidebar-primary-foreground data-[state=active]:ring-1 data-[state=active]:ring-sidebar-ring data-[state=active]:ring-inset",
+                        "flex items-center justify-center gap-2 relative z-10 transition-all duration-200",
+                        "text-sidebar-foreground/60 data-[state=active]:text-orange-400 data-[state=active]:font-semibold",
+                        "hover:text-sidebar-foreground/80",
                         collapsed && "px-2"
                       )}
                     >
-                      <Zap className="h-4 w-4 shrink-0" />
+                      <Zap className={cn(
+                        "h-4 w-4 shrink-0 transition-colors duration-200",
+                        sector === "energy" ? "text-orange-400" : "text-sidebar-foreground/60"
+                      )} />
                       {!collapsed && <span className="truncate text-xs">Energy</span>}
                     </TabsTrigger>
                   </TooltipTrigger>
