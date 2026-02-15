@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 const quickLinks = {
   Product: [
     { label: 'Overview', to: '/' },
-    { label: 'Dashboards', to: '/dashboard' },
-    { label: 'Analysis & Predictions', to: '/' },
+    { label: 'Macro & Energy', to: '/dashboard' },
+    { label: 'Agriculture', to: '/agriculture' },
   ],
   Resources: [
     { label: 'Admin', to: '/admin' },
@@ -29,7 +29,7 @@ export default function Footer() {
               <span className="text-primary">.</span>
             </Link>
             <p className="text-muted-foreground text-sm mt-3 max-w-xs">
-              India State Macro Intelligence & Governance System. Macro-economic and energy intelligence for India.
+              India State Macro Intelligence & Governance System. Macro-economic, energy, and agriculture intelligence for India. Two sectors — complete features for analysts and farmers.
             </p>
           </div>
 

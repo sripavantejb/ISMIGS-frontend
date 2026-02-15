@@ -97,19 +97,22 @@ export default function Hero() {
           <p className="text-left mb-3 pb-1.5 border-b-2 border-primary w-fit text-muted-foreground text-xl md:text-2xl font-normal leading-relaxed max-w-2xl">
             India State Macro Intelligence & Governance System
           </p>
-          <p className="text-left text-muted-foreground text-base md:text-lg mb-10 max-w-xl">
+          <p className="text-left text-muted-foreground text-base md:text-lg mb-2 max-w-xl">
             State-level macro, energy, and agriculture intelligence — powered by official data.
+          </p>
+          <p className="text-left text-muted-foreground text-sm md:text-base mb-10 max-w-2xl opacity-90">
+            Macro &amp; Energy: Overview, IIP, Energy, WPI, GVA, GDP, Risk, CPI. Agriculture: Crop recommendation, AI Crop Doctor, loans, schemes, market prices, alerts, expert consultation.
           </p>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 text-left">
             <Link
               to="/dashboard"
-              className="inline-flex items-center justify-center px-10 py-4 text-lg font-semibold bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 hover:shadow-lg transition-all duration-200 min-w-[200px]"
+              className="inline-flex items-center justify-center px-10 py-4 text-lg font-semibold bg-primary text-primary-foreground rounded-xl shadow-md hover:bg-primary/90 hover:shadow-lg transition-all duration-200 min-w-[200px] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
             >
               Get started
             </Link>
             <Link
               to="#"
-              className="inline-flex items-center justify-center px-10 py-4 text-lg font-medium border-2 border-border text-foreground rounded-xl hover:bg-muted hover:border-border transition-all duration-200 min-w-[200px]"
+              className="inline-flex items-center justify-center px-10 py-4 text-lg font-medium border-2 border-border text-foreground rounded-xl hover:bg-muted hover:border-border transition-all duration-200 min-w-[200px] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
             >
               See How It Works
             </Link>

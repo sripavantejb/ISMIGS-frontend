@@ -9,7 +9,7 @@ const STEPS = [
   {
     label: 'Step 1',
     headline: 'Admin initiates a disclosure or insight post.',
-    body: 'For example, an energy commodity update or other sector insight.'
+    body: 'For example, a macro or energy update, or an agriculture sector insight (schemes, prices, alerts).'
   },
   {
     label: 'Step 2',

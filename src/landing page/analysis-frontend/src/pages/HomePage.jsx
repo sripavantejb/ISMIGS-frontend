@@ -1,6 +1,5 @@
 import Header from '../components/Header'
 import Hero from '../components/Hero'
-import TrustBadges from '../components/TrustBadges'
 import AnalysisGrid from '../components/AnalysisGrid'
 import BuiltOnTrust from '../components/BuiltOnTrust'
 import ImpactShowcase from '../components/ImpactShowcase'
@@ -17,7 +16,6 @@ export default function HomePage() {
           <div className="flex-1 min-h-0">
             <Hero />
           </div>
-          <TrustBadges />
         </div>
         <AnalysisGrid />
         <BuiltOnTrust />

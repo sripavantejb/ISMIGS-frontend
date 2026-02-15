@@ -15,11 +15,11 @@ export default function SubscribeSection() {
   return (
     <section className="relative z-10 py-16 md:py-20 px-6 md:px-8 border-t border-border bg-background">
       <div className="max-w-2xl mx-auto text-center">
-        <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+        <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
           Stay updated
         </h2>
-        <p className="text-muted-foreground text-base mb-8">
-          Get insights and updates on India&apos;s macro and energy intelligence.
+        <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-8">
+          Get insights and updates on India&apos;s macro, energy, and agriculture intelligence.
         </p>
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 justify-center items-stretch sm:items-center">
           <input
@@ -34,7 +34,7 @@ export default function SubscribeSection() {
           <motion.button
             type="submit"
             disabled={submitted}
-            className="px-8 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold whitespace-nowrap disabled:opacity-80 disabled:cursor-not-allowed select-none"
+            className="px-8 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold whitespace-nowrap disabled:opacity-80 disabled:cursor-not-allowed select-none shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
             whileHover={!submitted ? { scale: 1.02 } : {}}
             whileTap={!submitted ? { scale: 0.96 } : {}}
             transition={{ duration: 0.15 }}
