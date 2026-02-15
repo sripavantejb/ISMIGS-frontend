@@ -1,11 +1,14 @@
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CROP_OPTIONS } from "../data/crops";
 import type { CropChoice } from "../types";
 
-const CROP_CHOICES: CropChoice[] = [
-  { id: "rice", name: "Rice", cropKey: "rice" },
-  { id: "wheat", name: "Wheat", cropKey: "wheat" },
-];
+/** CropChoice for CropSelector and useCropProfitability; cropKey only for rice/wheat. */
+export const CROP_CHOICES: CropChoice[] = CROP_OPTIONS.map((c) => ({
+  id: c.id,
+  name: c.name,
+  cropKey: c.cropKey,
+}));
 
 interface CropSelectorProps {
   value: string;
@@ -30,5 +33,3 @@ export function CropSelector({ value, onValueChange, label = "Crop" }: CropSelec
     </div>
   );
 }
-
-export { CROP_CHOICES };

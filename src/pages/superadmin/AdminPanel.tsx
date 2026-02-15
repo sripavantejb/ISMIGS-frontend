@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   adminPanelCardClass,
@@ -375,11 +376,15 @@ export default function AdminPanel() {
                   </TableHeader>
                   <TableBody>
                     {sectorsWithAdminsLoading ? (
-                      <TableRow className={adminPanelTableRowClass}>
-                        <TableCell colSpan={5} className="text-zinc-500 text-sm py-6 text-center">
-                          Loading…
-                        </TableCell>
-                      </TableRow>
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <TableRow key={i} className={adminPanelTableRowClass}>
+                          <TableCell className="py-3 px-4"><Skeleton className="h-8 w-36 bg-zinc-800" /></TableCell>
+                          <TableCell className="py-3 px-4"><Skeleton className="h-6 w-20 rounded bg-zinc-800" /></TableCell>
+                          <TableCell className="py-3 px-4"><Skeleton className="h-8 w-28 bg-zinc-800" /></TableCell>
+                          <TableCell className="py-3 px-4"><Skeleton className="h-4 w-40 bg-zinc-800" /></TableCell>
+                          <TableCell className="py-3 px-4"><Skeleton className="h-4 w-24 bg-zinc-800" /></TableCell>
+                        </TableRow>
+                      ))
                     ) : sectorsWithAdmins.length === 0 ? (
                       <TableRow className={adminPanelTableRowClass}>
                         <TableCell colSpan={5} className="text-zinc-500 text-sm py-6 text-center">

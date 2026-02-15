@@ -1,10 +1,9 @@
 import { useState, useMemo } from "react";
 import { FARMER_STATES } from "../data/cropStatsByState";
 import { getYieldForStateCrop } from "../data/cropStatsByState";
+import { getDefaultYieldPerAcre, getDefaultPricePerTon } from "../data/cropRecommendations";
 import { CROP_CHOICES } from "../components/CropSelector";
 import type { CultivationCostInputs } from "../types";
-
-const DEFAULT_PRICE_PER_TON: Record<string, number> = { rice: 22000, wheat: 24000 };
 
 export function useCropProfitability(
   stateId: string,
@@ -12,18 +11,21 @@ export function useCropProfitability(
   areaOverride?: number
 ) {
   const [selectedCropId, setSelectedCropId] = useState("rice");
-  const [pricePerTon, setPricePerTon] = useState(DEFAULT_PRICE_PER_TON.rice);
+  const [pricePerTon, setPricePerTon] = useState(getDefaultPricePerTon("rice"));
   const [dieselPctChange, setDieselPctChange] = useState(0);
 
   const cropKey = CROP_CHOICES.find((c) => c.id === selectedCropId)?.cropKey as "rice" | "wheat" | undefined;
-  const yieldPerAcre = cropKey ? getYieldForStateCrop(stateId, cropKey) : 0;
+  const yieldPerAcre =
+    cropKey
+      ? getYieldForStateCrop(stateId, cropKey) * (1 / 2.47)
+      : getDefaultYieldPerAcre(selectedCropId);
   const areaAcres = areaOverride ?? costInputs?.areaAcres ?? 1;
 
   const projections = useMemo(() => {
     return CROP_CHOICES.filter((c) => c.cropKey).map((c) => {
       const key = c.cropKey as "rice" | "wheat";
-      const y = getYieldForStateCrop(stateId, key);
-      const price = c.id === "rice" ? DEFAULT_PRICE_PER_TON.rice : DEFAULT_PRICE_PER_TON.wheat;
+      const y = getYieldForStateCrop(stateId, key) * (1 / 2.47);
+      const price = getDefaultPricePerTon(c.id);
       const rev = y * areaAcres * price;
       const cost = costInputs
         ? (costInputs.seedCostPerAcre + costInputs.fertilizerCostPerAcre + costInputs.labourCostPerAcre + costInputs.irrigationCostPerAcre + costInputs.otherCostPerAcre) * areaAcres
@@ -47,6 +49,6 @@ export function useCropProfitability(
     projections,
     bestCrop,
     cropKey,
-    defaultPrices: DEFAULT_PRICE_PER_TON,
+    defaultPrices: Object.fromEntries(CROP_CHOICES.map((c) => [c.id, getDefaultPricePerTon(c.id)])),
   };
 }

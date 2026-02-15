@@ -1,8 +1,9 @@
 import { Toaster } from "@/components/ui/toaster";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation, useParams } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import Overview from "./pages/Overview";
@@ -37,9 +38,17 @@ import { useState, useEffect } from "react";
 import { getStoredToken, getStoredUser, setStoredUser, fetchMe } from "./services/adminApi";
 import { getStoredSectorToken, setStoredSectorToken } from "./services/sectorApi";
 import ISMIGSChatbot from "@/chatbot/ISMIGSChatbot";
-import { FarmersLayout, FarmersDashboard, FarmProfile, InputCosts, CropProfitability, EnergyImpact, Alerts, Loans, CropRecommendation, GovernmentSchemes, MarketPrices, WaterIrrigation, ExpertConsultation } from "@/farmers";
+import { SectorProvider } from "@/contexts/SectorContext";
+import { SectorRouteGuard } from "@/components/SectorRouteGuard";
+import { FarmersLayout, FarmersDashboard, FarmProfile, InputCosts, CropProfitability, Alerts, Loans, CropRecommendation, AICropDoctor, GovernmentSchemes, MarketPrices, WaterIrrigation, ExpertConsultation } from "@/farmers";
 
 const queryClient = new QueryClient();
+
+function FarmersRedirect() {
+  const { "*": splat } = useParams();
+  const to = splat ? `/agriculture/${splat}` : "/agriculture";
+  return <Navigate to={to} replace />;
+}
 
 function ChatbotWithContext() {
   const location = useLocation();
@@ -73,12 +82,14 @@ function ChatbotWithContext() {
     context = "Consumer Price Outlook page - AI-powered CPI outlook and analysis with inflation forecasts and state-wise comparisons";
   } else if (location.pathname === "/risk-intelligence") {
     context = "Risk Intelligence page - AI-powered risk assessment across economic indicators with sector-wise risk identification and mitigation recommendations";
-  } else if (location.pathname.startsWith("/farmers")) {
-    context = "Farmers Dashboard - Specialized dashboard for farmers with farm profile, input costs, crop profitability, energy impact, alerts, loans, crop recommendations, government schemes, market prices, water/irrigation data, and expert consultation";
+  } else if (location.pathname.startsWith("/agriculture") || location.pathname.startsWith("/farmers")) {
+    context = "Farmer Dashboard – farming, crops, weather, loans, and agriculture. Specialized dashboard for farmers with farm profile, input costs, crop profitability, energy impact, alerts, loans, crop recommendations, government schemes, market prices, water/irrigation data, and expert consultation";
   }
   
   return <ISMIGSChatbot context={context} />;
 }
+
+
 
 function AdminGuard() {
   const token = getStoredToken();
@@ -119,7 +130,22 @@ function AdminGuard() {
 
   if (!token) return <Navigate to="/admin/login" replace />;
   if (storedUser?.role === "SECTOR_ADMIN" || resolved === false) return <Navigate to="/sector/approvals" replace />;
-  if (resolved === null && !storedUser) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading...</div>;
+  if (resolved === null && !storedUser) {
+    return (
+      <div className="min-h-screen flex w-full bg-background">
+        <Skeleton className="w-64 shrink-0 rounded-r-xl" />
+        <div className="flex-1 p-6 space-y-6">
+          <Skeleton className="h-12 w-64" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
+          </div>
+          <Skeleton className="h-48 w-full rounded-xl" />
+        </div>
+      </div>
+    );
+  }
   return <Outlet />;
 }
 
@@ -166,7 +192,22 @@ function SuperAdminGuard() {
   }, [token, storedUser?.role]);
 
   if (!token) return <Navigate to="/admin/login" replace />;
-  if (allowed === null) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading...</div>;
+  if (allowed === null) {
+    return (
+      <div className="min-h-screen flex w-full bg-background">
+        <Skeleton className="w-64 shrink-0 rounded-r-xl" />
+        <div className="flex-1 p-6 space-y-6">
+          <Skeleton className="h-12 w-64" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
+          </div>
+          <Skeleton className="h-48 w-full rounded-xl" />
+        </div>
+      </div>
+    );
+  }
   if (!allowed) return <Navigate to="/admin/dashboard" replace />;
   return <Outlet />;
 }
@@ -200,25 +241,28 @@ const App = () => (
             <Route index element={<Navigate to="/sector/approvals" replace />} />
           </Route>
           <Route path="*" element={
+            <SectorProvider>
             <SidebarProvider>
               <div className="min-h-screen flex w-full">
                 <AppSidebar />
                 <main className="scroll-area-main flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto">
-                  <div className="flex items-center h-12 border-b border-border/30 px-4 bg-background sticky top-0 z-40 will-change-transform [transform:translateZ(0)]">
+                  <div className="flex items-center h-12 border-b border-border/30 px-4 bg-background sticky top-0 z-40 will-change-transform [transform:translateZ(0)] min-w-0 overflow-hidden">
                     <SidebarTrigger />
-                    <span className="ml-3 text-xs text-muted-foreground font-mono uppercase tracking-widest">ISMIGS — India State Macro Intelligence</span>
+                    <span className="ml-3 text-xs text-muted-foreground font-mono uppercase tracking-widest truncate min-w-0">ISMIGS — India State Macro Intelligence</span>
                   </div>
+                  <SectorRouteGuard>
                   <Routes>
-                    <Route path="/farmers" element={<FarmersLayout />}>
+                    <Route path="/farmers/*" element={<FarmersRedirect />} />
+                    <Route path="/agriculture" element={<FarmersLayout />}>
                       <Route index element={<FarmersDashboard />} />
                       <Route path="profile" element={<FarmProfile />} />
                       <Route path="costs" element={<InputCosts />} />
                       <Route path="profitability" element={<CropProfitability />} />
-                      <Route path="energy" element={<EnergyImpact />} />
                       <Route path="alerts" element={<Alerts />} />
                       <Route path="rural-prices" element={<CPIMap />} />
                       <Route path="loans" element={<Loans />} />
                       <Route path="crop-recommendation" element={<CropRecommendation />} />
+                      <Route path="crop-doctor" element={<AICropDoctor />} />
                       <Route path="schemes" element={<GovernmentSchemes />} />
                       <Route path="market-prices" element={<MarketPrices />} />
                       <Route path="water-irrigation" element={<WaterIrrigation />} />
@@ -253,10 +297,12 @@ const App = () => (
                 </Route>
                     <Route path="*" element={<NotFound />} />
                   </Routes>
+                  </SectorRouteGuard>
                 </main>
               </div>
               <ChatbotWithContext />
             </SidebarProvider>
+            </SectorProvider>
           } />
         </Routes>
       </BrowserRouter>

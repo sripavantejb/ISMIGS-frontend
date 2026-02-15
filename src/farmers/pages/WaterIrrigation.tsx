@@ -3,23 +3,64 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Droplets, CloudRain, AlertTriangle } from "lucide-react";
+import { Droplets, CloudRain, AlertTriangle, Sun, Lightbulb } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CROP_OPTIONS } from "../data/crops";
 import { getWaterRequirement, dailyWaterLitersPerAcre } from "../data/waterRequirementByCrop";
 import { SOIL_TYPES } from "../data/soilTypes";
 import { fetchWeatherByCity, type WeatherForecast } from "../services/farmersApi";
 
-const CROP_OPTIONS = [
-  { id: "rice", name: "Rice" },
-  { id: "wheat", name: "Wheat" },
-  { id: "cotton", name: "Cotton" },
-  { id: "sugarcane", name: "Sugarcane" },
-  { id: "maize", name: "Maize" },
-  { id: "bajra", name: "Bajra" },
-];
-
 const RAIN_CODES = [51, 61, 63, 80, 81, 82, 95, 96];
 
 const DEFAULT_CITY = "Serilingampalle";
+
+/** Build irrigation suggestions from current weather and 3-day forecast. */
+function getWeatherBasedSuggestions(weather: WeatherForecast): string[] {
+  const suggestions: string[] = [];
+  const { current, daily } = weather;
+  const temp = current.temp;
+  const humidity = current.humidity;
+  const windSpeed = current.windSpeed;
+  const rainToday = daily?.length > 0 && RAIN_CODES.includes(daily[0].weatherCode);
+  const rainInForecast = daily?.some((d) => RAIN_CODES.includes(d.weatherCode));
+  const isRainingNow = RAIN_CODES.includes(current.weatherCode);
+  const minTempNext = daily?.length ? Math.min(...daily.map((d) => d.tempMin)) : temp;
+
+  if (isRainingNow) {
+    suggestions.push("It's raining now — no need to irrigate. Let rainfall supplement soil moisture.");
+  } else if (rainToday) {
+    suggestions.push("Rain is expected today — skip or reduce irrigation to avoid overwatering.");
+  } else if (rainInForecast) {
+    suggestions.push("Rain in the next few days — you can reduce irrigation and rely on forecast rain on those days.");
+  }
+
+  if (temp >= 35) {
+    suggestions.push("Hot day — irrigate early morning or evening to reduce evaporation and stress on plants.");
+  } else if (temp >= 28 && temp < 35) {
+    suggestions.push("Warm day — morning irrigation is ideal to avoid midday heat and evaporation.");
+  } else if (temp < 15 && !isRainingNow) {
+    suggestions.push("Cool conditions — avoid over-irrigation; soil dries slowly and waterlogging risk is higher.");
+  }
+  if (minTempNext < 5 && !suggestions.some((s) => s.includes("frost"))) {
+    suggestions.push("Cold nights in forecast — delay irrigation if frost is expected to avoid ice damage.");
+  }
+
+  if (humidity < 40 && !isRainingNow) {
+    suggestions.push("Low humidity — soil may dry faster; stick to schedule or use mulch to retain moisture.");
+  } else if (humidity > 75 && temp < 30) {
+    suggestions.push("High humidity — you can slightly reduce irrigation amount; less evaporation expected.");
+  }
+
+  if (windSpeed > 25) {
+    suggestions.push("Windy — avoid sprinklers; use drip or flood irrigation to reduce evaporation and drift.");
+  }
+
+  if (suggestions.length === 0) {
+    suggestions.push("No rain in forecast — follow your normal irrigation schedule for your crop and soil.");
+  }
+
+  return suggestions;
+}
 
 export default function WaterIrrigation() {
   const [cropId, setCropId] = useState("wheat");
@@ -46,19 +87,14 @@ export default function WaterIrrigation() {
 
   const overwateringWarning = rainDays.length > 0 && waterReq != null;
 
-  return (
-    <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
-          <Droplets className="h-5 w-5 text-emerald-400" />
-          Water & irrigation
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Daily water need, weekly schedule, rain forecast, and drip recommendation.
-        </p>
-      </div>
+  const weatherSuggestions = useMemo(() => {
+    if (!weather) return [];
+    return getWeatherBasedSuggestions(weather);
+  }, [weather]);
 
-      <Card className="border-emerald-900/40 bg-card">
+  return (
+    <div className="p-4 sm:p-6 space-y-6 max-w-4xl w-full min-w-0">
+      <Card className="agri-card">
         <CardHeader>
           <CardTitle className="text-base">Inputs</CardTitle>
           <CardDescription>Crop, land size, soil (optional). Location for rain forecast.</CardDescription>
@@ -102,7 +138,7 @@ export default function WaterIrrigation() {
       </Card>
 
       {waterReq && (
-        <Card className="border-emerald-900/40 bg-card">
+        <Card className="agri-card">
           <CardHeader>
             <CardTitle className="text-base">{waterReq.cropName} — water & schedule</CardTitle>
             <CardDescription>Based on crop and area.</CardDescription>
@@ -123,7 +159,7 @@ export default function WaterIrrigation() {
         </Card>
       )}
 
-      <Card className="border-emerald-900/40 bg-card">
+      <Card className="agri-card">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <CloudRain className="h-4 w-4 text-emerald-400" />
@@ -132,7 +168,13 @@ export default function WaterIrrigation() {
           <CardDescription>From Open-Meteo for your location.</CardDescription>
         </CardHeader>
         <CardContent>
-          {weatherLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
+          {weatherLoading && (
+            <ul className="text-sm space-y-1">
+              <li><Skeleton className="h-4 w-full" /></li>
+              <li><Skeleton className="h-4 w-full" /></li>
+              <li><Skeleton className="h-4 w-4/5" /></li>
+            </ul>
+          )}
           {!weatherLoading && weather?.daily && (
             <ul className="text-sm text-muted-foreground space-y-1">
               {weather.daily.map((d) => (
@@ -147,6 +189,38 @@ export default function WaterIrrigation() {
               <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
               <span>Rain is forecast on one or more of the next 3 days. Consider reducing or skipping irrigation to avoid overwatering.</span>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="agri-card">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Sun className="h-4 w-4 text-emerald-400" />
+            Suggestions based on weather now
+          </CardTitle>
+          <CardDescription>Irrigation tips from current conditions and forecast for {weatherCity}.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {weatherLoading && (
+            <ul className="text-sm space-y-2">
+              <li><Skeleton className="h-4 w-full" /></li>
+              <li><Skeleton className="h-4 w-4/5" /></li>
+              <li><Skeleton className="h-4 w-3/4" /></li>
+            </ul>
+          )}
+          {!weatherLoading && weather && weatherSuggestions.length > 0 && (
+            <ul className="text-sm text-muted-foreground space-y-2 list-none pl-0">
+              {weatherSuggestions.map((s, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <Lightbulb className="h-4 w-4 shrink-0 text-emerald-400/80 mt-0.5" />
+                  <span className="text-foreground/90">{s}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!weatherLoading && (!weather || weatherSuggestions.length === 0) && (
+            <p className="text-sm text-muted-foreground">Enter a location above to get weather-based irrigation suggestions.</p>
           )}
         </CardContent>
       </Card>

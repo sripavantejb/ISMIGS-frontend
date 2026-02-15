@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Loader2,
   TrendingUp,
   HelpCircle,
   Building2,
@@ -128,7 +127,6 @@ export function EnergyIntelligenceBriefing({ sectorName, context }: EnergyIntell
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <h2 className="text-xl font-bold text-foreground">Energy intelligence</h2>
-        {loading && <Loader2 className="w-5 h-5 text-primary animate-spin" aria-hidden />}
       </div>
 
       {loading && !summary && (

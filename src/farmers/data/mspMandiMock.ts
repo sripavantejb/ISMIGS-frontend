@@ -2,6 +2,8 @@
  * Mock MSP and mandi prices for farmers. Replace with GET /api/farmers/mandi-prices when available.
  */
 
+import { CROP_IDS, CROP_OPTIONS } from "./crops";
+
 export interface MandiPriceRow {
   cropId: string;
   cropName: string;
@@ -13,7 +15,7 @@ export interface MandiPriceRow {
   trendPct: number;
 }
 
-/** Mock MSP (₹/quintal). 1 quintal = 100 kg. */
+/** Mock MSP (₹/quintal). 1 quintal = 100 kg. Vegetables use indicative market price. */
 const MSP_QUINTAL: Record<string, number> = {
   rice: 2180,
   wheat: 2275,
@@ -21,12 +23,22 @@ const MSP_QUINTAL: Record<string, number> = {
   sugarcane: 340,
   maize: 2090,
   bajra: 2500,
+  jowar: 2800,
+  ragi: 3500,
+  chickpea: 5300,
+  soybean: 4500,
+  groundnut: 6100,
+  mustard: 5650,
+  "pigeon-pea": 7000,
+  potato: 1800,
+  onion: 2200,
+  tomato: 1200,
 };
 
 /** Mock "today" and "yesterday" mandi (₹/quintal) by crop+state; trend derived. */
 const MOCK_MANDI: Record<string, { today: number; yesterday: number }> = {};
-const CROPS = ["rice", "wheat", "cotton", "sugarcane", "maize", "bajra"];
-const STATES = ["haryana", "punjab", "uttar-pradesh", "madhya-pradesh", "maharashtra", "andhra-pradesh"];
+const CROPS = CROP_IDS;
+const STATES = ["haryana", "punjab", "uttar-pradesh", "madhya-pradesh", "maharashtra", "andhra-pradesh", "bihar", "chhattisgarh", "gujarat", "odisha", "rajasthan", "tamil-nadu", "telangana", "west-bengal"];
 for (const crop of CROPS) {
   for (const state of STATES) {
     const key = `${crop}-${state}`;
@@ -45,6 +57,11 @@ function getTrend(today: number, yesterday: number): { trend: "up" | "down" | "f
   return { trend: "flat", trendPct: pct };
 }
 
+function getCropDisplayName(cropId: string): string {
+  const opt = CROP_OPTIONS.find((c) => c.id === cropId);
+  return opt?.name ?? cropId.charAt(0).toUpperCase() + cropId.slice(1).replace(/-/g, " ");
+}
+
 export function getMspMandiMock(cropId: string, stateId: string): MandiPriceRow {
   const key = `${cropId}-${stateId}`;
   const mandi = MOCK_MANDI[key];
@@ -53,7 +70,7 @@ export function getMspMandiMock(cropId: string, stateId: string): MandiPriceRow 
   const { trend, trendPct } = getTrend(fallback.today, fallback.yesterday);
   return {
     cropId,
-    cropName: cropId.charAt(0).toUpperCase() + cropId.slice(1),
+    cropName: getCropDisplayName(cropId),
     stateId,
     msp,
     today: fallback.today,

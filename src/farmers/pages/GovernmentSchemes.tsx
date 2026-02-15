@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Landmark } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { GOVERNMENT_SCHEMES, type GovernmentScheme } from "../data/governmentSchemes";
 import { FARMER_STATES } from "../data/cropStatsByState";
 
@@ -21,27 +21,17 @@ export default function GovernmentSchemes() {
   }, [levelFilter, stateFilter]);
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
-          <Landmark className="h-5 w-5 text-emerald-400" />
-          Government schemes
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Central and state schemes: eligibility, documents, and application links.
-        </p>
-      </div>
-
-      <Card className="border-emerald-900/40 bg-card">
+    <div className="p-4 sm:p-6 space-y-6 max-w-4xl w-full min-w-0">
+      <Card className="agri-card">
         <CardHeader>
           <CardTitle className="text-base">Filters</CardTitle>
           <CardDescription>Filter by level and state.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-4">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div className="space-y-2">
             <Label>Level</Label>
             <Select value={levelFilter} onValueChange={setLevelFilter}>
-              <SelectTrigger className="w-[140px] border-border bg-background/50">
+              <SelectTrigger className="w-full sm:w-[140px] border-border bg-background/50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -54,7 +44,7 @@ export default function GovernmentSchemes() {
           <div className="space-y-2">
             <Label>State (for State schemes)</Label>
             <Select value={stateFilter} onValueChange={setStateFilter}>
-              <SelectTrigger className="w-[180px] border-border bg-background/50">
+              <SelectTrigger className="w-full sm:w-[180px] border-border bg-background/50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -68,9 +58,9 @@ export default function GovernmentSchemes() {
         </CardContent>
       </Card>
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filtered.length === 0 ? (
-          <Card className="border-emerald-900/40 bg-card">
+          <Card className="agri-card col-span-full">
             <CardContent className="py-8 text-center text-muted-foreground">No schemes match the selected filters.</CardContent>
           </Card>
         ) : (
@@ -85,7 +75,7 @@ export default function GovernmentSchemes() {
 
 function SchemeCard({ scheme }: { scheme: GovernmentScheme }) {
   return (
-    <Card className="border-emerald-900/40 bg-card">
+    <Card className="agri-card">
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="text-base text-foreground">{scheme.name}</CardTitle>

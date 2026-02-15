@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Leaf } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FARMER_STATES } from "../data/cropStatsByState";
 import { SOIL_TYPES } from "../data/soilTypes";
 import { getRecommendedCrops, MONTH_OPTIONS, WATER_OPTIONS, type RecommendedCrop } from "../data/cropRecommendations";
@@ -14,34 +14,30 @@ export default function CropRecommendation() {
   const [soilType, setSoilType] = useState("Alluvial");
   const [waterAvailability, setWaterAvailability] = useState("Medium");
   const [landAcres, setLandAcres] = useState(2);
+  const [loading, setLoading] = useState(false);
 
   const recommendations = useMemo(
     () => getRecommendedCrops(stateId, month, soilType, waterAvailability, landAcres),
     [stateId, month, soilType, waterAvailability, landAcres]
   );
 
-  return (
-    <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
-          <Leaf className="h-5 w-5 text-emerald-400" />
-          Smart crop recommendation
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Get crop suggestions by state, month, soil type, and water availability.
-        </p>
-      </div>
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 250);
+    return () => clearTimeout(timer);
+  }, [stateId, month, soilType, waterAvailability, landAcres]);
 
-      <Card className="border-emerald-900/40 bg-card">
-        <CardHeader>
+  return (
+    <div className="p-4 sm:p-6 space-y-6 max-w-4xl w-full min-w-0 text-left">
+      <Card className="agri-card">
+        <CardHeader className="text-left">
           <CardTitle className="text-base">Your conditions</CardTitle>
-          <CardDescription>Select state, month, soil, water, and land size.</CardDescription>
+          <CardDescription className="text-left">Select state, month, soil, water, and land size.</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-start text-left">
           <div className="space-y-2">
             <Label>State</Label>
-            <Select value={stateId} onValueChange={setStateId}>
-              <SelectTrigger className="border-border bg-background/50">
+            <Select value={stateId} onValueChange={(v) => { setLoading(true); setStateId(v); }}>
+              <SelectTrigger className="w-full border-border bg-background/50 text-left [&>span]:text-left justify-start [&>svg]:ml-auto">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -53,8 +49,8 @@ export default function CropRecommendation() {
           </div>
           <div className="space-y-2">
             <Label>Month</Label>
-            <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
-              <SelectTrigger className="border-border bg-background/50">
+            <Select value={String(month)} onValueChange={(v) => { setLoading(true); setMonth(Number(v)); }}>
+              <SelectTrigger className="w-full border-border bg-background/50 text-left [&>span]:text-left justify-start [&>svg]:ml-auto">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -66,8 +62,8 @@ export default function CropRecommendation() {
           </div>
           <div className="space-y-2">
             <Label>Soil type</Label>
-            <Select value={soilType} onValueChange={setSoilType}>
-              <SelectTrigger className="border-border bg-background/50">
+            <Select value={soilType} onValueChange={(v) => { setLoading(true); setSoilType(v); }}>
+              <SelectTrigger className="w-full border-border bg-background/50 text-left [&>span]:text-left justify-start [&>svg]:ml-auto">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -79,8 +75,8 @@ export default function CropRecommendation() {
           </div>
           <div className="space-y-2">
             <Label>Water availability</Label>
-            <Select value={waterAvailability} onValueChange={setWaterAvailability}>
-              <SelectTrigger className="border-border bg-background/50">
+            <Select value={waterAvailability} onValueChange={(v) => { setLoading(true); setWaterAvailability(v); }}>
+              <SelectTrigger className="w-full border-border bg-background/50 text-left [&>span]:text-left justify-start [&>svg]:ml-auto">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -97,43 +93,73 @@ export default function CropRecommendation() {
               min={0.1}
               step={0.5}
               value={landAcres}
-              onChange={(e) => setLandAcres(parseFloat(e.target.value) || 1)}
-              className="bg-background/50"
+              onChange={(e) => { setLoading(true); setLandAcres(parseFloat(e.target.value) || 1); }}
+              className="w-full bg-background/50 text-left"
             />
           </div>
         </CardContent>
       </Card>
 
-      <div>
-        <h2 className="text-sm font-medium text-emerald-400 mb-3">Recommended crops</h2>
-        {recommendations.length === 0 ? (
-          <Card className="border-emerald-900/40 bg-card">
-            <CardContent className="py-8 text-center text-muted-foreground">
+      <section className="space-y-4 text-left w-full min-w-0">
+        <h2 className="agri-section-header">Recommended crops</h2>
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0 items-stretch">
+            <CropCardSkeleton />
+            <CropCardSkeleton />
+          </div>
+        ) : recommendations.length === 0 ? (
+          <Card className="agri-card">
+            <CardContent className="py-8 text-left text-muted-foreground">
               No crops match your current selection. Try a different month or water availability.
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0 items-stretch">
             {recommendations.map((crop) => (
               <CropCard key={crop.cropId} crop={crop} landAcres={landAcres} />
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
+  );
+}
+
+function CropCardSkeleton() {
+  return (
+    <Card className="agri-card text-left w-full min-w-0 flex flex-col h-full">
+      <CardHeader className="pb-2 text-left">
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-4 w-48 mt-2" />
+      </CardHeader>
+      <CardContent className="space-y-3 text-left flex-1 flex flex-col">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-4/5" />
+        <div>
+          <Skeleton className="h-3 w-28 mb-2" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+        </div>
+        <Skeleton className="h-5 w-32 mt-auto" />
+      </CardContent>
+    </Card>
   );
 }
 
 function CropCard({ crop, landAcres }: { crop: RecommendedCrop; landAcres: number }) {
   return (
-    <Card className="border-emerald-900/40 bg-card">
-      <CardHeader className="pb-2">
+    <Card className="agri-card text-left w-full min-w-0 flex flex-col h-full">
+      <CardHeader className="pb-2 text-left">
         <CardTitle className="text-base text-foreground">{crop.name}</CardTitle>
-        <CardDescription>
+        <CardDescription className="text-left">
           Expected yield: {crop.yieldPerAcre.toFixed(2)} tons/acre × {landAcres} acres
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 text-left flex-1 flex flex-col">
         <p className="text-sm text-muted-foreground"><span className="font-medium text-foreground">Water requirement:</span> {crop.waterReq}</p>
         <p className="text-sm text-muted-foreground"><span className="font-medium text-foreground">Market demand:</span> {crop.marketDemand}</p>
         <div>
@@ -144,7 +170,7 @@ function CropCard({ crop, landAcres }: { crop: RecommendedCrop; landAcres: numbe
             ))}
           </ul>
         </div>
-        <p className="text-sm font-mono font-semibold text-emerald-400">
+        <p className="mt-auto text-sm font-mono font-semibold text-emerald-400">
           Revenue estimation: ₹ {crop.estimatedRevenue.toLocaleString("en-IN")}
         </p>
       </CardContent>

@@ -47,3 +47,13 @@ export interface AlertPreference {
 }
 
 export type EnergyRiskLevel = "low" | "medium" | "high";
+
+export interface AgricultureUpdate {
+  id: string;
+  type: "scheme" | "price" | "input_cost" | "weather";
+  title: string;
+  summary: string;
+  date: string;
+  link?: string;
+  severity?: "info" | "success" | "warning";
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileCheck, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,9 +53,24 @@ export default function SectorLogin() {
     return (
       <div className="min-h-screen p-6 flex items-center justify-center bg-zinc-950">
         <Card className="w-full max-w-md border-border bg-zinc-900">
-          <CardContent className="pt-6">
-            <div className="flex justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-6 w-6 rounded" />
+              <Skeleton className="h-6 w-40" />
+            </div>
+            <Skeleton className="h-4 w-full max-w-md mt-2" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full rounded-md bg-zinc-800" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-10 w-full rounded-md bg-zinc-800" />
+              </div>
+              <Skeleton className="h-10 w-full rounded-md" />
             </div>
           </CardContent>
         </Card>
